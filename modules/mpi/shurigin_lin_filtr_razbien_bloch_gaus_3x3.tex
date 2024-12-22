@@ -1,0 +1,472 @@
+% Настройки для pdfLaTeX и поддержки русского языка
+\documentclass[14pt]{extarticle}
+\usepackage[T2A]{fontenc}  % Должен быть загружен перед babel
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{bookmark}
+\usepackage{mathptmx} % Times New Roman для текста и математики
+
+\usepackage{cite}
+\makeatletter
+\renewcommand{\@biblabel}[1]{#1.}
+\makeatother
+
+\usepackage{hyperref}
+\usepackage[dvips]{graphicx}
+\usepackage{float}
+\graphicspath{{picture/}}
+\usepackage{amssymb,amsfonts,amsmath,amsthm}
+\usepackage{indentfirst}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{ulem}
+\renewcommand{\arraystretch}{1.5}
+\linespread{1.3}
+\frenchspacing
+
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{wrapfig}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\usepackage{geometry}
+\geometry{left = 2.5cm}
+\geometry{right = 1.5cm}
+\geometry{top = 2cm}
+\geometry{bottom = 2cm}
+
+\renewcommand\textbullet{\ensuremath{\bullet}}
+\usepackage{cancel}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\floatname{algorithm}{Алгоритм}
+
+\usepackage{listings}
+\usepackage{color}
+\lstdefinestyle{mystyle}{
+    basicstyle=\footnotesize,
+    breakatwhitespace=false, 
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true, 
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+
+\newtheorem{theorem}{Теорема}[section]
+\newtheorem{corollary}{Следствие}[section]
+\newtheorem{lemma}{Лемма}[section]
+\newtheorem{proposition}{Утверждение}[section]
+\theoremstyle{definition}
+\newtheorem{definition}{Определение}[section]
+\newtheorem{example}{Пример}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Замечание}
+
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\newcommand{\Mod}[1]{\ (\mathrm{mod}\ #1)}
+
+\usepackage[inkscapeformat=pdf]{svg}
+
+% Для использования fontspec необходимо использовать XeLaTeX или LuaLaTeX
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+
+% Настройка заголовков с использованием titlesec
+\usepackage{titlesec}
+\titleformat{\section}{\bfseries\Large}{\thesection.\hspace{0.5em}}{0pt}{}
+\titleformat{\subsection}{\bfseries\large}{\thesubsection.\hspace{0.5em}}{0pt}{}
+\titleformat{name=\section,numberless}{\bfseries\Large\filcenter}{}{0pt}{}
+
+% Отступы заголовков
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% Настройка содержания с помощью tocloft для добавления линии точек
+\usepackage{tocloft}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsecfont}{}
+\renewcommand{\cftsecpagefont}{}
+\setlength{\cftbeforesecskip}{0pt}
+
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+{\normalsize\textbf{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ\\
+РОССИЙСКОЙ ФЕДЕРАЦИИ}}
+
+\vspace{0.3cm}
+{\normalsize Федеральное государственное автономное образовательное учреждение\\
+высшего образования\\
+«Национальный исследовательский
+Нижегородский государственный университет им. Н.И. Лобачевского»
+(ННГУ)}
+
+\vspace{0.5cm}
+{\normalsize\textbf{Институт информационных технологий, математики и механики}}
+
+\vspace{1cm}
+{\normalsize Направление подготовки:\\
+02.03.02 Фундаментальная информатика и информационные технологии}
+
+\vspace{1cm}
+{\normalsize\textbf{ОТЧЕТ}\\
+\textbf{по лабораторной работе}
+}
+
+\vspace{1cm}
+{\normalsize на тему:\\
+«Линейная фильтрация изображений.\\ Ядро Гаусса 3x3»}
+
+\vfill
+
+\begin{flushright}
+\begin{tabular}{l}
+Выполнил:
+студент группы 3822Б1ФИ1\\
+\underline{\hspace{3cm}} Шурыгин С.Е.\\
+Проверил:\\
+кандидат технических наук\\
+\underline{\hspace{3cm}}  Сысоев А.В.
+\end{tabular}
+\end{flushright}
+
+\vfill
+
+{\normalsize\text{Нижний Новгород}\\
+\text{2024}}
+
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+\addcontentsline{toc}{section}{Введение}
+\section*{Введение}
+В современной обработке изображений линейная фильтрация является одним из фундаментальных инструментов для решения широкого спектра задач, включая подавление шума, сглаживание и выделение особенностей изображений. Особое место среди методов линейной фильтрации занимает фильтр Гаусса, который обеспечивает равномерное размытие изображения с сохранением важных структурных особенностей.
+
+\newpage
+
+\section{Постановка задачи}
+Основной целью данной работы является разработка и реализация эффективного параллельного алгоритма линейной фильтрации изображений с использованием ядра Гаусса размером 3×3 на основе блочного разбиения данных.
+
+Для достижения поставленной цели необходимо решить следующие задачи:
+
+\begin{enumerate}
+    \item Реализовать последовательный алгоритм фильтрации изображения с использованием ядра Гаусса 3×3.
+
+    \item Разработать схему блочного разбиения исходного изображения.
+
+    \item Реализовать параллельный алгоритм фильтрации с использованием технологии MPI.
+
+    \item Провести исследование эффективности разработанного параллельного алгоритма.
+\end{enumerate}
+Входными данными алгоритма является полутоновое изображение размером $M \times N$ пикселей, где каждый пиксель представлен целым числом в диапазоне [0, 255]. Выходными данными является отфильтрованное изображение того же размера.
+\clearpage
+\section{Описание алгоритма}
+
+Последовательный алгоритм линейной фильтрации изображения с использованием ядра Гаусса 3×3 реализован в виде четырех основных этапов:
+
+\subsection{Валидация входных данных}
+На этапе валидации производится проверка корректности входных данных:
+проверка наличия всех необходимых входных параметров (матрица изображения, количество строк и столбцов), проверка размерности изображения (минимум 3×3 пикселя), проверка соответствия размеров входных и выходных буферов, а также валидация значений пикселей (должны находиться в диапазоне [0, 255]).
+
+\subsection{Предварительная обработка}
+На этапе предварительной обработки выполняется извлечение размеров изображения из входных параметров, копирование исходных данных изображения во внутренний буфер и инициализация выходного буфера для результата фильтрации.
+
+\subsection{Основной этап фильтрации}
+
+Для каждого пикселя изображения (кроме граничных) вычисляется взвешенная сумма значений в окне 3×3 вокруг текущего пикселя. Весовые коэффициенты соответствуют значениям ядра Гаусса, а результат сохраняется в выходной буфер. Обработка выполняется построчно, начиная с позиции (1,1) до (rows-2, cols-2), при этом для каждого пикселя учитываются значения 8 соседних пикселей и самого пикселя.
+
+\subsection{Пост-обработка}
+На заключительном этапе результаты фильтрации копируются из внутреннего буфера в выходной массив, после чего освобождаются временные буферы.
+
+Особенности реализации: алгоритм использует двойную точность для промежуточных вычислений, граничные пиксели не обрабатываются в текущей реализации, все операции выполняются с учетом линейной структуры хранения двумерного изображения в памяти.
+\clearpage
+\section{Описание схемы распараллеливания}
+
+Параллельная реализация алгоритма фильтрации изображения основана на блочном разбиении данных с использованием технологии MPI.
+
+Изображение разбивается на блоки с учетом необходимости обработки граничных областей. Для каждого блока вычисляются:
+\begin{itemize}
+    \item Размер блока данных с учетом перекрытия
+    \item Смещение относительно начала изображения
+    \item Координаты обрабатываемых пикселей
+\end{itemize}
+
+Процесс параллельной обработки организован следующим образом: корневой процесс (ранг 0) выполняет начальное распределение данных, используя функции MPI для рассылки частей изображения. Каждый процесс получает свой блок данных и список координат пикселей для обработки. После обработки своей части данных процессы отправляют результаты обратно корневому процессу, который формирует итоговое изображение.
+
+\clearpage
+\section{Описание MPI реализации}
+Процесс параллельной обработки организован следующим образом:
+
+Корневой процесс (ранг 0) выполняет:
+\begin{itemize}
+    \item \textbf{\texttt{validation()}}: Валидация входных данных, проверка их корректности.
+    \item \textbf{\texttt{pre\_processing()}}: Вычисление индексов обработки для матриц, распределение блоков данных.
+    \item Рассылку параметров задачи остальным процессам, включая размеры и смещения данных.\\
+\end{itemize}
+
+Каждый процесс получает:
+\begin{itemize}
+    \item Локальный блок данных изображения.
+    \item Координаты пикселей для обработки, необходимые для применения фильтра.
+    \item Размеры и смещения для своего блока из распределенных данных.\\
+\end{itemize}
+
+Обработка данных:
+\begin{itemize}
+    \item Каждый процесс применяет фильтр Гаусса к своему блоку данных.
+    \item Используется матрица ядра размером $3 \times 3$.
+    \item Учитываются граничные условия при обработке, чтобы обеспечить корректность результатов.\\
+\end{itemize}
+
+Сбор результатов:
+\begin{itemize}
+    \item Результаты обработки собираются на корневом процессе (\texttt{rank = 0}).
+    \item Выполняется финальная компоновка изображения для получения окончательного результата.\\
+\end{itemize}
+
+Благодаря использованию методов, таких как валидация входных данных и предварительная обработка, обеспечивает корректность и согласованность передаваемой информации. Ключевые функции, включая \texttt{run()} и \texttt{post\_processing()}, позволяют эффективно делить задачу на более мелкие части, обрабатывая данные локально и затем собирая результаты для финального вывода.
+
+\clearpage
+\section{Проведение экспиримента}
+
+Для оценки эффективности разработанного параллельного алгоритма было проведено экспериментальное исследование. В качестве входных данных использовались случайно сгенерированные матрицы различных размеров: 100×100, 1000×1000 и 10000×10000 элементов. Каждый элемент матрицы представлял собой целое число в диапазоне [0, 255], что соответствует значениям пикселей в полутоновом изображении.
+
+Тестирование проводилось в двух режимах:
+\begin{itemize}
+    \item Последовательное выполнение (TaskSeq)
+    \item Параллельное выполнение с использованием MPI (TaskMpi)
+\end{itemize}
+
+\subsection{Результаты измерений}
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Размер матрицы} & \textbf{TaskSeq} & \textbf{TaskMpi} & \textbf{Ускорение} \\
+\hline
+100×100 & 0.00068 с & 0.00236 с & 0.29x \\
+1000×1000 & 0.07154 с & 0.05276 с & 1.36x \\
+10000×10000 & 7.82631 с & 4.15147 с & 1.89x \\
+\hline
+\end{tabular}
+\caption{Время выполнения алгоритма}
+\label{tab:execution_time}
+\end{table}
+
+\subsection{Анализ результатов}
+Анализ полученных результатов показывает следующие закономерности:
+
+\begin{enumerate}
+    \item Для малых размеров матрицы (100×100) последовательная версия алгоритма работает быстрее параллельной. Это объясняется накладными расходами на инициализацию MPI и распределение данных между процессами, которые превышают выигрыш от параллельной обработки при малом объеме вычислений.
+    
+    \item При увеличении размера матрицы до 1000×1000 параллельная версия начинает демонстрировать преимущество, обеспечивая ускорение в 1.36 раза по сравнению с последовательной версией.
+    
+    \item Для больших матриц (10000×10000) преимущество параллельной версии становится наиболее существенным - достигается ускорение в 1.89 раза. Это подтверждает эффективность выбранной схемы распараллеливания для обработки больших объемов данных.
+\end{enumerate}
+
+\subsection{Выводы}
+Экспериментальное исследование показало, что разработанный для малого количества данных будет проще использовать последовательную версию, так как она быстрее, проще в реализации и понимании. Однако, когда речь заходит о больших массивах данных следует использовать параллельную версию.
+\clearpage
+
+\addcontentsline{toc}{section}{Заключение}
+\section*{Заключение}
+
+В рамках данной лабораторной был разработан и реализован параллельный алгоритм линейной фильтрации изображений с использованием ядра Гаусса на основе блочного разбиения данных.
+
+Проведенное экспериментальное исследование показало значительное ускорение обработки - в 1.89 раза для изображений размером 10000×10000 пикселей. Была подтверждена эффективность параллельной версии для матриц размером от 1000×1000 элементов, в то время как для малых изображений (100×100) более эффективным оказался последовательный алгоритм.
+
+Таким образом, поставленные в работе цели были достигнуты, а разработанный параллельный алгоритм показал свою эффективность при обработке изображений большого размера.
+
+\newpage
+\addcontentsline{toc}{section}{Список литература}
+\section*{Список литература}
+
+\begin{enumerate}
+\item Гергель В.П. Высокопроизводительные вычисления для многопроцессорных многоядерных систем. -- М.: Издательство Московского университета, 2019. -- 544 с.
+
+\item Антонов А.С. Параллельное программирование с использованием технологии MPI. -- М.: Издательство МГУ, 2018. -- 272 с.
+
+\item Гонсалес Р., Вудс Р. Цифровая обработка изображений. -- М.: Техносфера, 2020. -- 1104 с.
+
+\item Форсайт Д., Понс Ж. Компьютерное зрение. Современный подход. -- М.: Вильямс, 2018. -- 928 с.
+\end{enumerate}
+\newpage
+\addcontentsline{toc}{section}{Приложения}
+\section*{Приложения}
+\subsection*{Приложение №1}
+\noindent Реализация методов классов TaskMPI и TaskSEQ:
+\begin{lstlisting}[language=C++, caption=Приложение №1]
+bool TaskMpi::validation() {
+  internal_order_test();
+  if (comm.rank() != 0) {
+    return true;
+  }
+
+  if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+      taskData->outputs_count.empty()) {
+    return false;
+  }
+
+  int num_rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  int num_cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+  auto expected_size = static_cast<size_t>(num_rows * num_cols);
+
+  return num_rows >= 3 && num_cols >= 3 && taskData->inputs_count[0] == expected_size &&
+         taskData->outputs_count[0] == expected_size && taskData->inputs_count[0] == taskData->outputs_count[0];
+}
+
+bool TaskMpi::pre_processing() {
+  internal_order_test();
+
+  if (comm.rank() == 0) {
+    auto* data_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+    int data_size = taskData->inputs_count[0];
+
+    height = *reinterpret_cast<int*>(taskData->inputs[1]);
+    width = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+    input_data.assign(data_ptr, data_ptr + data_size);
+    processed_data.resize((height - 2) * (width - 2), 0);
+
+    processing_indices = computeProcessingIndices(height, width);
+    calculateDistribution((height - 2) * (width - 2), 1, comm.size(), block_sizes, block_offsets);
+
+    auto distributed_indices = distributeWorkload(processing_indices, block_sizes, block_offsets);
+    computeBlockDistribution(distributed_indices, width, data_sizes, data_offsets);
+  }
+
+  return true;
+}
+
+bool TaskMpi::run() {
+  internal_order_test();
+
+  boost::mpi::broadcast(comm, width, 0);
+  boost::mpi::broadcast(comm, data_sizes, 0);
+  boost::mpi::broadcast(comm, data_offsets, 0);
+  boost::mpi::broadcast(comm, block_sizes, 0);
+
+  int local_data_size = data_sizes[comm.rank()];
+  int local_block_size = block_sizes[comm.rank()];
+  std::vector<int> local_data(local_data_size);
+  std::vector<std::pair<int, int>> local_coords(local_block_size);
+
+  if (comm.rank() == 0) {
+    boost::mpi::scatterv(comm, input_data.data(), data_sizes, data_offsets, local_data.data(), data_sizes[comm.rank()],
+                         0);
+    boost::mpi::scatterv(comm, processing_indices.data(), block_sizes, block_offsets, local_coords.data(),
+                         block_sizes[comm.rank()], 0);
+  } else {
+    boost::mpi::scatterv(comm, local_data.data(), data_sizes[comm.rank()], 0);
+    boost::mpi::scatterv(comm, local_coords.data(), block_sizes[comm.rank()], 0);
+  }
+
+  std::vector<int> local_result(block_sizes[comm.rank()]);
+  for (int i = 0; i < block_sizes[comm.rank()]; i++) {
+    auto [row, col] = local_coords[i];
+    int base_idx = (row - 1) * width + (col - 1) - data_offsets[comm.rank()];
+
+    std::vector<int> neighborhood(9);
+    for (int j = 0; j < 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        neighborhood[j * 3 + k] = local_data[base_idx + width * j + k];
+      }
+    }
+
+    local_result[i] = applyFilter(neighborhood, 3, 3, 1, 1);
+  }
+
+  if (comm.rank() == 0) {
+    boost::mpi::gatherv(comm, local_result.data(), local_result.size(), processed_data.data(), block_sizes,
+                        block_offsets, 0);
+  } else {
+    boost::mpi::gatherv(comm, local_result.data(), local_result.size(), 0);
+  }
+
+  return true;
+}
+
+bool TaskMpi::post_processing() {
+  internal_order_test();
+
+  if (comm.rank() == 0) {
+    auto* output_ptr = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::vector<int> final_result = padMatrixWithZeros(processed_data, height, width);
+    std::copy(final_result.begin(), final_result.end(), output_ptr);
+  }
+
+  return true;
+}
+
+bool TaskSeq::validation() {
+  internal_order_test();
+  if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+      taskData->outputs_count.empty()) {
+    return false;
+  }
+
+  num_rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  num_cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+  if (num_rows < 3 || num_cols < 3) {
+    return false;
+  }
+
+  auto expected_size = static_cast<size_t>(num_rows * num_cols);
+  return taskData->inputs_count[0] == expected_size && taskData->outputs_count[0] == expected_size &&
+         taskData->inputs_count[0] == taskData->outputs_count[0];
+}
+
+bool TaskSeq::pre_processing() {
+  internal_order_test();
+
+  const auto* source_pixels = reinterpret_cast<const int*>(taskData->inputs[0]);
+  const size_t total_pixels = taskData->inputs_count[0];
+
+  input_data = std::vector<int>(source_pixels, source_pixels + total_pixels);
+  output_data.resize(total_pixels);
+
+  return true;
+}
+
+bool TaskSeq::run() {
+  internal_order_test();
+
+  for (int r = 1; r < num_rows - 1; ++r) {
+    for (int c = 1; c < num_cols - 1; ++c) {
+      std::vector<int> neighborhood(9);
+      for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+          neighborhood[i * 3 + j] = input_data[(r + i - 1) * num_cols + (c + j - 1)];
+        }
+      }
+      output_data[r * num_cols + c] = applyFilter(neighborhood, 3, 3, 1, 1);
+    }
+  }
+
+  return true;
+}
+
+bool TaskSeq::post_processing() {
+  internal_order_test();
+
+  auto* result_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(output_data.begin(), output_data.end(), result_data);
+
+  return true;
+}
+\end{lstlisting}
+\end{document}
