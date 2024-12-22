@@ -1,0 +1,321 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{xcolor} % Для цветов в блоках кода
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\title{Вычисление многомерных интегралов с использованием многошаговой схемы (методом Симпсона) - вариант 9}
+\author{Выполнила: Шведова Виталина }
+\date{\today}
+
+\begin{document}
+\sloppy
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Данный отчет содержит в себе полное описание реализации задачи вычисления многомерных интегралов с использованием многошаговой схемы методом Симпсона.
+
+Вычисление многомерных интегралов - одна из важнейших задач математического анализа. Она примерняется для вычисления объемов, вероятностей и других характеристик сложных систем. Метод Симпсона - один из численных методов, обеспечивающий высокую точность за счет использования полиномов второй степени для аппроксимации функции.
+
+MPI (Message Passing Interface) — это стандарт интерфейса для параллельных вычислений, который позволяет организовать эффективное взаимодействие между процессами. MPI широко применяется для распараллеливания вычислительных задач в распределенных системах.
+
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Целью работы является разработка и исследование алгоритма вычисления многомерных интегралов методом Симпсона, с акцентом на его последовательную и параллельную реализации. Для достижения этой цели необходимо:
+\begin{itemize}
+    \item Реализовать последовательный метод Симпсона для численного вычисления многомерных интегралов.
+    \item Разработать параллельную версию алгоритма с использованием библиотеки MPI, разделив вычисления между процессами для увеличения производительности.
+    \item Сравнить производительность последовательной и параллельной версий, проанализировав ускорение, достигаемое за счёт распараллеливания.
+    \item Провести эксперименты с использованием разного числа процессов и различными входными параметрами точности для оценки эффективности параллельного подхода.
+    \item Выполнить функциональное тестирование последовательной и параллельной версий алгоритма, чтобы убедиться в корректности их работы и совпадении результатов.
+    \item Подготовить отчёт, отражающий этапы разработки, результаты экспериментов и выводы по эффективности алгоритма.
+\end{itemize}
+
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Метод Симпсона представляет собой численный метод интегрирования, основанный на аппроксимации функции полиномом второй степени на каждом сегменте области интегрирования. Для последовательного вычисления многомерного интеграла используются следующие этапы:
+
+\begin{itemize}
+    \item \textbf{Инициализация параметров интегрирования.}
+          Задаётся область интегрирования в виде списка пар нижних и верхних границ для каждого измерения. Указывается точность, которая определяет допустимую погрешность вычисления результата.
+
+    \item \textbf{Рекурсивное разбиение области интегрирования.}
+          Многомерный интеграл преобразуется в последовательность одномерных интегралов:
+          \begin{itemize}
+              \item Для текущего измерения извлекаются его границы и фиксируется значение аргумента на этом этапе.
+              \item Одномерный интеграл вычисляется методом Симпсона.
+              \item Если остаются неизученные измерения, алгоритм переходит к следующему измерению, применяя те же шаги.
+          \end{itemize}
+
+    \item \textbf{Метод Симпсона для одномерного интеграла.}
+          Одномерный интеграл на каждом шаге вычисляется следующим образом:
+          \begin{itemize}
+              \item Интервал интегрирования делится на равные сегменты.
+              \item Значения функции вычисляются в начальной и конечной точках, а также во всех промежуточных узлах.
+              \item Значения в узлах суммируются с весами: 4 для нечетных индексов и 2 для четных.
+              \item Полученная сумма умножается на шаг сегмента, делённый на 3, что завершает формулу Симпсона.
+          \end{itemize}
+
+    \item \textbf{Адаптивное уточнение результата.}
+          Для обеспечения заданной точности интеграл пересчитывается с увеличением числа сегментов в два раза на каждом этапе. Итерации продолжаются до тех пор, пока разница между текущим и предыдущим результатами не станет меньше указанной погрешности.
+
+    \item \textbf{Возврат к многомерному случаю.}
+          После завершения интегрирования по одному измерению результат передаётся на следующий уровень рекурсии. Алгоритм продолжает работу, пока не будут обработаны все измерения, после чего возвращается итоговое значение многомерного интеграла.
+\end{itemize}
+
+\section*{Схема распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+
+\subsection*{Описание схемы распараллеливания}
+Для ускорения вычислений многомерного интеграла метод Симпсона распараллеливается по следующей схеме:
+\begin{itemize}
+    \item \textbf{Распределение области интегрирования.}
+          Область интегрирования по первому измерению делится на равные части между всеми доступными процессами. Каждый процесс отвечает за выполнение вычислений на своей части диапазона.
+
+    \item \textbf{Локальные вычисления.}
+          Каждый процесс выполняет одномерное интегрирование на своём диапазоне. Если область имеет несколько измерений, для каждой фиксированной координаты текущего измерения рекурсивно вычисляется интеграл по следующему измерению.
+
+    \item \textbf{Сбор результатов.}
+          Частичные результаты, полученные каждым процессом, объединяются в общий результат. Это позволяет аккумулировать вклад всех процессов для получения окончательного значения многомерного интеграла.
+
+    \item \textbf{Адаптивное уточнение.}
+          После каждой итерации уточняется точность интегрирования. Если заданная точность не достигнута, число сегментов увеличивается, и вычисления продолжаются.
+\end{itemize}
+
+\subsection*{Описание реализации с использованием MPI}
+В рамках реализации алгоритма параллельное выполнение организовано с использованием библиотеки MPI в обертке Boost. Основные этапы соответствуют общей схеме распараллеливания:
+
+\begin{itemize}
+    \item \textbf{Распределение данных.}
+          Нулевой процесс передаёт границы интегрирования и точность всем остальным процессам с помощью функции \texttt{MPI\_Broadcast}. Эти данные необходимы для локальных вычислений на каждом процессе.
+
+    \item \textbf{Локальные вычисления.}
+          Каждый процесс рассчитывает одномерный интеграл на своём диапазоне. В реализации используется функция \texttt{integrateSimpson1D}, которая применяет метод Симпсона к текущему диапазону сегментов. Если область интегрирования имеет несколько измерений, процесс вызывает рекурсивную функцию \texttt{integrateSimpsonImpl}.
+
+    \item \textbf{Сбор частичных результатов.}
+          Локальные результаты, вычисленные каждым процессом, передаются на нулевой процесс с использованием функции \texttt{MPI\_Reduce}. Итоговое значение интеграла аккумулируется на нулевом процессе.
+
+    \item \textbf{Адаптивное уточнение результата.}
+          На нулевом процессе проверяется сходимость текущего результата. Если разница между текущим и предыдущим значениями превышает заданную точность, все процессы продолжают работу с увеличенным числом сегментов. Информация о необходимости продолжения итераций передаётся через \texttt{MPI\_Broadcast}.
+
+    \item \textbf{Возврат результата.}
+          После достижения требуемой точности результат возвращается только на нулевой процесс, а остальные процессы возвращают нулевое значение.
+\end{itemize}
+
+\subsection*{Условия экспериментов}
+Для оценки производительности последовательной и параллельной версий алгоритма использовалась следующая тестовая система:
+\begin{itemize}
+    \item Операционная система: WSL (Windows Subsystem for Linux) Ubuntu 24.04.
+    \item Процессор: 13th Gen Intel(R) Core(TM) i7-13700H, 2.40 GHz.
+    \item Оперативная память: 16 ГБ.
+    \item Среда выполнения: библиотека MPI, настроенная для многопроцессорного режима.
+\end{itemize}
+
+Тестовая задача заключалась в вычислении трёхмерного интеграла для функции:
+\[
+    f(x, y, z) = \sin(x^2 + y^2 + z^2) \cdot e^{-(x + y + z)},
+\]
+где $x \in [0, 10]$, $y \in [0, 9]$, $z \in [0, 8]$. Заданная точность интегрирования: $0.001$.
+
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+
+\subsection*{Результаты замеров}
+Результаты выполнения тестов для последовательной и параллельной версии метода Симпсона приведены в таблице. Для каждого числа процессов (\texttt{n}) выполнены тесты с использованием \texttt{pipeline\_run} и \texttt{task\_run}.
+
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    Число процессов & Сценарий      & Время выполнения (с) & Ускорение \\ \hline
+    1               & pipeline\_run & 3.245                & 1.00      \\ \hline
+    1               & task\_run     & 3.977                & 1.00      \\ \hline
+    2               & pipeline\_run & 3.374                & 0.96      \\ \hline
+    2               & task\_run     & 3.469                & 1.15      \\ \hline
+    3               & pipeline\_run & 2.621                & 1.24      \\ \hline
+    3               & task\_run     & 2.735                & 1.45      \\ \hline
+\end{tabular}
+
+\subsection*{Анализ результатов}
+Результаты экспериментов демонстрируют следующее:
+\begin{itemize}
+    \item Время выполнения уменьшается с увеличением числа процессов, что подтверждает корректность параллельной реализации.
+    \item Ускорение параллельной версии значительно лучше при увеличении числа процессов до трёх. Однако эффективность использования процессов не является линейной, что обусловлено накладными расходами на синхронизацию и передачу данных между процессами.
+    \item Наибольшее ускорение наблюдается в тесте \texttt{task\_run} при использовании 3 процессов, где ускорение составило около 1.45.
+    \item Результаты тестов \texttt{pipeline\_run} и \texttt{task\_run} схожи, что говорит о равномерной оптимизации алгоритма как для основного вычисления, так и для конвейерной обработки данных.
+\end{itemize}
+
+\subsection*{Вывод}
+Эксперименты показали, что параллельная реализация метода Симпсона демонстрирует хорошее ускорение с увеличением числа процессов. Однако можно заметить, что реализация потенциально может быть улучшена. Одним из очевидных подходов к модернизации является отказ от рекурсивного подхода и замена его на итеративный с дальнейшим добавлением параллелизма.
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+
+В данной работе был разработан алгоритм численного вычисления многомерных интегралов с использованием многошаговой схемой методом Симпсона. Реализация включает как последовательный, так и параллельный подход, что позволяет оценить эффективность распараллеливания вычислений с применением библиотеки MPI.
+
+В ходе работы выполнены следующие задачи:
+\begin{itemize}
+    \item Реализован последовательный метод Симпсона для многомерных интегралов, с использованием рекурсивного подхода для работы с несколькими измерениями.
+    \item Разработана параллельная версия алгоритма, которая распределяет область интегрирования между процессами, выполняя локальные вычисления на каждом из них.
+    \item Проведено функциональное и производительное тестирование, что подтвердило корректность реализации и её способность к ускорению вычислений при увеличении числа процессов.
+\end{itemize}
+
+Таким образом, выполненная работа подтверждает, что метод Симпсона является эффективным инструментом для численного интегрирования, а его параллельная реализация позволяет существенно ускорить вычисления при обработке сложных многомерных задач.
+
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+
+\begin{enumerate}
+    \item \href{https://proglib.io/p/git-for-half-an-hour}{Статья "Гит для начинающих"}.
+    \item \href{https://habr.com/ru/articles/119090/}{Habr. Статья "Google testing framework (gtest)"}.
+    \item \href{https://parallel.ru/vvv/mpi.html#p1}{MPI. Терминология и обозначения}.
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+В данном разделе представлены основные фрагменты реализации алгоритма, включая функции из файлов \texttt{ops\_mpi.hpp} и \texttt{ops\_mpi.cpp}, использованные для решения задачи.
+
+\subsection*{Функция integrateSimpson1D}
+\addcontentsline{toc}{subsection}{Функция integrateSimpson1D}
+
+\begin{lstlisting}[language=C++]
+double integrateSimpson1D(double lowerBound, double upperBound, int segmentCount,
+                          const Simpson1DFunction& integrand) {
+    double stepSize = (upperBound - lowerBound) / segmentCount;
+    double result = integrand(lowerBound) + integrand(upperBound);
+
+    for (int i = 1; i < segmentCount; ++i) {
+        double x = lowerBound + i * stepSize;
+        result += ((i % 2 == 0) ? 2 : 4) * integrand(x);
+    }
+
+    return result * stepSize / 3.0;
+}
+\end{lstlisting}
+
+\subsection*{Функция integrateSimpsonImpl}
+\addcontentsline{toc}{subsection}{Функция integrateSimpsonImpl}
+
+\begin{lstlisting}[language=C++]
+double integrateSimpsonImpl(Limits& integrationLimits,
+                             std::vector<double>& currentArguments,
+                             const FunctionType& integrandFunction, double precision) {
+    if (integrationLimits.empty()) {
+        return integrandFunction(currentArguments);
+    }
+
+    auto [lowerBound, upperBound] = integrationLimits.front();
+    integrationLimits.pop_front();
+    currentArguments.push_back(0.0);
+
+    double previousResult = 0.0;
+    double currentResult = 0.0;
+    int segmentCount = 2;
+
+    do {
+        previousResult = currentResult;
+        currentResult = integrateSimpson1D(lowerBound, upperBound, segmentCount, [&](double x) {
+            currentArguments.back() = x;
+
+            if (integrationLimits.empty()) {
+                return integrandFunction(currentArguments);
+            }
+            return integrateSimpsonImpl(integrationLimits, currentArguments, integrandFunction, precision);
+        });
+
+        segmentCount *= 2;
+    } while (std::abs(currentResult - previousResult) > precision);
+
+    currentArguments.pop_back();
+    integrationLimits.emplace_front(lowerBound, upperBound);
+
+    return currentResult;
+}
+\end{lstlisting}
+
+\subsection*{Функция integrateSimpsonParallel}
+\addcontentsline{toc}{subsection}{Функция integrateSimpsonParallel}
+
+\begin{lstlisting}[language=C++]
+double shvedova_v_mult_int_simpson_mpi::integrateSimpsonParallel(boost::mpi::communicator& world,
+                                                                 Limits integrationLimits, double precision,
+                                                                 const FunctionType& integrandFunction) {
+  std::vector<double> currentArguments;
+  broadcast(world, integrationLimits, 0);
+  broadcast(world, precision, 0);
+
+  double globalResult = 0.0;
+  double previousResult = 0.0;
+  double localResult = 0.0;
+  int segmentCount = 2 * world.size();
+
+  auto [globalLowerBound, globalUpperBound] = integrationLimits.front();
+  double globalStepSize = (globalUpperBound - globalLowerBound) / world.size();
+
+  double localLowerBound = globalLowerBound + globalStepSize * world.rank();
+  double localUpperBound = localLowerBound + globalStepSize;
+
+  integrationLimits.pop_front();
+  currentArguments.push_back(0.0);
+
+  bool continueIterations = true;
+  while (continueIterations) {
+    previousResult = globalResult;
+    globalResult = 0.0;
+
+    localResult = integrateSimpson1D(localLowerBound, localUpperBound, segmentCount / world.size(), [&](double x) {
+      currentArguments.back() = x;
+
+      if (integrationLimits.empty()) {
+        return integrandFunction(currentArguments);
+      }
+      return integrateSimpsonImpl(integrationLimits, currentArguments, integrandFunction, precision);
+    });
+
+    reduce(world, localResult, globalResult, std::plus<>(), 0);
+
+    if (world.rank() == 0) {
+      continueIterations = (std::abs(globalResult - previousResult) > precision);
+    }
+    broadcast(world, continueIterations, 0);
+
+    segmentCount *= 2;
+  }
+
+  return world.rank() == 0 ? globalResult : 0.0;
+}
+\end{lstlisting}
+
+\end{document}
+
