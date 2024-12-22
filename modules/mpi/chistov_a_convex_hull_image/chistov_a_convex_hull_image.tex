@@ -1,0 +1,468 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{xcolor}
+\lstset{
+    language=C++, 
+    basicstyle=\ttfamily\small, 
+    keywordstyle=\color{blue}\bfseries, 
+    stringstyle=\color{orange}, 
+    commentstyle=\color{green!50!black}\itshape, 
+    morecomment=[l][\color{purple}]{\#}, 
+    tabsize=2, 
+    breaklines=true, 
+    breakatwhitespace=false, 
+    frame=single, 
+    title=\lstname,
+    showstringspaces=false, 
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\Large Отчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large «Построение выпуклой оболочки для компонент бинарного изображения»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 3822Б1ФИ1 \\ Чистов Алексей\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А.В.\\}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2024 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+\tableofcontents
+
+\newpage
+
+\newpage
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Бинарные изображения играют ключевую роль в компьютерном зрении и анализе изображений, предоставляя возможность выделять объекты, изучать их геометрические свойства и взаимное расположение. Одной из важных задач в этом контексте является определение выпуклой оболочки для объектов, выделенных на таких изображениях. Выпуклая оболочка представляет собой минимальную выпуклую область, полностью содержащую заданный объект, что делает её важным инструментом для анализа формы, пространственного распределения и взаимодействия объектов. 
+
+Данная задача находит применение в ряде научных и прикладных областей, включая медицинскую диагностику (например, анализ контуров анатомических структур), робототехнику (планирование траекторий и анализ сцены), геоинформационные системы (обработка пространственных данных), а также в задачах компьютерной графики и автоматизации. 
+
+В рамках данного исследования рассматривается подход к построению выпуклой оболочки для компонент бинарного изображения. Предложенный метод позволяет упростить анализ формы, обеспечить оптимизацию вычислений и улучшить обработку данных, что может быть полезно для решения широкого спектра практических задач в области обработки изображений.
+\newpage
+
+\section*{Постановка задачи}  
+\addcontentsline{toc}{section}{Постановка задачи}  
+
+Пусть задано бинарное изображение \( I \) размером \( M \times N \), где каждый элемент \( I(x, y) \in \{0, 1\} \) обозначает наличие (1) или отсутствие (0) пикселя, принадлежащего объекту. Задача состоит в нахождении выпуклой оболочки для каждой связной компоненты \( C_i \), \( i = 1, \dots, k \), где \( k \) — число таких компонент в изображении.  
+
+Для каждой связной компоненты \( C_i \), заданной как множество точек \( \{(x, y) \mid I(x, y) = 1 \text{ и } (x, y) \text{ принадлежит компоненте } C_i\} \), требуется:  
+
+\begin{enumerate}
+    \item Найти выпуклую оболочку \( H(C_i) \), где  
+    \[
+    H(C_i) = \text{conv}(C_i) = \bigcap \{H \mid H \text{ выпуклое множество, } C_i \subseteq H \},
+    \]
+    \( \text{conv}(C_i) \) — минимальная выпуклая оболочка, содержащая все точки \( C_i \).  
+
+    \item Минимизировать вычислительные затраты, сохраняя точность построения \( H(C_i) \). Для этого необходимо использовать эффективные алгоритмы, такие как алгоритмы Грэхема, Джарвиса или метод деления и владения.  
+
+    \item Обеспечить устойчивость алгоритма к шумам:  
+    \begin{itemize}
+        \item Сохранение выпуклости оболочки для небольших локальных отклонений в положении точек \( C_i \).  
+        \item Игнорирование изолированных точек шума, не принадлежащих основной компоненте.  
+    \end{itemize}
+\end{enumerate}
+
+Формально, устойчивость может быть выражена через метрическое свойство множества точек \( C_i \), например:  
+\[
+\max_{(x, y) \in C_i} \text{dist}((x, y), H(C_i)) \leq \epsilon,
+\]
+где \( \epsilon \) — допустимая погрешность из-за шума.  
+
+Таким образом, результатом является множество \( \{H(C_1), \dots, H(C_k)\} \), удовлетворяющее вышеуказанным требованиям.
+
+\newpage
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+
+Алгоритм решает задачу нахождения выпуклой оболочки множества точек на плоскости с использованием изображения как входных данных. Он состоит из нескольких этапов, каждый из которых выполняет свою задачу по обработке изображения и вычислению выпуклой оболочки.
+
+\textbf{Этапы алгоритма}  
+
+1. Извлечение координат точек:
+    На этом этапе происходит преобразование входного изображения, представленного в виде пикселей, в список точек на плоскости. Для этого в алгоритме используется метод \texttt{setPoints}, который определяет координаты точек, находящихся на границах изображения, и формирует набор таких точек. Это обеспечивает подготовку данных для последующего вычисления выпуклой оболочки.
+
+2. Метод меток связных компонент:
+    После того как пиксели изображения, соответствующие точкам, были получены, алгоритм использует метод меток для определения всех связных компонент на изображении. Это достигается с помощью двух шагов: первого и второго обхода изображения, которые последовательно присваивают уникальные метки каждому компоненту. В результате на выходе получается набор компонент, каждая из которых состоит из множества точек на изображении.
+
+3. Вычисление выпуклой оболочки:
+    На основе каждой связной компоненты алгоритм вычисляет выпуклую оболочку методом Грэхема. Для этого сначала находится точка с минимальными координатами (левая нижняя точка), которая будет служить начальной. Далее происходит сортировка оставшихся точек относительно этой точки по углу, образуемому с осью X, и затем векторно определяются повороты для добавления точек в оболочку, исключая точки, которые не могут быть частью выпуклой оболочки.
+
+4. Обработка результата:
+    После вычисления выпуклой оболочки для каждой компоненты точки оболочки снова преобразуются в пиксели и записываются обратно в изображение. Таким образом, на выходе получается изображение, на котором выпуклая оболочка отображена через соответствующие пиксели.
+
+\textbf{Алгоритмическая сложность}  
+
+Алгоритм имеет сложность, обусловленную двумя основными шагами: метками и вычислением выпуклой оболочки. Шаг меток выполняется за время $O(n)$, где $n$ — количество пикселей на изображении, а алгоритм Грэхема для каждой компоненты работает за $O(k \log k)$, где $k$ — количество точек в компоненте. Таким образом, общая сложность алгоритма зависит от количества пикселей и точек в компоненте, но в целом алгоритм эффективно справляется с задачей поиска выпуклой оболочки для изображений.
+
+\newpage
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+
+Каждый процесс обрабатывает свою часть данных и вычисляет выпуклую оболочку для локальных компонент. После выполнения всех вычислений результаты собираются в главном процессе для объединения оболочек.
+
+\subsection*{Этапы распараллеливания}
+
+\begin{enumerate}
+  \item \textbf{Подготовка данных:} Главный процесс разделяет изображение на компоненты и отправляет их процессам для обработки.
+  \item \textbf{Вычисления на рабочих процессах:} Каждый рабочий процесс вычисляет выпуклую оболочку для своей части данных.
+  \item \textbf{Объединение результатов:} Главный процесс собирает и объединяет результаты от всех процессов.
+\end{enumerate}
+
+Процесс распараллеливания начинается с того, что главный процесс делит исходное изображение на компоненты, которые затем отправляются рабочим процессам. Каждый рабочий процесс работает над своей частью данных, вычисляя выпуклую оболочку для каждой компоненты. После завершения вычислений, рабочие процессы отправляют свои результаты обратно главному процессу, который собирает их и выполняет объединение для получения окончательного результата.
+
+Особенностью этого подхода является использование динамического распределения задач между процессами, что позволяет сбалансировать нагрузку и минимизировать время ожидания. Это важно для обработки больших данных, где одна из частей может оказаться более трудоемкой, чем другая. Важным аспектом является как равномерное распределение работы, так и эффективный сбор результатов.
+
+\subsection*{Описание взаимодействия процессов}
+
+\begin{itemize}
+  \item Главный процесс (ранг 0) передает данные рабочим процессам (ранги от 1 до \( P-1 \)).
+  \item Рабочие процессы отправляют результаты обратно главному процессу для объединения.
+\end{itemize}
+
+Взаимодействие между процессами в этом подходе организовано следующим образом: главный процесс делит данные на части и передает их рабочим процессам для обработки. Каждый рабочий процесс получает свой кусок данных, выполняет необходимые вычисления, а затем отправляет результаты обратно главному процессу. Главный процесс собирает все результаты и производит окончательное объединение данных, формируя итоговый результат. В процессе может быть использовано как синхронное, так и асинхронное взаимодействие между процессами для повышения эффективности.
+
+\newpage
+\section*{Экспериментальное исследование}
+\addcontentsline{toc}{section}{Экспериментальное исследование}
+
+Параллельный код существенно ускоряет выполнение алгоритма за счет эффективного распределения вычислительных задач между несколькими процессами. Каждый процесс обрабатывает только подмножество данных, что позволяет одновременно использовать вычислительные ресурсы нескольких процессоров, значительно сокращая общее время выполнения. В отличие от последовательной версии, где вычисления выполняются поочередно, параллельный подход минимизирует время ожидания, так как основной процесс может параллельно получать результаты от других процессов.
+
+Экспериментальные результаты показали, что для изображения размером 2500x2500 пикселей ускорение при использовании параллельного подхода составляет 1.5 раза: время выполнения последовательного алгоритма составило 6 мс, в то время как параллельная версия завершила обработку за 4 мс.
+
+\newpage
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+
+В данной работе был предложен метод построения выпуклой оболочки для компонент бинарного изображения. Разработанный алгоритм эффективно выделяет выпуклые оболочки объектов, минимизируя вычислительные затраты и при этом обеспечивая высокую точность.
+
+В качестве направлений для дальнейших исследований можно выделить оптимизацию алгоритма для обработки больших объёмов данных, а также адаптацию метода для работы с многомерными изображениями и сложными сценами.
+
+\newpage
+
+\begin{thebibliography}{1}
+  \addcontentsline{toc}{section}{Литература}
+  \bibitem{shell} Выпуклые оболочки// URL: \url{https://algorithmica.org/ru/convex-hulls}
+  \bibitem{tehnical sciences} Автоматизация построения минимальных выпуклых оболочек на плоскости с использованием метода QUICKHULL// URL: \url{https://s.applied-research.ru/pdf/2021/10/13298.pdf}
+  \bibitem{binary_image} Klette, R. and Rosenfeld, A. Binary Digital Image Processing: A Discrete Approach. Book, Morgan Kaufmann, 2000.
+  \end{thebibliography}
+\newpage
+
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\begin{lstlisting}
+    namespace chistov_a_convex_hull_image_mpi {
+        std::vector<int> setPoints(const std::vector<Point>& points, int width, int height) {
+          std::vector<int> image(width * height, 0);
+          if (points.size() < 2) return image;
+        
+          int minX = std::min(points[0].x, points[1].x);
+          int maxX = std::max(points[0].x, points[1].x);
+          int minY = std::min(points[0].y, points[1].y);
+          int maxY = std::max(points[0].y, points[1].y);
+        
+          for (size_t i = 2; i < points.size(); ++i) {
+            minX = std::min(minX, points[i].x);
+            maxX = std::max(maxX, points[i].x);
+            minY = std::min(minY, points[i].y);
+            maxY = std::max(maxY, points[i].y);
+          }
+        
+          for (int x = minX; x <= maxX; ++x) {
+            if (minY >= 0 && minY < height && x >= 0 && x < width) {
+              image[minY * width + x] = 1;
+            }
+            if (maxY >= 0 && maxY < height && x >= 0 && x < width) {
+              image[maxY * width + x] = 1;
+            }
+          }
+        
+          for (int y = minY; y <= maxY; ++y) {
+            if (y >= 0 && y < height && minX >= 0 && minX < width) {
+              image[y * width + minX] = 1;
+            }
+            if (y >= 0 && y < height && maxX >= 0 && maxX < width) {
+              image[y * width + maxX] = 1;
+            }
+          }
+        
+          return image;
+        }
+        
+        int cross(const Point& p1, const Point& p2, const Point& p3) {
+          return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+        }
+        
+        void labelingFirstPass(std::vector<int>& labeled_image, int width, int height) {
+          int mark = 2;
+        
+          for (int i = 0; i < height; ++i) {
+            for (int j = 0; j < width; ++j) {
+              int current = labeled_image[i * width + j];
+              int left = (j == 0) ? 0 : labeled_image[i * width + (j - 1)];
+              int upper = (i == 0) ? 0 : labeled_image[(i - 1) * width + j];
+        
+              if (current == 0) continue;
+        
+              if (left == 0 && upper == 0) {
+                labeled_image[i * width + j] = mark++;
+              } else {
+                labeled_image[i * width + j] = std::max(left, upper);
+              }
+            }
+          }
+        }
+        
+        void labelingSecondPass(std::vector<int>& labeled_image, int width, int height) {
+          for (int i = height - 1; i >= 0; --i) {
+            for (int j = width - 1; j >= 0; --j) {
+              int current = labeled_image[i * width + j];
+              int right = (j == width - 1) ? 0 : labeled_image[i * width + (j + 1)];
+              int lower = (i == height - 1) ? 0 : labeled_image[(i + 1) * width + j];
+        
+              if (current == 0 || (right == 0 && lower == 0)) continue;
+        
+              labeled_image[i * width + j] = std::max(right, lower);
+            }
+          }
+        }
+        
+        std::vector<std::vector<Point>> processLabeledImage(const std::vector<int>& labeled_image, int width, int height) {
+          std::vector<int> component_indices;
+          std::vector<std::vector<Point>> components;
+        
+          for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+              if (labeled_image[i * width + j] == 0) continue;
+        
+              int component_label = labeled_image[i * width + j];
+        
+              if (static_cast<size_t>(component_label) < component_indices.size() && component_indices[component_label] != -1) {
+                components[component_indices[component_label]].push_back(Point{j, i});
+              } else {
+                component_indices.resize(std::max(component_indices.size(), static_cast<size_t>(component_label + 1)), -1);
+                component_indices[component_label] = components.size();
+                components.push_back({Point{j, i}});
+              }
+            }
+          }
+          return components;
+        }
+        
+        std::vector<std::vector<Point>> labeling(const std::vector<int>& image, int width, int height) {
+          std::vector<int> labeled_image(width * height);
+        
+          std::copy(image.begin(), image.end(), labeled_image.begin());
+          labelingFirstPass(labeled_image, width, height);
+          labelingSecondPass(labeled_image, width, height);
+          return processLabeledImage(labeled_image, width, height);
+        }
+        
+        std::vector<Point> graham(std::vector<Point> points) {
+          std::vector<Point> hull;
+        
+          if (points.empty()) {
+            return hull;
+          }
+        
+          Point min = *std::min_element(points.begin(), points.end(),
+                                        [](const Point& a, const Point& b) { return a.x == b.x ? a.y < b.y : a.x < b.x; });
+        
+          std::sort(points.begin(), points.end(), [min](const Point& p1, const Point& p2) {
+            if (cross(min, p1, p2) != 0) return cross(min, p1, p2) > 0;
+        
+            return (p1.x - min.x) * (p1.x - min.x) + (p1.y - min.y) * (p1.y - min.y) <
+                   (p2.x - min.x) * (p2.x - min.x) + (p2.y - min.y) * (p2.y - min.y);
+          });
+        
+          hull.push_back(min);
+        
+          for (size_t i = 1; i < points.size(); ++i) {
+            while (hull.size() > 1 && cross(hull[hull.size() - 2], hull[hull.size() - 1], points[i]) <= 0) {
+              hull.pop_back();
+            }
+            hull.push_back(points[i]);
+          }
+        
+          return hull;
+        }
+        
+        bool ConvexHullMPI::validation() {
+          internal_order_test();
+          if (world.rank() == 0) {
+            if (taskData->inputs_count.size() < 2 || taskData->outputs_count.empty() || taskData->inputs[0] == nullptr ||
+                taskData->outputs.empty() || taskData->inputs_count[1] <= 0 || taskData->inputs_count[2] <= 0 ||
+                taskData->outputs_count[0] <= 0) {
+              return false;
+            }
+        
+            image.resize(taskData->inputs_count[0]);
+            auto* tmp_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+            std::memcpy(image.data(), tmp_ptr, taskData->inputs_count[0] * sizeof(int));
+        
+            return std::all_of(image.begin(), image.end(), [](int pixel) { return pixel == 0 || pixel == 1; });
+          }
+        
+          return true;
+        }
+        
+        bool ConvexHullMPI::pre_processing() {
+          internal_order_test();
+          if (world.rank() == 0) {
+            size = static_cast<int>(taskData->inputs_count[0]);
+            height = static_cast<int>(taskData->inputs_count[1]);
+            width = static_cast<int>(taskData->inputs_count[2]);
+            components = labeling(image, width, height);
+          }
+          return true;
+        }
+        
+        bool ConvexHullMPI::run() {
+          internal_order_test();
+        
+          std::vector<std::vector<Point>> local_components;
+        
+          auto toVector = [](const std::vector<Point>& points) -> std::vector<int> {
+            std::vector<int> result;
+            result.reserve(points.size() * 2);
+            for (const auto& point : points) {
+              result.push_back(point.x);
+              result.push_back(point.y);
+            }
+            return result;
+          };
+        
+          auto toPoints = [](const std::vector<int>& vec) -> std::vector<Point> {
+            std::vector<Point> points;
+            points.reserve(vec.size() / 2);
+            for (size_t i = 0; i < vec.size(); i += 2) {
+              points.push_back({vec[i], vec[i + 1]});
+            }
+            return points;
+          };
+        
+          if (world.rank() == 0) {
+            int base_count = components.size() / world.size();
+            int remainder = components.size() % world.size();
+        
+            int offset = 0;
+            for (int proc = 1; proc < world.size(); ++proc) {
+              int send_count = base_count + (proc < remainder ? 1 : 0);
+              world.send(proc, 0, &send_count, 1);
+        
+              for (int i = 0; i < send_count; ++i) {
+                std::vector<int> int_component = toVector(components[offset + i]);
+                world.send(proc, 1, int_component);
+              }
+        
+              offset += send_count;
+            }
+        
+            int local_count = base_count + (0 < remainder ? 1 : 0);
+            for (int i = 0; i < local_count; ++i) {
+              local_components.push_back(components[offset + i]);
+            }
+        
+          } else {
+            int recv_count;
+            world.recv(0, 0, &recv_count, 1);
+        
+            for (int i = 0; i < recv_count; ++i) {
+              std::vector<int> int_component;
+              world.recv(0, 1, int_component);
+              local_components.push_back(toPoints(int_component));
+            }
+          }
+        
+          std::vector<Point> local_hulls;
+          for (const auto& component : local_components) {
+            auto hull = graham(component);
+            local_hulls.insert(local_hulls.end(), hull.begin(), hull.end());
+          }
+        
+          if (world.rank() == 0) {
+            std::vector<Point> merged_hulls;
+            merged_hulls.insert(merged_hulls.end(), local_hulls.begin(), local_hulls.end());
+        
+            for (int proc = 1; proc < world.size(); ++proc) {
+              std::vector<int> hull_ints;
+              world.recv(proc, 2, hull_ints);
+              auto hull = toPoints(hull_ints);
+              merged_hulls.insert(merged_hulls.end(), hull.begin(), hull.end());
+            }
+        
+            image = setPoints(graham(merged_hulls), width, height);
+        
+          } else {
+            std::vector<int> local_hulls_ints = toVector(local_hulls);
+            world.send(0, 2, local_hulls_ints);
+          }
+        
+          return true;
+        }
+        
+        bool ConvexHullMPI::post_processing() {
+          internal_order_test();
+        
+          if (world.rank() == 0) {
+            std::memcpy(reinterpret_cast<int*>(taskData->outputs[0]), image.data(), image.size() * sizeof(int));
+          }
+          return true;
+        }
+        
+        }  // namespace chistov_a_convex_hull_image_mpi
+\end{lstlisting}
+    \end{document}
