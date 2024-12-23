@@ -1,0 +1,351 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\usepackage{float}
+\pgfplotsset{compat=1.18}
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\definecolor{codekeyword}{RGB}{0, 0, 255}
+\definecolor{codecomment}{RGB}{0, 128, 0}
+\definecolor{codestring}{RGB}{163, 21, 21}
+\definecolor{codebackground}{RGB}{245, 245, 245}
+\definecolor{codenumbers}{RGB}{128, 128, 128}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{codekeyword},
+  commentstyle=\itshape\color{codecomment},
+  stringstyle=\color{codestring},
+  numbers=left,
+  numberstyle=\tiny\color{codenumbers},
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{codebackground},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  framesep=5pt,
+  rulecolor=\color{gray!50},
+  tabsize=2,
+  captionpos=b
+}
+
+\title{Быстрая сортировка с простым слиянием}
+\author{Автор: Кораблев Владлен (3822Б1ПР1) }
+
+\begin{document}
+\sloppy
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Быстрая сортировка - один из ключевых алгоритмов в задачах обработки данных. Она отличается высокой производительностью и широким применением на практике. 
+Однако, при работе с большими данными,для ее ускорения можно использовать методы параллельного программирования. В данной работе реализован один из подходов к паралелелизму
+быстрой сортировки.  
+
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+Для создания реализации задачи быстрой сортировки с простым слиянием с использованием технологии MPI необходимо выполнить следующие пункты:
+\begin{itemize}
+    \item Реализовать последовательный алгоритм быстрой сортировки с простым слиянием для упорядочивания данных.
+    \item Разработать параллельную версию алгоритма с использованием библиотеки MPI.
+    \item Провести функциональное тестирование алгоритма, сравнив результаты последовательной и параллельной версий.
+    \item Сравнить производительность задачи при увеличении количества процессов.
+    \item Подготовить подробный отчет.
+\end{itemize}
+
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+Алгоритм реализован на языке C++ и работает следующим образом:
+
+\subsection*{Функция \texttt{merge}}
+Функция \texttt{merge} выполняет объединение двух отсортированных массивов (\texttt{left} и \texttt{right}) в один общий отсортированный массив. Её ключевые шаги:
+\begin{itemize}
+    \item Создаётся результирующий вектор \texttt{result}, вместимость которого заранее резервируется для улучшения производительности.
+    \item Сравниваются элементы двух массивов: меньший из текущих элементов добавляется в \texttt{result}, а соответствующий индекс инкрементируется.
+    \item После завершения одной из последовательностей оставшиеся элементы другой последовательности добавляются в конец \texttt{result}.
+\end{itemize}
+
+\subsection*{Функция \texttt{quick\_sort\_with\_merge}}
+Функция \texttt{quick\_sort\_with\_merge} реализует рекурсивный алгоритм быстрой сортировки слиянием:
+\begin{itemize}
+    \item Если массив состоит из одного элемента или пуст, он возвращается без изменений.
+    \item Выбирается опорный элемент (\texttt{pivot}) как середина массива.
+    \item Массив делится на три части:
+    \begin{itemize}
+        \item \texttt{left} — элементы меньше опорного.
+        \item \texttt{right} — элементы больше опорного.
+        \item \texttt{equal} — элементы, равные опорному.
+    \end{itemize}
+    \item Для частей \texttt{left} и \texttt{right} рекурсивно вызывается \texttt{quick\_sort\_with\_merge}.
+    \item После сортировки частичных массивов выполняется их последовательное объединение с помощью функции \texttt{merge}, чтобы получить итоговый отсортированный массив.
+\end{itemize}
+
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+Распараллеливание задачи быстрой сортировки основывается на распределении данных между несколькими вычислительными узлами или процессами. 
+Основная идея состоит в том, чтобы разделить входной массив на подмассивы, которые сортируются независимо, 
+а затем объединяются в итоговый отсортированный массив. Общая схема распараллеливания:
+\begin{itemize}
+    \item Разделить входной массив на равные части (по возможности) между доступными процессами. Это уменьшает объем работы, выполняемой каждым процессом.
+    \item Каждый процесс выполняет локальную сортировку своей части данных, используя последовательную версию алгоритма быстрой сортировки.
+    \item Результаты локальной сортировки собираются и объединяются в один отсортированный массив, используя алгоритм слияния.
+    \item Для минимизации времени ожидания данные должны быть равномерно распределены между процессами.
+\end{itemize}
+
+\section*{Описание MPI версии}
+\addcontentsline{toc}{section}{Схема распараллеливания}
+В реализации с использованием библиотеки MPI параллелизм организован следующим образом:
+\begin{itemize}
+    \item На начальном этапе входной массив \texttt{input\_} передается от главного процесса ко всем остальным процессам с использованием функции \texttt{broadcast}. Это позволяет каждому процессу получить доступ к данным для их дальнейшей обработки.
+    \item Общий массив делится на части, размер которых рассчитывается с учетом равномерного распределения между процессами. Остаток элементов от деления равномерно распределяется между первыми процессами.
+    \item Используется \texttt{scatterv} для отправки соответствующих подмассивов каждому процессу. Каждый процесс получает свой подмассив, который затем сортируется локально с использованием последовательной версии быстрой сортировки.
+    \item Локально отсортированные массивы собираются на главном процессе с использованием функции \texttt{gatherv}. Корневой процесс объединяет результаты с помощью алгоритма простого слияния.
+    \item Итоговый массив \texttt{output\_} формируется на главном процессе. Он включает слияние частично отсортированных подмассивов, что обеспечивает корректную работу алгоритма.
+\end{itemize}
+
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+
+\subsection*{Описание тестовой системы}
+Для выполнения экспериментов использовалась следующая система:
+\begin{itemize}
+    \item Процессор: AMD Ryzen 7 3700X (8 ядер, 3.60 ГГц).
+    \item Оперативная память: 32 ГБ.
+    \item Операционная система: Windows 11 (64-разрядная версия).
+    \item Среда выполнения: WSL с Ubuntu 24.04.
+\end{itemize}
+
+\subsection*{Описание тестовых ситуаций}
+Для тестирования MPI-реализации быстрой сортировки с простым слиянием были подготовлены следующие сценарии:
+\begin{itemize}
+    \item Генерация случайного вектора заданного размера с элементами в диапазоне от -1000 до 1000. Массив дополнительно сортируется в обратном порядке для увеличения сложности задачи.
+    \item Проверка корректности работы реализации:
+    \item Измерение производительности:
+    \begin{itemize}
+        \item Запуск тестов \texttt{pipeline\_run} и \texttt{task\_run}, которые выполняются 5 раз для получения усреднённых значений времени.
+        \item Использование библиотеки \texttt{boost::mpi} для реализации параллельных вычислений.
+        \item Сравнение времени выполнения между последовательной и параллельной версиями алгоритма.
+    \end{itemize}
+    \item Анализ производительности:
+    \begin{itemize}
+        \item Использование инструмента \texttt{ppc::core::Perf} для получения статистики по времени выполнения.
+        \item Тестирование на вектора размером 999999 элементов.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Результаты тестирования}
+В ходе экспериментов проведено тестирование MPI-реализации быстрой сортировки с простым слиянием на различных количествах процессов. Время выполнения зафиксировано для двух сценариев: \texttt{pipeline\_run} и \texttt{task\_run}. Размер тестируемого массива составлял 999999 элементов.
+
+\begin{table}[H]
+\centering
+\caption{Результаты тестов (время выполнения в миллисекундах)}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Количество процессов} & \textbf{\texttt{pipeline\_run}} & \textbf{\texttt{task\_run}} & \textbf{Общее время} \\ \hline
+1                              & 2536                           & 2942                        & 5479                 \\ \hline
+2                              & 2110                           & 2331                        & 4441                 \\ \hline
+3                              & 1885                           & 2047                        & 3933                 \\ \hline
+4                              & 1687                           & 1829                        & 3516                 \\ \hline
+5                              & 1646                           & 1812                        & 3458                 \\ \hline
+6                              & 1588                           & 1669                        & 3257                 \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\textwidth,
+    xlabel={Количество процессов},
+    ylabel={Время выполнения (мс)},
+    xtick={1,2,3,4,5,6},
+    grid=both,
+    legend pos=north east,
+    legend style={font=\small},
+    ymin=1500, ymax=6000,
+    title={Производительность MPI Quick Sort}
+]
+\addplot[mark=o, color=blue] coordinates {
+    (1, 2536) (2, 2110) (3, 1885) (4, 1687) (5, 1646) (6, 1588)
+};
+\addlegendentry{Pipeline Run}
+
+\addplot[mark=o, color=red] coordinates {
+    (1, 2942) (2, 2331) (3, 2047) (4, 1829) (5, 1812) (6, 1669)
+};
+\addlegendentry{Task Run}
+
+\addplot[mark=o, color=green] coordinates {
+    (1, 5479) (2, 4441) (3, 3933) (4, 3516) (5, 3458) (6, 3257)
+};
+\addlegendentry{Total Run}
+\end{axis}
+\end{tikzpicture}
+\caption{Производительность с увеличением числа процессов}
+\label{fig:mpi_perf}
+\end{figure}
+
+\subsection*{Вывод}
+\begin{itemize}
+    \item \textbf{Уменьшение времени выполнения.} По мере увеличения количества процессов время выполнения тестов \texttt{pipeline\_run} и \texttt{task\_run} сокращается. Например, при увеличении количества процессов с 1 до 6 общее время выполнения тестов уменьшилось с 5479 мс до 3257 мс.
+    \item \textbf{Эффективность параллелизма.} Результаты показывают, что увеличение количества процессов приводит к уменьшению времени выполнения, что свидетельствует о высокой эффективности распараллеливания.
+\end{itemize}
+
+Таким образом, MPI-реализация показала хорошую масштабируемость и значительное снижение времени выполнения по сравнению с последовательной реализацией.
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+
+В ходе работы была реализована параллельная версия алгоритма быстрой сортировки с простым слиянием с использованием библиотеки MPI. 
+Проведённые эксперименты показали следующие ключевые результаты:
+
+\begin{itemize}
+    \item Параллельная реализация продемонстрировала значительное сокращение времени при увеличении числа процессов.
+    \item Эффективность параллелизации постепенно снижается при увеличении количества процессов, что связано с накладными расходами на передачу данных и синхронизацию между процессами.
+    \item Максимальное ускорение было достигнуто при использовании 6 процессов, где общее время выполнения снизилось на 40\% по сравнению с последовательной реализацией.
+    \item Разработка параллельного алгоритма подтвердила высокую эффективность использования MPI для распределения вычислений в задачах сортировки.
+\end{itemize}
+
+Предложенный алгоритм подходит для работы с большими массивами данных, где параллелизм позволяет существенно сократить время выполнения. 
+В дальнейшем возможно улучшение производительности за счёт оптимизации распределения нагрузки между процессами, а также исследование других подходов к реализации параллельного слияния.
+
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+
+\begin{enumerate}
+    \item {Роберт Седжвик <<Алгоритмы на C++. Анализ структуры данных. Сортировка. Поиск. Алгоритмы на графах.>>}.
+    \item \href{https://parallel.ru/vvv/mpi.html#p1}{MPI. Терминология и обозначения}.
+    \item {А.С. Антонов <<Параллельное программирование с использованием MPI>>}.
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+В данном разделе прилагается код основных функций реализации, а именно:
+\begin{enumerate}
+    \item {Функция \texttt{merge}}.
+    \item {Основная функция сортировки}.
+    \item {Метод \texttt{run}, в котором реализована схема распараллеливания}.
+\end{enumerate}
+
+\subsection*{Функция merge}
+\addcontentsline{toc}{subsection}{Функция merge}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> korablev_v_quick_sort_simple_merge_mpi::merge(
+    const std::vector<int>& left,
+    const std::vector<int>& right) {
+
+    std::vector<int> result;
+    result.reserve(left.size() + right.size());
+
+    size_t i = 0, j = 0;
+    while (i < left.size() && j < right.size()) {
+        if (left[i] < right[j]) {
+            result.push_back(left[i++]);
+        } else {
+            result.push_back(right[j++]);
+        }
+    }
+
+    result.insert(result.end(), left.begin() + i, left.end());
+    result.insert(result.end(), right.begin() + j, right.end());
+
+    return result;
+}
+\end{lstlisting}
+
+\subsection*{Функция quick\_sort\_with\_merge}
+\addcontentsline{toc}{subsection}{Функция quick\_sort\_with\_merge}
+
+\begin{lstlisting}[language=C++]
+std::vector<int> korablev_v_quick_sort_simple_merge_mpi::quick_sort_with_merge(const std::span<int>& arr) {
+    if (arr.size() <= 1) {
+        return {arr.begin(), arr.end()};
+    }
+
+    int pivot = arr[arr.size() / 2];
+    std::vector<int> left, right, equal;
+
+    for (const auto& elem : arr) {
+        if (elem < pivot) {
+            left.push_back(elem);
+        } else if (elem > pivot) {
+            right.push_back(elem);
+        } else {
+            equal.push_back(elem);
+        }
+    }
+
+    std::vector<int> sortedLeft = quick_sort_with_merge(left);
+    std::vector<int> sortedRight = quick_sort_with_merge(right);
+
+    std::vector<int> merged = merge(sortedLeft, equal);
+    return merge(merged, sortedRight);
+}
+\end{lstlisting}
+
+\subsection*{Функция run}
+\addcontentsline{toc}{subsection}{Функция run}
+
+\begin{lstlisting}[language=C++]
+bool korablev_v_quick_sort_simple_merge_mpi::QuickSortSimpleMergeParallel::run() {
+    internal_order_test();
+
+    boost::mpi::broadcast(world, input_, 0);
+
+    size_t n = input_.size();
+    size_t chunk_size = n / world.size();
+    size_t remainder = n % world.size();
+
+    std::vector<int> sizes(world.size(), chunk_size);
+    for (size_t i = 0; i < remainder; ++i) {
+        sizes[i]++;
+    }
+
+    std::vector<int> displs(world.size(), 0);
+    for (int i = 1; i < world.size(); ++i) {
+        displs[i] = displs[i - 1] + sizes[i - 1];
+    }
+
+    local_data_.resize(sizes[world.rank()]);
+    boost::mpi::scatterv(world, input_.data(), sizes, displs, local_data_.data(), sizes[world.rank()], 0);
+
+    local_data_ = quick_sort_with_merge(local_data_);
+
+    std::vector<int> gathered_data;
+    if (world.rank() == 0) {
+        gathered_data.resize(n);
+    }
+    boost::mpi::gatherv(world, local_data_.data(), sizes[world.rank()], gathered_data.data(), sizes, displs, 0);
+
+    if (world.rank() == 0) {
+        output_.assign(gathered_data.begin(), gathered_data.begin() + sizes[0]);
+        for (int i = 1; i < world.size(); ++i) {
+            std::vector<int> right(gathered_data.begin() + displs[i], gathered_data.begin() + displs[i] + sizes[i]);
+            output_ = merge(output_, right);
+        }
+    }
+
+    return true;
+}
+\end{lstlisting}
+
+\end{document}
