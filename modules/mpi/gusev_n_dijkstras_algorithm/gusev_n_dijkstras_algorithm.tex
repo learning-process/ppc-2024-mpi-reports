@@ -1,0 +1,286 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет по проекту},
+    pdfauthor={Гусев Никита},
+    pdfsubject={Поиск кратчайших путей из одной вершины, Алгоритм Дейкстры}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+
+\title{Отчёт по теме: \\ Поиск кратчайших путей из одной вершины \\ (Алгоритм Дейкстры с использованием CRS графов) \\ ННГУ им. Лобачевского \\ Параллельное программирование}
+\author{Гусев Никита}
+
+\begin{document}
+
+\maketitle
+\begin{abstract}
+    В данном отчете рассматривается реализация алгоритма Дейкстры для поиска кратчайших путей из одной вершины в графах, представленных в формате CRS (Compressed Row Storage). Описание включает в себя структуру данных, используемую для представления графа, а также тестирование производительности и валидацию алгоритма. 
+\end{abstract}
+\newpage
+\tableofcontents
+\newpage
+
+\section{Введение}
+Поиск кратчайших путей в графах является одной из ключевых задач в области компьютерных наук и оптимизации. Графы представляют собой мощный инструмент для моделирования различных систем, таких как транспортные сети, социальные сети и компьютерные сети. Алгоритм Дейкстры, предложенный Эдсгером Дейкстрой в 1956 году, является одним из самых известных методов решения данной задачи, особенно для графов с неотрицательными весами рёбер.
+
+Дейкстра использует жадный подход, постепенно расширяя известные кратчайшие пути от начальной вершины ко всем остальным вершинам графа. В данной работе рассматривается параллельная реализация алгоритма Дейкстры с использованием библиотеки MPI (Message Passing Interface) для эффективной обработки больших графов, представленных в формате CRS. Параллельная обработка позволяет значительно ускорить вычисления на многоядерных системах и кластерах.
+
+\newpage
+\section{Постановка задачи}
+В данной работе мы рассматриваем параллельную реализацию алгоритма Дейкстры поиска кратчайшой величины, использующую библиотеку MPI (Message Passing Interface) для эффективной обработки графов в формате CRS.
+\newpage
+\section{Структура данных}
+\subsection{SparseGraphCRS}
+Граф представлен с использованием структуры данных \texttt{SparseGraphCRS}, которая включает в себя три основных массива:
+\begin{itemize}
+    \item \texttt{values} - массив весов рёбер,
+    \item \texttt{col\_indices} - массив индексов столбцов (целевых вершин),
+    \item \texttt{row\_ptr} - массив указателей на начало каждой строки.
+\end{itemize}
+
+\begin{lstlisting}[language=c++, caption={Определение структуры SparseGraphCRS}]
+struct SparseGraphCRS {
+    std::vector<double> values;
+    std::vector<int> col_indices;
+    std::vector<int> row_ptr;
+    int num_vertices;
+
+    SparseGraphCRS(int n) : num_vertices(n) { row_ptr.resize(n + 1, 0); }
+
+    void add_edge(int u, int v, double weight) {
+        values.push_back(weight);
+        col_indices.push_back(v);
+        for (size_t i = u + 1; i < row_ptr.size(); ++i) {
+            row_ptr[i]++;
+        }
+    }
+};
+\end{lstlisting}
+\subsection{Преимущества представления CRS}
+Использование формата CRS имеет несколько ключевых преимуществ:
+\item \texttt{Экономия памяти}: Хранение только ненулевых значений значительно снижает потребление памяти по сравнению с полными матрицами.
+\item \texttt{Быстрый доступ}: Позволяет эффективно получать доступ к рёбрам, исходящим из каждой вершины, что критично для алгоритмов поиска.
+\item \texttt{Легкость в реализации}: Простота реализации операций добавления рёбер и доступа к данным упрощает разработку алгоритмов.
+\newpage
+\section{Реализация}
+\subsection{Основные функции}
+Класс \texttt{DijkstrasAlgorithmParallel} реализует алгоритм Дейкстры и включает в себя несколько ключевых методов:
+\begin{itemize}
+    \item \texttt{validation()} - проверяет корректность входных данных.
+    \item \texttt{pre\_processing()} - выполняет предварительную обработку.
+    \item \texttt{run()} - основной метод, реализующий алгоритм Дейкстры.
+    \item \texttt{post\_processing()} - выполняет завершающие действия и возвращает результаты.
+\end{itemize}
+\subsection{Метод validation()}
+Метод \texttt{validation()} проверяет данные на корректность:
+\begin{lstlisting}[language=c++, caption={Сам метод}]
+bool DijkstrasAlgorithmParallel::validation() {
+  internal_order_test();
+  if (taskData->inputs.empty() || taskData->inputs[0] == nullptr ||
+      taskData->inputs.size() != taskData->inputs_count.size() || taskData->inputs_count[0] != sizeof(SparseGraphCRS)) {
+    return false;
+  }
+
+  auto* graph = reinterpret_cast<SparseGraphCRS*>(taskData->inputs[0]);
+
+  if (graph->num_vertices == 0) {
+    return false;
+  }
+
+  if (taskData->outputs.empty() || taskData->outputs[0] == nullptr ||
+      taskData->outputs.size() != taskData->outputs_count.size()) {
+    return false;
+  }
+
+  return true;
+}
+\end{lstlisting}
+В этом методе проверяются:\\
+\begin{itemize}
+    \item Входные и выходные данные (не ноль, размер)
+    \item Количество вершин графа не ноль
+\end{itemize}
+\subsection{Метод run()}
+Метод \texttt{run()} реализует основной цикл алгоритма Дейкстры, в котором происходит:
+\begin{itemize}
+    \item Инициализация локальных расстояний и посещённых вершин.
+    \item Итеративный поиск минимальной вершины и обновление расстояний.
+\end{itemize}
+Основные моменты из кода:
+\begin{lstlisting}
+int vertices_per_proc = num_vertices / num_procs;
+int start_vertex = rank * vertices_per_proc;
+int end_vertex = (rank == num_procs - 1) ? num_vertices : start_vertex + vertices_per_proc;
+\end{lstlisting}
+Определяется, сколько вершин будет обрабатывать каждый процесс.\\
+start\_vertex и end\_vertex определяют диапазон вершин, который будет обрабатываться текущим процессом.
+\begin{lstlisting}
+  if (rank == 0) {
+    local_distances[source_vertex] = 0.0;
+  }
+\end{lstlisting}
+Задаёт расстояние от начальной точки до самой себя = 0.
+\begin{lstlisting}
+local_distances.resize(num_vertices, std::numeric_limits<double>::infinity());
+std::vector<bool> local_visited(num_vertices, false);
+\end{lstlisting}
+local\_distances инициализируется значениями бесконечности, указывая, что расстояния до всех вершин из начальной вершины еще не известны.\\
+local\_visited используется для отслеживания, какие вершины были посещены.
+\begin{lstlisting}[language=c++, caption={Основной цикл, где происходит поиск минимума}]
+bool DijkstrasAlgorithmParallel::run() {
+    // Initialize
+    ...
+    for (int iter = 0; iter < num_vertices - 1; ++iter) {
+        MinVertex local_min{std::numeric_limits<double>::infinity(), -1};
+        ...
+        // Searching for a global minimum
+        ...
+        // Updating distances
+        ...
+    }
+    return true;
+}
+\end{lstlisting}
+\subsection{Метод post\_processing()}
+Метод \texttt{post\_processing()} реализует копию вычисленных данных в output:
+\begin{lstlisting}[language=c++, caption={Сам метод}]
+bool DijkstrasAlgorithmParallel::post_processing() {
+  internal_order_test();
+  int rank = world.rank();
+
+  if (rank == 0) {
+    auto* output = reinterpret_cast<double*>(taskData->outputs[0]);
+    std::copy(local_distances.begin(), local_distances.end(), output);
+  }
+
+  return true;
+}
+\end{lstlisting}
+\newpage
+\section{Тестирование}
+\subsection{Производительность}
+Для оценки производительности алгоритма были проведены тесты, где генерировались случайные графы и измерялось время выполнения алгоритма.
+В этих тестах используется два вида графов - цикличные и двудольные:
+\begin{lstlisting}[language=c++, caption={Пример функционального теста}]
+void create_cycle_graph(
+    std::shared_ptr<gusev_n_dijkstras_algorithm_mpi::DijkstrasAlgorithmParallel::SparseGraphCRS>& graph,
+    int num_vertices) {
+  for (int i = 0; i < num_vertices; ++i) {
+    double weight = static_cast<double>(rand()) / RAND_MAX * 10.0 + 0.1;  // Random weight between 0.1 and 10.0
+    graph->add_edge(i, (i + 1) % num_vertices, weight);                   // Connect in a cycle
+  }
+}
+
+void create_bipartite_graph(
+    std::shared_ptr<gusev_n_dijkstras_algorithm_mpi::DijkstrasAlgorithmParallel::SparseGraphCRS>& graph,
+    int num_vertices) {
+  int half = num_vertices / 2;
+  for (int u = 0; u < half; ++u) {
+    for (int v = half; v < num_vertices; ++v) {
+      double weight = static_cast<double>(rand()) / RAND_MAX * 10.0 + 0.1;  // Random weight between 0.1 and 10.0
+      graph->add_edge(u, v, weight);
+    }
+  }
+}
+\end{lstlisting}
+\subsection{Функциональные тесты}
+Функциональные тесты проверяют корректность работы алгоритма на различных типах графов, включая:
+\begin{itemize}
+    \item Связные графы
+    \item Несвязные графы
+    \item Пустые графы
+\end{itemize}
+Пример функционального теста, который проверяет работу алгоритма на простом графе:
+
+\begin{lstlisting}[language=c++, caption={Пример функционального теста}]
+TEST(gusev_n_dijkstras_algorithm_mpi, TestDijkstra) {
+  boost::mpi::communicator world;
+  auto task_data = std::make_shared<ppc::core::TaskData>();
+
+  auto graph = std::make_shared<gusev_n_dijkstras_algorithm_mpi::DijkstrasAlgorithmParallel::SparseGraphCRS>(5);
+  graph->add_edge(0, 1, 2.0);
+  graph->add_edge(0, 2, 3.0);
+  graph->add_edge(1, 2, 1.0);
+  graph->add_edge(2, 0, 4.0);
+  graph->add_edge(3, 4, 5.0);
+
+  task_data->inputs.push_back(reinterpret_cast<uint8_t*>(graph.get()));
+  task_data->inputs_count.push_back(
+      sizeof(gusev_n_dijkstras_algorithm_mpi::DijkstrasAlgorithmParallel::SparseGraphCRS));
+
+  std::vector<double> output_data(5);
+  task_data->outputs.push_back(reinterpret_cast<uint8_t*>(output_data.data()));
+  task_data->outputs_count.push_back(output_data.size() * sizeof(double));
+
+  gusev_n_dijkstras_algorithm_mpi::DijkstrasAlgorithmParallel task(task_data);
+  ASSERT_TRUE(task.validation());
+  ASSERT_TRUE(task.pre_processing());
+  ASSERT_TRUE(task.run());
+  ASSERT_TRUE(task.post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<double> expected_distances = {0.0, 2.0, 3.0, std::numeric_limits<double>::infinity(),
+                                              std::numeric_limits<double>::infinity()};
+    for (size_t i = 0; i < expected_distances.size(); ++i) {
+      if (std::isinf(expected_distances[i])) {
+        EXPECT_TRUE(std::isinf(output_data[i])) << "Distance to vertex " << i << " should be infinity";
+      } else {
+        EXPECT_NEAR(output_data[i], expected_distances[i], 1e-6) << "Incorrect distance to vertex " << i;
+      }
+    }
+  }
+}
+\end{lstlisting}
+Этот тест создает граф с 5 вершинами и несколькими ребрами, затем проверяет, правильно ли алгоритм находит кратчайшие расстояния от начальной вершины (0) до других вершин (некоторые вершины недостежимы, поэтому inf).
+\newpage
+\section{Заключение}
+Реализация алгоритма Дейкстры с использованием CRS графов и параллельной обработки с помощью MPI позволяет эффективно находить кратчайшие пути в больших графах. Проведенные тесты подтвердили корректность и производительность алгоритма.
+
+
+\end{document}
