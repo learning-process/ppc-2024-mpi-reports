@@ -222,7 +222,7 @@ $$
 Класс \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_seq} реализует классический последовательный алгоритм умножения матриц. В методе \texttt{pre\_processing()} происходит загрузка входных матриц $A$ и $B$ из входных данных, их копирование в локальные структуры данных и инициализация матрицы результата $C$ нулями. Метод \texttt{validation()} проверяет, что входные матрицы имеют допустимые размеры и содержат необходимые данные для выполнения операции умножения.
 
 В методе \texttt{run()} реализован стандартный тройной цикл для умножения матриц, где каждый элемент матрицы $C$ вычисляется как сумма произведений соответствующих элементов строк матрицы $A$ и столбцов матрицы $B$. Наконец, метод \texttt{post\_processing()} копирует полученную матрицу $C$ в выходные данные для дальнейшего использования или сравнения.
-
+\newpage
 \subsection*{Параллельная реализация алгоритма Фокса}
 
 Класс \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_mpi} отвечает за параллельное умножение матриц с использованием алгоритма Фокса и стандартных функций MPI. Основные этапы реализации следующие:
@@ -250,7 +250,13 @@ $$
 
 \subsection*{Методы класса \texttt{Task}}
 
-Оба класса, \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_seq} и \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_mpi}, наследуют базовый класс \texttt{ppc::core::Task} и реализуют его виртуальные методы:
+Оба класса:
+\begin{itemize}
+    \item \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_seq}
+    \item \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_mpi}
+\end{itemize}
+наследуют базовый класс \texttt{ppc::core::Task} и реализуют его виртуальные методы:
+
 
 \begin{itemize}
     \item \textbf{\texttt{pre\_processing()}:} Этот метод отвечает за инициализацию данных перед выполнением основного алгоритма. Для последовательного варианта это загрузка и копирование матриц $A$ и $B$, а для параллельного — дополнительное дополнение матриц до кратных размеров и распределение блоков между процессами.
@@ -340,116 +346,6 @@ $$
     \end{lstlisting}
 \end{enumerate}
 
-\subsection*{Методы класса \texttt{Task}}
-
-Оба класса, \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_seq} и \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_mpi}, наследуют базовый класс \texttt{ppc::core::Task} и реализуют его виртуальные методы:
-
-\begin{itemize}
-    \item \textbf{\texttt{pre\_processing()}:} Этот метод отвечает за инициализацию данных перед выполнением основного алгоритма. Для последовательного варианта это загрузка и копирование матриц $A$ и $B$, а для параллельного — дополнительное дополнение матриц до кратных размеров и распределение блоков между процессами.
-    
-    \item \textbf{\texttt{validation()}:} Метод проверки корректности входных данных. В последовательной реализации проверяется, что матрицы имеют допустимые размеры и содержат необходимые данные. В параллельной версии дополнительно проверяется, что число процессов соответствует требованиям алгоритма Фокса (например, является квадратом целого числа).
-    
-    \item \textbf{\texttt{run()}:} В последовательном классе этот метод содержит стандартную реализацию тройного цикла для умножения матриц. В параллельном классе \texttt{dense\_matrix\_multiplication\_block\_scheme\_fox\_algorithm\_mpi} реализован алгоритм Фокса, включающий организацию топологии сетки процессов, создание подкоммуникаторов, распределение блоков матриц, выполнение итераций умножения и сбор результатов.
-    
-    \item \textbf{\texttt{post\_processing()}:} После выполнения умножения, этот метод отвечает за сбор и передачу результатов. В последовательной реализации это копирование матрицы $C$ в выходные данные. В параллельной версии осуществляется сбор блоков матрицы $C$ на корневом процессе и их объединение в итоговую матрицу.
-\end{itemize}
-
-\subsection*{Основные шаги параллельной задачи}
-
-\begin{enumerate}
-    \item \textbf{Инициализация топологии процессов:}  
-    В начале выполнения параллельного алгоритма создаётся двумерная декартова топология процессов с помощью функции \texttt{MPI\_Cart\_create}. Размерность сетки определяется как $\sqrt{P} \times \sqrt{P}$, где $P$ — общее число процессов:
-    \begin{lstlisting}
-    MPI_Cart_create(MPI_COMM_WORLD, 2, grid_dims, grid_periods_arr, 0, &grid_comm);
-    \end{lstlisting}
-    Здесь \texttt{grid\_dims} задаёт размеры сетки по каждой из осей, а \texttt{grid\_periods\_arr} определяет отсутствие периодичности по обеим осям.
-
-    \item \textbf{Создание подкоммуникаторов для строк и столбцов:}  
-    Для удобства коммуникаций внутри строк и столбцов создаются отдельные подкоммуникаторы с помощью функции \texttt{MPI\_Cart\_sub}:
-    \begin{lstlisting}
-    MPI_Cart_sub(grid_comm, row_dims, &row_comm);
-    MPI_Cart_sub(grid_comm, col_dims, &col_comm);
-    \end{lstlisting}
-    Здесь \texttt{row\_dims} и \texttt{col\_dims} определяют, какие измерения сохраняются при создании подкоммуникаторов (например, строки и столбцы соответственно).
-
-    \item \textbf{Дополнение матриц до кратности размерности сетки:}  
-    Если размер матрицы $N$ не делится на $\sqrt{P}$ или не является степенью двойки, матрицы дополняются нулями до ближайшего большего размера, кратного $\sqrt{P}$. Это необходимо для равномерного распределения блоков между процессами и предотвращения выхода за границы матриц:
-    \begin{lstlisting}
-    int padding = 1;
-    while (padding < N) padding <<= 1;
-
-    if (padding % grid_dimension != 0) {
-        padding *= grid_dimension;
-    }
-    padded_size = padding;
-    \end{lstlisting}
-
-    \item \textbf{Распределение блоков матриц между процессами:}  
-    На корневом процессе матрицы разбиваются на блоки и распределяются между процессами с помощью функций \texttt{MPI\_Send} и \texttt{MPI\_Recv}. Каждый процесс получает свои локальные блоки матриц $A$ и $B$, необходимые для выполнения локальных вычислений:
-    \begin{lstlisting}
-    if (proc_rank == 0) {
-
-        MPI_Send(send_localA.data(), local_block_size * local_block_size, MPI_DOUBLE, proc_id, 0, grid_comm);
-        MPI_Send(send_localB.data(), local_block_size * local_block_size, MPI_DOUBLE, proc_id, 1, grid_comm);
-    } else {
-        MPI_Recv(localA.data(), local_block_size * local_block_size, MPI_DOUBLE, 0, 0, grid_comm, MPI_STATUS_IGNORE);
-        MPI_Recv(localB.data(), local_block_size * local_block_size, MPI_DOUBLE, 0, 1, grid_comm, MPI_STATUS_IGNORE);
-    }
-    \end{lstlisting}
-
-    \item \textbf{Выполнение итераций алгоритма Фокса:}  
-    Алгоритм выполняется в цикле из $\sqrt{P}$ итераций. На каждом шаге:
-    \begin{itemize}
-        \item \textbf{Рассылка блоков матрицы $A$:} Выбранный процесс в строке рассылает текущий блок матрицы $A$ всем процессам в той же строке с помощью функции \texttt{MPI\_Bcast}:
-        \begin{lstlisting}
-        MPI_Bcast(broadcast_localA.data(), local_block_size * local_block_size, MPI_DOUBLE, broadcast_root, row_comm);
-        \end{lstlisting}
-
-        \item \textbf{Локальное умножение блоков:} Каждый процесс умножает полученный блок $A$ на свой локальный блок $B$ и добавляет результат к соответствующему блоку матрицы $C$:
-        \begin{lstlisting}
-        for (int i = 0; i < local_block_size; ++i) {
-            for (int j = 0; j < local_block_size; ++j) {
-                for (int k = 0; k < local_block_size; ++k) {
-                    mult_block[i * local_block_size + j] +=
-                        broadcast_localA[i * local_block_size + k] * localB[k * local_block_size + j];
-                }
-            }
-        }
-        \end{lstlisting}
-
-        \item \textbf{Циклический сдвиг блоков матрицы $B$:} Блоки матрицы $B$ циклически сдвигаются вверх по столбцам с использованием функции \texttt{MPI\_Sendrecv\_replace}, что подготавливает блоки для следующей итерации:
-        \begin{lstlisting}
-        MPI_Sendrecv_replace(localB.data(), local_block_size * local_block_size, MPI_DOUBLE, prevPr, 0, nextPr, 0, col_comm, &mpi_status);
-        \end{lstlisting}
-    \end{itemize}
-
-    \item \textbf{Сбор и формирование итоговой матрицы $C$:}  
-    После завершения всех итераций блоки матрицы $C$ собираются на корневом процессе с помощью функции \texttt{MPI\_Recv}. Затем блоки объединяются в единую матрицу $C$, которая обрезается до исходного размера $N \times N$, исключая добавленные нулевые блоки:
-    \begin{lstlisting}
-    if (proc_rank == 0) {
-        gathered_result.resize(padded_size * padded_size, 0.0);
-        for (int i = 0; i < local_block_size; i++) {
-            for (int j = 0; j < local_block_size; j++) {
-                gathered_result[i * padded_size + j] = mult_block[i * local_block_size + j];
-            }
-        }
-
-        for (int proc_id = 1; proc_id < total_procs; proc_id++) {
-            recv_block_result.resize(local_block_size * local_block_size, 0.0);
-            MPI_Recv(recv_block_result.data(), local_block_size * local_block_size, MPI_DOUBLE, proc_id, 3, grid_comm, MPI_STATUS_IGNORE);
-
-            for (int i = 0; i < local_block_size; i++) {
-                for (int j = 0; j < local_block_size; j++) {
-                    gathered_result[(proc_row * local_block_size + i) * padded_size + (proc_col * local_block_size + j)] =
-                        recv_block_result[i * local_block_size + j];
-                }
-            }
-        }
-    } else {
-        MPI_Send(mult_block.data(), local_block_size * local_block_size, MPI_DOUBLE, 0, 3, grid_comm);
-    }
-    \end{lstlisting}
-\end{enumerate}
 
 \newpage
 
