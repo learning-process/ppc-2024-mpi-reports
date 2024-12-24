@@ -191,12 +191,12 @@
 \hspace*{1.25em}Программная реализация алгоритма включает следующие компоненты:
 
 \begin{enumerate}
-    \item Функция \texttt{shellSort(const std::vector<int>& vect)}:
+    \item Функция \texttt{shellSort(const std::vector<int>& vect):}
     \begin{itemize}
         \item Реализует последовательный алгоритм сортировки Шелла.
         \item Принимает на вход вектор \textit{vect} и возвращает отсортированный вектор.
     \end{itemize}
-    \item Функция \texttt{merge(const std::vector<int>& left, const std::vector<int>& right)}:
+    \item Функция \texttt{merge(const std::vector<int>& left, const std::vector<int>& right):}
     \begin{itemize}
         \item Реализует слияние двух отсортированных векторов.
     \end{itemize}
@@ -333,7 +333,6 @@ E(n, p) = \frac{S(n, p)}{p}
 \addcontentsline{toc}{subsection}{\texttt{tasks/mpi/muhina\_m\_shell\_sort/include/ops\_mpi.hpp}}
 
 \begin{lstlisting}[language=C++]
-// Copyright 2023 Nesterov Alexander
 #pragma once
 
 #include <gtest/gtest.h>
@@ -379,7 +378,7 @@ class ShellSortMPIParallel : public ppc::core::Task {
   boost::mpi::communicator world_;
 };
 
-}  // namespace muhina_m_shell_sort_mpi
+}  
 
 \end{lstlisting}
 
@@ -387,7 +386,6 @@ class ShellSortMPIParallel : public ppc::core::Task {
 \addcontentsline{toc}{subsection}{\texttt{tasks/mpi/muhina\_m\_shell\_sort/src/ops\_mpi.cpp}}
 
 \begin{lstlisting}[language=C++]
-// Copyright 2023 Nesterov Alexander
 #include "mpi/muhina_m_shell_sort/include/ops_mpi.hpp"
 
 #include <algorithm>
@@ -525,7 +523,6 @@ bool muhina_m_shell_sort_mpi::ShellSortMPIParallel::post_processing() {
 \addcontentsline{toc}{subsection}{\texttt{tasks/seq/muhina\_m\_shell\_sort/include/ops\_seq.hpp}}
 
 \begin{lstlisting}[language=C++]
-// Copyright 2023 Nesterov Alexander
 #pragma once
 
 #include <algorithm>
@@ -548,13 +545,12 @@ class ShellSortSequential : public ppc::core::Task {
   std::vector<int> input_;
   std::vector<int> res_;
 };
-}  // namespace muhina_m_shell_sort_seq
+} 
 \end{lstlisting}
 \subsection*{\texttt{tasks/seq/muhina\_m\_shell\_sort/src/ops\_seq.cpp}}
 \addcontentsline{toc}{subsection}{\texttt{tasks/seq/muhina\_m\_shell\_sort/src/ops\_seq.cpp}}
 
 \begin{lstlisting}[language=C++]
-// Copyright 2024 Nesterov Alexander
 #include "seq/muhina_m_shell_sort/include/ops_seq.hpp"
 
 #include <random>
