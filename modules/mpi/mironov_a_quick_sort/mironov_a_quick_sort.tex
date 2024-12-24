@@ -1,0 +1,972 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{indentfirst}
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+\usepackage{booktabs} % Для красивых линий в таблицах
+\linespread{1.5}
+\usepackage{listings}
+\usepackage{xcolor} % Для настройки цветов
+
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red},
+    numbers=left, 
+    numberstyle=\tiny\color{gray},
+    frame=single, 
+    breaklines=true,
+    showstringspaces=false, 
+    tabsize=2,
+    frame=none
+}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    {\small 
+    Министерство науки и высшего образования \\
+    Российской Федерации \\
+    Федеральное государственное автономное образовательное учреждение \\
+    высшего образования \\
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»} (ННГУ) \\
+    Институт информационных технологий, математики и механики \par
+    }
+    \vspace{3cm}
+    \textbf{\Large ЛАБОРАТОРНАЯ РАБОТА} \par
+    \vspace{0.5cm}
+    на тему: \par
+    \textbf{«Быстрая сортировка с простым слиянием с использованием MPI»} \par
+    \vspace{3cm}
+    \hspace{0.5cm} \par
+    \begin{flushright}
+    Выполнили: \par
+    студенты группы 382251ФИ1 \par
+    \underline{\hspace{5cm}} /Миронов А. И./ \par
+    \vspace{1cm}
+    Проверил: \par
+    доцент, кандидат технических наук \par
+    \underline{\hspace{5cm}} /Сысоев А. В./ \par
+    \end{flushright}
+    \vfill
+    \centering
+    Нижний Новгород \par
+    2024
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\indent Сортировка является одной из самых фундаментальных задач в информатике, используемой в множестве приложений от обработки данных до алгоритмов поиска. Эффективность сортировки во многом зависит от размера и структуры данных, а также от выбранного метода сортировки. Одним из наиболее известных и эффективных алгоритмов сортировки является быстрая сортировка (QuickSort), которая использует стратегию "разделяй и властвуй" для упорядочивания элементов. В стандартной реализации этот алгоритм работает за время $ O(n \log n) $ в среднем, однако его эффективность сильно зависит от выбора опорного элемента.
+
+В последние годы для ускорения обработки больших объёмов данных и решения вычислительных задач на кластерах стало популярным использование параллельных вычислений. Одна из широко используемых параллельных библиотек — MPI (Message Passing Interface), предназначенная для эффективного обмена сообщениями между процессами в распределённых вычислительных системах. Использование MPI позволяет ускорить выполнение алгоритмов сортировки за счёт параллельного выполнения, разделения данных и слияния результатов.
+
+Разработка и исследование алгоритма быстрой сортировки с простым слиянием на базе MPI позволяет  ускорить выполнение сортировки для больших наборов данных путём распараллеливания процесса сортировки и слияния. В ходе работы будет реализован алгоритм, который делит исходный набор данных между процессами, каждый из которых выполняет сортировку подмножества, а затем происходит объединение отсортированных данных в окончательно упорядоченный массив.
+
+\newpage
+\section{Постановка задачи}
+
+\indent Целью данной лабораторной работы является разработка и анализ алгоритма быстрой сортировки с простым слиянием на базе MPI для параллельной обработки больших объёмов данных. В частности, необходимо:
+
+\begin{itemize}
+    \item Изучить алгоритм быстрой сортировки (QuickSort) и его параллельную реализацию с использованием библиотеки MPI.
+    \item Разработать параллельный алгоритм сортировки, который будет распараллеливать процесс сортировки данных и слияния отсортированных частей.
+    \item Исследовать влияние количества процессов на производительность алгоритма, а также на время выполнения сортировки.
+    \item Сравнить параллельную реализацию с последовательной и оценить ускорение, полученное благодаря использованию MPI.
+    \item Провести тестирование алгоритма на различных наборах данных, включая случайные и уже отсортированные массивы, для оценки стабильности и эффективности реализации.
+    \item Рассчитать и проанализировать время работы алгоритма на различных масштабах данных, а также определить его пределы и ограничения при большом объёме данных.
+\end{itemize}
+
+Задачи работы включают:
+\begin{enumerate}
+    \item Реализация стандартного алгоритма быстрой сортировки для последовательной версии.
+    \item Адаптация алгоритма быстрой сортировки для параллельной обработки с использованием MPI.
+    \item Разработка схемы распределения данных между процессами, а также метода слияния отсортированных частей.
+    \item Оценка производительности параллельного алгоритма в зависимости от количества процессов и объема данных.
+    \item Сравнение результатов параллельной и последовательной сортировки с использованием различных метрик, таких как время выполнения и скорость обработки.
+\end{enumerate}
+
+Решение поставленных задач позволит понять, как эффективно использовать параллельные вычисления для ускорения обработки данных и применения алгоритма быстрой сортировки в распределённых вычислительных средах. Также будет исследована зависимость производительности от числа задействованных процессоров и масштабов обрабатываемых данных.
+
+\newpage
+\section{Описание алгоритма}
+
+\subsection{Быстрая сортировка (QuickSort)}
+
+Алгоритм быстрой сортировки основан на стратегии «разделяй и властвуй» и включает три основных этапа:
+
+1. \textbf{Выбор опорного элемента (pivot)}: выбирается элемент массива, относительно которого производится разделение. Опорным элементом выбирается центральный элемент массива.
+
+2. \textbf{Разделение массива}: все элементы массива сравниваются с опорным. Элементы, меньшие или равные pivot, перемещаются в левую часть, а элементы, большие pivot, — в правую.
+
+3. \textbf{Рекурсивная сортировка}: алгоритм рекурсивно применяется к каждой из двух частей (левая и правая), пока подмассивы не станут длиной 1 (или 0).
+
+Быстрая сортировка отличается высокой производительностью и в среднем имеет временную сложность $O(n \log n)$. Однако её эффективность зависит от выбора опорного элемента, что может влиять на глубину рекурсии и производительность.
+
+\subsection{Алгоритм слияния}
+
+Алгоритм слияния предназначен для объединения двух отсортированных массивов в один отсортированный. Основные этапы работы алгоритма следующие:
+
+1. Сравниваются начальные элементы двух массивов, и меньший из них добавляется в итоговый массив.
+2. После добавления элемента индекс в соответствующем массиве увеличивается на 1.
+3. Этот процесс повторяется до тех пор, пока один из массивов не будет полностью обработан.
+4. Элементы второго массива, оставшиеся без обработки, добавляются в конец итогового массива.
+
+Алгоритм слияния является важной частью многих сортировок, включая сортировку слиянием, и используется для объединения отсортированных данных при параллельной обработке.
+
+\subsection{Совмещение QuickSort и Merge в параллельной реализации}
+
+В параллельной реализации на базе MPI алгоритмы быстрой сортировки и слияния работают совместно. Сначала каждый процесс выполняет локальную сортировку своей части данных с использованием QuickSort. Затем на корневом процессе происходит слияние отсортированных частей, полученных от всех процессов. 
+
+Этот подход позволяет эффективно использовать ресурсы вычислительных систем, распределяя нагрузку между процессами и минимизируя время выполнения сортировки для больших массивов данных.
+
+
+\newpage
+\section{Описание схемы распараллеливания}
+Схемы расспараллеливания следующая:
+\begin{itemize}
+    \item Входной массив делится на равные части в корневом процессе и рассылается по процессам. Если количество элементов в массиве не кратно числу процессов, искуственно добавляются элементы в конец массива.
+    \item Производится сортировка каждой части в процессах. Результаты сортировки отсылаются корневому процессу.
+    \item Уже осортированные части объединяются в один массив при помощи алгоритма слияния.
+\end{itemize}
+
+\newpage
+\section{Описание MPI версии}
+Используемые переменные:
+\begin{itemize}
+    \item \textbf{delta\_}: количество элементов, выделенное каждому процессу.
+    \item \textbf{input\_}: в корневом процессе хранит в себе изначальный массив. В конце могут содержаться элементы, равные предельному числу, входящему в тип \textbf{int}, если количество элементов исходного массива не делиться на количество процессов. 
+    \item \textbf{result\_}: хранит ответ в корневом процессе.
+    \item \textbf{local\_input\_}: для каждого процесса хранится свой подмассив, необходимый для сортировки.
+\end{itemize}
+
+В MPI версии алгоритма реализуются следующие шаги:
+\begin{itemize}
+    \item В корневом процессе рассчитывается \textbf{delta\_}, далее раздаётся каждому процессу при помощи \textbf{boost::mpi::broadcast}. Функция позволяет быстро передать перемнную от корня каждому процессу.
+    \item \textbf{input\_} разделяется на части и они распределяются на каждый процесс. Эффективно реализовать распределение помогает функция \textbf{boost::mpi::scatter}.
+    \item Каждый процесс сортирует свой массив \textbf{local\_input\_}.
+    \item Собираются все результаты в корневой процесс при помощи функции \textbf{boost::mpi::gather}.
+    \item После сбора массивов, в корневом процессе происходит их слияние, далее в \textbf{result\_} сохраняется ответ.
+\end{itemize}
+
+\newpage
+\section{Результаты экспериментов}
+
+\subsection{Описание тестовой системы}
+Виртуальные эксперименты проводились на машине, со следующими характеристиками:
+\begin{itemize}
+    \item CPU: Intel Core i5-8300H 2.30 GHz (8 ядер).
+    \item RAM: 12 GB (свободно 6 GB).
+    \item SSD: Kingstone 256GB (свободно 10 GB)
+\end{itemize}
+
+\subsection{Описание виртуальных экспериментов}
+Запуск прогаммы осуществлялся в консоли Windows со следующей командой: 
+\newline             
+\textbf{mpiexec -n 1 mpi\_perf\_tests.exe --gtest\_filter=mironov\_a\_quick\_sort\_mpi.*}
+С изменением числа процессов.
+
+Программа с измерением времени включает в себя:
+\begin{itemize}
+    \item Генерация массива, размером 6291456, а также создание \textbf{gold} - отсортированный входной массив, для проверки корректности работы.
+    \item 20 раз запускается функция быстрый сортировки, измеряется среднее время работы как самого алгоритма, так и время предварительной подготовки данных.
+    \item Проверяем на равенства полученного массива с \textbf{gold}.
+\end{itemize}
+
+Далее запускаем при помощи команды, описанной выше, на разном количестве процессов. Так как количество ядер не превышает 8, смысла проверять на большем количестве нет, так как даже с теоритической точки зрения будет замедление работы.
+
+\newpage
+\subsection{Результаты экспериментов}
+В эксперимете измерялось время (в милисекундах) вместе с предварительной подготовкой данных: \texttt{pipeline\_run}, и не включая её: \texttt{task\_run}: 
+
+\begin{table}[H]
+\centering
+\caption{Результаты экспериментов}
+\begin{tabular}{ccc}
+\toprule
+\textbf{   Количество процессов   } & \textbf{\texttt{  pipeline\_run  }} & \textbf{\texttt{ 
+ task\_run  }} \\ 
+\midrule
+1  & 1030 & 968   \\ 
+2  & 838  & 801   \\ 
+3  & 801  & 788   \\ 
+4  & 878  & 819   \\ 
+5  & 917  & 906   \\ 
+6  & 984  & 950   \\ 
+7  & 1049 & 1024  \\ 
+8  & 1154 & 1150  \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Выводы}
+Из данной таблицы можно сделать несколько выводов:
+\begin{itemize}
+    \item Можно заметить, что время выполнение действительно снизилось, однако эффективность распараллеливания довольно небольшая. Это может объесняться недостаточным размером входного массива.
+    \item При большом количестве процессов, накладные расходы становятся слишком высокими, поэтому использования MPI версии становиться оправдано только при больших размерах входных массивах. 
+    \item Наблюдается, что время выполнения \texttt{pipeline\_run} всегда больше \texttt{task\_run}. Это логично, так как есть затраты на копирование входных данных в корневом процессе.
+\end{itemize}
+
+\newpage
+\section*{Заключение}
+\addcontentsline{toc}{subsection}{Заключение}
+В ходе проведенного эксперимента была проанализирована эффективность распараллеливания алгоритма с использованием библиотеки MPI. Результаты, представленные в таблице, показали, что время выполнения задач уменьшается с увеличением количества процессов, однако эффективность распараллеливания остается на относительно низком уровне. Это может быть связано с недостаточным размером входного массива, что ограничивает возможности параллельной обработки.
+
+Также было отмечено, что при увеличении числа процессов накладные расходы на управление ими становятся значительными, что делает использование MPI-версии алгоритма оправданным только при работе с большими размерами входных данных. Сравнение времени выполнения различных задач показало, что некоторые из них могут быть более оптимизированы, что открывает возможности для дальнейшего улучшения производительности.
+
+В целом, результаты эксперимента подчеркивают важность тщательной настройки и оптимизации параллельных алгоритмов для достижения максимальной производительности. Будущие исследования могут сосредоточиться на разработке более эффективных методов распределения задач и управлении ресурсами, что позволит улучшить результаты распараллеливания и расширить область применения MPI в высокопроизводительных вычислениях.
+
+\newpage
+\section*{Литература}
+\addcontentsline{toc}{subsection}{Литература}
+
+\begin{enumerate}
+    \item MPI - Введение и первая программа [https://habr.com/ru/articles/548266/].
+    \item Quick sort [https://en.wikipedia.org/wiki/Quicksort].
+    \item {А.А. Малявко <<Параллельное программирование на основе технологий OpenMP, MPI, CUDA>>}.
+\end{enumerate}
+
+\newpage
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{subsection}{Приложение}
+\subsection*{Приложение А. Заголовочный файл}
+\addcontentsline{toc}{subsection}{Приложение А. Заголовочный файл}
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace mironov_a_quick_sort_mpi {
+
+class QuickSortMPI : public ppc::core::Task {
+ public:
+  explicit QuickSortMPI(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> result_;
+
+  unsigned int delta;
+  boost::mpi::communicator world;
+};
+
+class QuickSortSequential : public ppc::core::Task {
+ public:
+  explicit QuickSortSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> result_;
+};
+
+}  // namespace mironov_a_quick_sort_mpi
+
+\end{lstlisting}
+
+\subsection*{Приложение Б. Файл с исходным кодом}
+\addcontentsline{toc}{subsection}{Приложение Б. Файл с исходным кодом}
+\begin{lstlisting}
+#include "mpi/mironov_a_quick_sort/include/ops_mpi.hpp"
+
+#include <thread>
+#include <utility>
+
+bool mironov_a_quick_sort_mpi::QuickSortMPI::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    delta = taskData->inputs_count[0] / world.size();
+    if (taskData->inputs_count[0] % world.size() > 0) {
+      delta++;
+    }
+
+    input_ = std::vector<int>(delta * world.size(), std::numeric_limits<int>::max());
+    result_.resize(input_.size(), std::numeric_limits<int>::max());
+    int* it = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(it, it + taskData->inputs_count[0], input_.begin());
+  }
+  return true;
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortMPI::validation() {
+  internal_order_test();
+  // Check count elements input & output
+  if (world.rank() == 0)
+    return (taskData->inputs_count[0] > 0) && (taskData->outputs_count[0] == taskData->inputs_count[0]);
+  return true;
+}
+
+static void merge(std::vector<int>& vec, int start, int end, int* res) {
+  if (res == nullptr) {
+    return;
+  }
+
+  int ptr1 = 0;
+  int ptr2 = start;
+  int free = 0;
+
+  while (ptr1 < start && ptr2 <= end) {
+    if (vec[ptr1] <= vec[ptr2]) {
+      res[free++] = vec[ptr1++];
+    } else {
+      res[free++] = vec[ptr2++];
+    }
+  }
+  while (ptr1 < start) {
+    res[free++] = vec[ptr1++];
+  }
+  while (ptr2 <= end) {
+    res[free++] = vec[ptr2++];
+  }
+
+  for (int it = 0; it < free; ++it) {
+    vec[it] = res[it];
+  }
+}
+
+static void quickSort(std::vector<int>& arr, int start, int end) {
+  if (start >= end) return;
+
+  int pivot = arr[(start + end) / 2];
+  int left = start;
+  int right = end;
+
+  while (left <= right) {
+    while (arr[left] < pivot) left++;
+    while (arr[right] > pivot) right--;
+
+    if (left <= right) std::swap(arr[left++], arr[right--]);
+  }
+
+  quickSort(arr, start, right);
+  quickSort(arr, left, end);
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortMPI::run() {
+  internal_order_test();
+
+  broadcast(world, delta, 0);
+
+  std::vector<int> local_input(delta);
+
+  scatter(world, input_.data(), local_input.data(), delta, 0);
+
+  quickSort(local_input, 0, delta - 1);
+
+  boost::mpi::gather(world, local_input.data(), local_input.size(), result_.data(), 0);
+  if (world.rank() == 0) {
+    int* res = new int[input_.size()];
+    for (int i = 1; i < world.size(); ++i) {
+      merge(result_, i * delta, (i + 1) * delta - 1, res);
+    }
+    delete[] res;
+  }
+
+  return true;
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* it = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(result_.begin(), result_.begin() + taskData->outputs_count[0], it);
+  }
+  return true;
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortSequential::pre_processing() {
+  internal_order_test();
+
+  // Init value for input and output
+  input_ = std::vector<int>(taskData->inputs_count[0]);
+  int* it = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(it, it + taskData->inputs_count[0], input_.begin());
+  return true;
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortSequential::validation() {
+  internal_order_test();
+  // Check count elements input & output
+  return (taskData->inputs_count[0] > 0) && (taskData->outputs_count[0] == taskData->inputs_count[0]);
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortSequential::run() {
+  internal_order_test();
+
+  result_ = input_;
+  quickSort(result_, 0, result_.size() - 1);
+  return true;
+}
+
+bool mironov_a_quick_sort_mpi::QuickSortSequential::post_processing() {
+  internal_order_test();
+  int* it = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(result_.begin(), result_.end(), it);
+  return true;
+}
+
+
+\end{lstlisting}
+
+\subsection*{Приложение В. Функциональные тесты}
+\addcontentsline{toc}{subsection}{Приложение В. Функциональные тесты}
+\begin{lstlisting}
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi/communicator.hpp>
+#include <boost/mpi/environment.hpp>
+#include <random>
+#include <vector>
+
+#include "mpi/mironov_a_quick_sort/include/ops_mpi.hpp"
+using namespace std;
+namespace mironov_a_quick_sort_mpi {
+
+std::vector<int> get_random_vector(int sz, int min, int max) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<int> vec(sz);
+
+  int mod = max - min + 1;
+  if (mod < 0) {
+    mod *= -1;
+  }
+  for (int i = 0; i < sz; i++) {
+    vec[i] = gen() % mod + min;
+  }
+
+  return vec;
+}
+}  // namespace mironov_a_quick_sort_mpi
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_1) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 20;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in.resize(count);
+    out.resize(count);
+    for (int i = 0; i < count; ++i) {
+      in[i] = count - i;
+    }
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_2) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 30000;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, 1, 10000000);
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_3) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 5000;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, 1, 2);
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_4) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 1024;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, -100, 200);
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_5) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 10;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, -100, -10);
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_6) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 1;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, 0, std::numeric_limits<int>::max());
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_Sort_reversed_array) {
+  boost::mpi::communicator world;
+  // Create TaskData
+  const int count = 1;
+  std::vector<int> in;
+  std::vector<int> out;
+  std::vector<int> gold;
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    in = mironov_a_quick_sort_mpi::get_random_vector(count, 0, std::numeric_limits<int>::max());
+    out.resize(count);
+    gold = in;
+    sort(gold.begin(), gold.end());
+    sort(in.rbegin(), in.rend());
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+  }
+
+  mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+  ASSERT_EQ(parallelTask.validation(), true);
+  parallelTask.pre_processing();
+  parallelTask.run();
+  parallelTask.post_processing();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+    std::vector<int32_t> out_ref(count);
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), true);
+    testMpiTaskSequential.pre_processing();
+    testMpiTaskSequential.run();
+    testMpiTaskSequential.post_processing();
+
+    ASSERT_EQ(out_ref, gold);
+    ASSERT_EQ(out, gold);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, Test_wrong_input) {
+  boost::mpi::communicator world;
+  // Create TaskData
+
+  std::vector<int> in;
+  std::vector<int> out;
+
+  std::shared_ptr<ppc::core::TaskData> ParallelData = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    // Create TaskData
+
+    ParallelData->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    ParallelData->inputs_count.emplace_back(in.size());
+    ParallelData->outputs.emplace_back(reinterpret_cast<uint8_t*>(out.data()));
+    ParallelData->outputs_count.emplace_back(out.size());
+    mironov_a_quick_sort_mpi::QuickSortMPI parallelTask(ParallelData);
+    ASSERT_EQ(parallelTask.validation(), false);
+
+    // Create TaskData
+    std::vector<int32_t> out_ref;
+
+    std::shared_ptr<ppc::core::TaskData> seqTask = std::make_shared<ppc::core::TaskData>();
+    seqTask->inputs.emplace_back(reinterpret_cast<uint8_t*>(in.data()));
+    seqTask->inputs_count.emplace_back(in.size());
+    seqTask->outputs.emplace_back(reinterpret_cast<uint8_t*>(out_ref.data()));
+    seqTask->outputs_count.emplace_back(out_ref.size());
+
+    // Create Task
+    mironov_a_quick_sort_mpi::QuickSortSequential testMpiTaskSequential(seqTask);
+    ASSERT_EQ(testMpiTaskSequential.validation(), false);
+  }
+}
+
+\end{lstlisting}
+\subsection*{Приложение Г. Тесты производительности}
+\addcontentsline{toc}{subsection}{Приложение Г. Тесты производительности}
+\begin{lstlisting}
+#include <gtest/gtest.h>
+
+#include <boost/mpi/timer.hpp>
+#include <vector>
+
+#include "core/perf/include/perf.hpp"
+#include "mpi/mironov_a_quick_sort/include/ops_mpi.hpp"
+
+TEST(mironov_a_quick_sort_mpi, test_pipeline_run) {
+  boost::mpi::communicator world;
+  std::vector<int> global_vec;
+  std::vector<int> global_max;
+  std::vector<int> gold;
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    const int count = 6291456;
+    global_vec.resize(count);
+    global_max.resize(count);
+    for (int i = 0; i < count; ++i) {
+      global_vec[i] = count + i;
+    }
+    gold = global_vec;
+    std::sort(gold.begin(), gold.end());
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(global_vec.data()));
+    taskDataPar->inputs_count.emplace_back(global_vec.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(global_max.data()));
+    taskDataPar->outputs_count.emplace_back(global_max.size());
+  }
+
+  auto testMpiTaskParallel = std::make_shared<mironov_a_quick_sort_mpi::QuickSortMPI>(taskDataPar);
+  ASSERT_EQ(testMpiTaskParallel->validation(), true);
+  testMpiTaskParallel->pre_processing();
+  testMpiTaskParallel->run();
+  testMpiTaskParallel->post_processing();
+
+  // Create Perf attributes
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const boost::mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testMpiTaskParallel);
+  perfAnalyzer->pipeline_run(perfAttr, perfResults);
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+    ASSERT_EQ(gold, global_max);
+  }
+}
+
+TEST(mironov_a_quick_sort_mpi, test_task_run) {
+  boost::mpi::communicator world;
+  std::vector<int> global_vec;
+  std::vector<int> global_max;
+  std::vector<int> gold;
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    const int count = 6291456;
+    global_vec.resize(count);
+    global_max.resize(count);
+    for (int i = 0; i < count; ++i) {
+      global_vec[i] = count + i;
+    }
+    gold = global_vec;
+    std::sort(gold.begin(), gold.end());
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(global_vec.data()));
+    taskDataPar->inputs_count.emplace_back(global_vec.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(global_max.data()));
+    taskDataPar->outputs_count.emplace_back(global_max.size());
+  }
+
+  auto testMpiTaskParallel = std::make_shared<mironov_a_quick_sort_mpi::QuickSortMPI>(taskDataPar);
+  ASSERT_EQ(testMpiTaskParallel->validation(), true);
+  testMpiTaskParallel->pre_processing();
+  testMpiTaskParallel->run();
+  testMpiTaskParallel->post_processing();
+
+  // Create Perf attributes
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const boost::mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testMpiTaskParallel);
+  perfAnalyzer->task_run(perfAttr, perfResults);
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+    ASSERT_EQ(gold, global_max);
+  }
+}
+
+\end{lstlisting}
+\end{document}
