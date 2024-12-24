@@ -1038,10 +1038,8 @@ bool TaskParallel::validation() {
 bool TaskParallel::run() {
   internal_order_test();
 
-  // Рассылка данных
   boost::mpi::broadcast(world, input_, 0);
 
-  // Определение диапазона для каждого процесса
   int n = input_.size();
   int size = world.size();
   int rank = world.rank();
@@ -1053,12 +1051,10 @@ bool TaskParallel::run() {
 
   std::vector<int> local_data(input_.begin() + start, input_.begin() + end);
 
-  // Инверсия первого бита
   for (auto& num : local_data) {
     num ^= 0x80000000;
   }
 
-  // Поразрядная сортировка локальных данных
   auto max_num = local_data.empty() ? 0 : static_cast<unsigned int>(*std::max_element(local_data.begin(), local_data.end()));
   boost::mpi::all_reduce(world, max_num, max_num, boost::mpi::maximum<unsigned int>());
 
@@ -1089,17 +1085,14 @@ bool TaskParallel::run() {
     local_data = output;
   }
 
-  // Обратная инверсия первого бита
   for (auto& num : local_data) {
     num ^= 0x80000000;
   }
 
-  // Сбор отсортированных данных на корневом процессе
   std::vector<int> sorted;
   boost::mpi::gather(world, local_data, sorted, 0);
 
   if (rank == 0) {
-    // Простое слияние отсортированных частей
     std::vector<int> final_sorted;
     for (const auto& part : sorted) {
       final_sorted.insert(final_sorted.end(), part.begin(), part.end());
