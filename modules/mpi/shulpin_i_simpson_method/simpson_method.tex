@@ -43,15 +43,17 @@
 
 \textbf{\large Отчет по лабораторной работе} \\[0.6cm] % название работы, затем отступ 0,6см
 \textbf{Тема:}\\
-  \textbf{\large <<Вычисление многомерных интегралов с использованием многошаговой схемы (метод Симпсона)>>}\\[5.0cm]
+  \textbf{\large <<Вычисление многомерных интегралов с использованием многошаговой схемы (метод Симпсона)>>}\\[3.0cm]
 \begin{flushright}
  \begin{minipage}{0.40\textwidth} % начало маленькой врезки в половину ширины текста
  \begin{flushleft} % выровнять её содержимое по левому краю
   \textbf{Выполнил:}\\[0.1cm]
   студент группы 3822Б1ФИ1 \\
   Шульпин Илья Евгеньевич  \\[1.0cm]
-  \textbf{Преподаватель:}\\[0.1cm]
-  Сысоев Александр Владимирович, доцент, кандидат технических наук  \\
+  \textbf{Преподаватели:}\\[0.1cm]
+  Сысоев Александр Владимирович, доцент, кандидат технических наук  \\[0.1cm]
+  Нестеров Александр Юрьевич, аспирант  \\[0.1cm]
+  Оболенский Арсений Андреевич, преподаватель  \\
  \end{flushleft} % конец выравнивания по левому краю
  \end{minipage} % конец врезки
 \end{flushright}
@@ -357,49 +359,49 @@ double shulpin_simpson_method::mpi_simpson(double a, double b, double c, double 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/1nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 1 потоке}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 1 процессе}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/2nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 2 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 2 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/3nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 3 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 3 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/4nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 4 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 4 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/5nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 5 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 5 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/7nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 7 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 7 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/8nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 8 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 8 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=10cm]{img/10nmpitest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 10 потоках}
+\caption{\label{fig:visualClass} Результаты тестов параллельной версии на 10 процессах}
 \end{figure}
 
 Как видно из представленных изображений, параллельная реализация успешно прошла все тесты. Теперь можно переходить к самим экспериментам
@@ -417,58 +419,58 @@ double shulpin_simpson_method::mpi_simpson(double a, double b, double c, double 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/1nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 1 потоке}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 1 процессе}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/2nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 2 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 2 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/3nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 3 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 3 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/4nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 4 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 4 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/5nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 5 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 5 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/7nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 7 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 7 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/8nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 8 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 8 процессах}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[height=6cm]{img/10nmpiperftest.jpg}
-\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 10 потоках}
+\caption{\label{fig:visualClass} Результаты тестов производительности параллельной версии на 10 процессах}
 \end{figure}
 
 \section*{Выводы из результатов}
 
-Как видно из проведенных тестов, последовательная часть практически не отличается по производительности от параллельной на 1 потоке. Связяно оно с тем, что последовательная версия и параллельная с 1 потоком буквально ставновятся идентичны, ведь обрабатывают полностью все шаги метода.
+Как видно из проведенных тестов, последовательная часть практически не отличается по производительности от параллельной на 1 процессе. Связяно оно с тем, что последовательная версия и параллельная с 1 процессе буквально ставновятся идентичны, ведь обрабатывают полностью все шаги метода.
 
-Однако начиная уже с двух процессов мы видим выигрышь в работе алгоритма практически в 2 раза. В дальнейшем с ростом числа потоков время выполения будет только уменьшаться, хоть и незначительно.
+Однако начиная уже с двух процессов мы видим выигрышь в работе алгоритма практически в 2 раза. В дальнейшем с ростом числа процессов время выполения будет только уменьшаться, хоть и незначительно.
 
-Однако, на 8 потоках показатели производительности выросли отнросительно 7 и 10 потоков. Скорее всего это связано с тем, что количество "лишних шагов"(в программе обозначается переменном \textbf{extra\_rows}) оказалось больше, чем на других процессах.
+Однако, на 8 процессах время выполнения неожинно выросло, относительно 7 процессов, а в дальшейшем с ростом числа процессов продолжило дальше уменьшаться. Скорее всего это связано техническими особенностями техники, на которой проводились эксперименты. Для тестов был использован Intel Core i9-13900H, в котором 6 производительных и 8 энергоэффективных ядер, и потому время выполнения увеличилось, ведь 2 энергоэффективных ядра обрабатывали код дольше.
 
 \section*{Заключение}
 
