@@ -1,0 +1,1125 @@
+\documentclass[12pt]{article}
+
+% Кодировка и русский язык
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+% Дополнительные пакеты
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+
+% Настройка отображения кода в листингах
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  tabsize=2,
+  language=C++,
+  numbers=left,
+  numberstyle=\tiny,
+  frame=single,
+  captionpos=b
+}
+
+\begin{document}
+
+%---------------------- Титульный лист ----------------------------
+
+\begin{titlepage}
+\begin{center}
+\large
+\textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+\vspace{4cm}
+\textbf{\Large Отчёт по выполнению задания}\\
+\textbf{\large «Поразрядная сортировка для целых чисел с простым слиянием»}\\[3cm]
+
+\vspace{3cm}
+\textbf{Выполнил:}\\
+студент группы 3822Б1ПМоп3 \\
+\textit{Петров Олег Андреевич}\\[1cm]
+
+\textbf{Преподаватель:}\\
+\textit{Нестеров Александр Юрьевич, аспирант}\\[2cm]
+
+\vfill
+\textbf{Нижний Новгород, 2024 г.}
+\end{center}
+\end{titlepage}
+
+%--------------------------- Оглавление ----------------------------
+\tableofcontents
+\newpage
+
+%---------------------- Введение -----------------------------------
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+В данном отчёте рассматривается задача реализации поразрядной сортировки для целых чисел с использованием простой схемы слияния. Основная цель работы --- разработка как последовательного, так и параллельного (с использованием MPI) алгоритмов сортировки целочисленного массива, а также анализ их производительности и корректности.
+
+%---------------------- Постановка задачи --------------------------
+
+\section{Постановка задачи}
+В рамках данной работы необходимо:
+\begin{enumerate}
+\item Реализовать последовательный алгоритм поразрядной сортировки целочисленного массива с использованием простой схемы слияния.
+\item Разработать параллельную версию алгоритма с использованием MPI, обеспечив равномерное распределение данных между процессами и слияние отсортированных частей.
+\item Провести валидацию корректности обеих реализаций.
+\item Проанализировать и сравнить производительность последовательной и параллельной версий алгоритма.
+\end{enumerate}
+
+\textbf{Входные данные:}
+\begin{itemize}
+\item Одномерный массив целых чисел размера $n$.
+\end{itemize}
+
+\textbf{Выходные данные:}
+\begin{itemize}
+\item Отсортированный массив размера $n$.
+\end{itemize}
+
+\textbf{Особенности реализации:}
+\begin{itemize}
+\item Поразрядная сортировка происходит по основанию двоичной системы счисления.
+\item Для получения разрядов используются операторы смещения, а не остатка от деления, что повышает эффективность работы.
+\item Исходный массив равномерно распределяется между процессами.
+\item Первый бит каждого числа перед сортировкой инвертируется, что обеспечивает корректное размещение отрицательных чисел перед положительными.
+\item Каждый процесс выполняет поразрядную сортировку своей части.
+\item Результаты сливаются в один отсортированный массив на корневом процессе.
+\item Алгоритм включает три основных этапа:
+  \begin{enumerate}
+    \item Распределение данных между процессами.
+    \item Поразрядная сортировка локальных данных.
+    \item Слияние результатов в общий отсортированный массив.
+  \end{enumerate}
+\end{itemize}
+
+%---------------------- Описание алгоритма -------------------------
+
+\section{Описание алгоритма поразрядной сортировки}
+
+Поразрядная сортировка (Radix Sort) является устойчивым алгоритмом сортировки, который сортирует числа по разрядам, начиная с младшего разряда и заканчивая старшим. В данной реализации используется двоичная система счисления и простое слияние отсортированных частей.
+
+\subsection{Основная идея алгоритма}
+
+\begin{enumerate}
+  \item \textbf{Инверсия первого бита:} Для корректного размещения отрицательных чисел перед положительными, первый бит каждого числа инвертируется.
+  
+  \item \textbf{Поразрядная сортировка:} Для каждого бита числа (от младшего к старшему) выполняется сортировка массива на основе значения этого бита. Сначала разделяются числа с нулевым битом и единичным битом, затем объединяются в отсортированном порядке.
+  
+  \item \textbf{Слияние отсортированных частей:} После сортировки всех разрядов локальные отсортированные части массива объединяются в один отсортированный массив.
+  
+  \item \textbf{Обратная инверсия первого бита:} После сортировки первый бит каждого числа снова инвертируется для восстановления исходных значений.
+\end{enumerate}
+
+\subsection{Параллелизация алгоритма}
+
+Для повышения эффективности алгоритма на больших массивах данных используется параллельная реализация с использованием MPI. Основные этапы параллельной реализации:
+
+\begin{enumerate}
+  \item \textbf{Распределение данных:} Исходный массив равномерно распределяется между доступными процессами.
+  
+  \item \textbf{Локальная сортировка:} Каждый процесс выполняет поразрядную сортировку своей части массива.
+  
+  \item \textbf{Слияние результатов:} Отсортированные части массивов от всех процессов объединяются в один отсортированный массив на корневом процессе.
+\end{enumerate}
+
+%---------------------- Описание последовательной реализации -------------------------
+
+\section{Описание последовательной реализации}
+
+Последовательная версия алгоритма реализована на языке C++ и включает следующие основные этапы: валидация входных данных, предварительная обработка, выполнение сортировки и постобработка результатов.
+
+\subsection{Структура класса}
+
+Код последовательной реализации представлен в пространстве имён \texttt{petrov\_o\_radix\_sort\_with\_simple\_merge\_seq}. Класс \texttt{TestTaskSequential} отвечает за выполнение всех этапов сортировки.
+
+\subsection{Этапы выполнения}
+
+\subsubsection{\texttt{validation()}}
+Метод \texttt{validation} проверяет корректность входных данных, убеждаясь, что входные массивы не пусты и содержат необходимые данные для сортировки.
+
+\subsubsection{\texttt{pre\_processing()}}
+На этапе предварительной обработки:
+\begin{itemize}
+  \item Копируются входные данные из \texttt{taskData} в локальные структуры \texttt{input\_} и \texttt{res}.
+  \item Выполняется инверсия первого бита каждого числа для корректной сортировки отрицательных чисел.
+\end{itemize}
+
+\subsubsection{\texttt{run()}}
+Основной этап выполнения сортировки включает:
+\begin{enumerate}
+  \item Определение максимального числа и количества разрядов.
+  \item Поразрядная сортировка массива:
+    \begin{itemize}
+      \item Для каждого бита выполняется разделение массива на части с нулевым и единичным битом.
+      \item Объединение частей в отсортированном порядке.
+    \end{itemize}
+  \item Обратная инверсия первого бита каждого числа.
+\end{enumerate}
+
+\subsubsection{\texttt{post\_processing()}}
+На этапе постобработки отсортированный массив копируется обратно в \texttt{taskData} для дальнейшего использования.
+
+\subsection{Фрагмент кода последовательной реализации}
+
+\begin{lstlisting}[caption={Последовательная версия поразрядной сортировки}]
+#include "seq/petrov_o_radix_sort_with_simple_merge/include/ops_seq.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+namespace petrov_o_radix_sort_with_simple_merge_seq {
+
+bool TestTaskSequential::validation() {
+  internal_order_test();
+
+  bool isValid = (!taskData->inputs_count.empty()) && (!taskData->inputs.empty()) && (!taskData->outputs.empty());
+
+  return isValid;
+}
+
+bool TestTaskSequential::pre_processing() {
+  internal_order_test();
+
+  int size = taskData->inputs_count[0];
+  input_.resize(size);
+
+  int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(input_data, input_data + size, input_.begin());
+
+  res.resize(size);
+  return true;
+}
+
+bool TestTaskSequential::run() {
+  internal_order_test();
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  auto max_num = static_cast<unsigned int>(input_[0]);
+  for (const auto& num : input_) {
+    if (static_cast<unsigned int>(num) > max_num) {
+      max_num = static_cast<unsigned int>(num);
+    }
+  }
+  int num_bits = 0;
+  const int MAX_BITS = sizeof(unsigned int) * 8;
+  while (num_bits < MAX_BITS && (max_num >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  std::vector<int> output(input_.size());
+
+  for (int bit = 0; bit < num_bits; ++bit) {
+    int zero_count = 0;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        zero_count++;
+      }
+    }
+
+    int zero_index = 0;
+    int one_index = zero_count;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        output[zero_index++] = num;
+      } else {
+        output[one_index++] = num;
+      }
+    }
+
+    input_ = output;
+  }
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  res = input_;
+  return true;
+}
+
+bool TestTaskSequential::post_processing() {
+  internal_order_test();
+
+  int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+  for (size_t i = 0; i < res.size(); ++i) {
+    output_[i] = res[i];
+  }
+  std::copy(res.begin(), res.end(), output_);
+
+  return true;
+}
+
+}  // namespace petrov_o_radix_sort_with_simple_merge_seq
+\end{lstlisting}
+
+%---------------------- Описание параллельной реализации ------------------------
+
+\section{Описание параллельной реализации}
+
+Параллельная версия алгоритма реализована с использованием MPI и включает распределение данных между процессами, локальную сортировку и слияние результатов на корневом процессе.
+
+\subsection{Структура класса}
+
+Код параллельной реализации представлен в пространстве имён \texttt{petrov\_o\_radix\_sort\_with\_simple\_merge\_mpi}. Класс \texttt{TaskParallel} отвечает за выполнение всех этапов параллельной сортировки.
+
+\subsection{Этапы выполнения}
+
+\subsubsection{\texttt{validation()}}
+Метод \texttt{validation} проверяет корректность входных данных только на корневом процессе, убеждаясь, что входные массивы не пусты и содержат необходимые данные для сортировки.
+
+\subsubsection{\texttt{pre\_processing()}}
+На этапе предварительной обработки:
+\begin{itemize}
+  \item На корневом процессе считываются все данные о массиве.
+  \item Инициализируются локальные структуры для хранения части массива, отвечающей текущему процессу.
+\end{itemize}
+
+\subsubsection{\texttt{run()}}
+Основной этап выполнения включает:
+\begin{enumerate}
+  \item \textbf{Рассылка данных:} Все необходимые данные (включая размеры и содержимое массива) рассылаются от корневого процесса ко всем остальным процессам с помощью \texttt{boost::mpi::broadcast}.
+  
+  \item \textbf{Распределение данных:} Исходный массив равномерно распределяется между всеми процессами. Каждый процесс получает свой поддиапазон элементов массива для сортировки.
+  
+  \item \textbf{Локальная сортировка:} Каждый процесс выполняет поразрядную сортировку своей части массива аналогично последовательной версии.
+  
+  \item \textbf{Сбор результатов:} Отсортированные части массивов от всех процессов собираются на корневом процессе с помощью \texttt{boost::mpi::gather}. Затем происходит слияние всех локальных отсортированных частей в единый отсортированный массив.
+\end{enumerate}
+
+\subsubsection{\texttt{post\_processing()}}
+На этапе постобработки на корневом процессе отсортированный массив копируется обратно в \texttt{taskData} для дальнейшего использования.
+
+\subsection{Фрагмент кода параллельной реализации}
+
+\begin{lstlisting}[caption={Параллельная версия поразрядной сортировки с использованием MPI}]
+#include "mpi/petrov_o_radix_sort_with_simple_merge/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <cmath>
+#include <limits>
+
+namespace petrov_o_radix_sort_with_simple_merge_mpi {
+
+bool TaskParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    bool isValid = (!taskData->inputs_count.empty()) && (!taskData->inputs.empty()) && (!taskData->outputs.empty());
+    return isValid;
+  }
+
+  return true;
+}
+
+bool TaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    int size = taskData->inputs_count[0];
+    input_.resize(size);
+    int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(input_data, input_data + size, input_.begin());
+    res.resize(size);
+  }
+
+  return true;
+}
+
+bool TaskParallel::run() {
+  internal_order_test();
+
+  int rank = world.rank();
+  int size = world.size();
+
+  int n = 0;
+  if (rank == 0) {
+    n = static_cast<int>(input_.size());
+  }
+  boost::mpi::broadcast(world, n, 0);
+
+  int base_count = n / size;
+  int remainder = n % size;
+
+  std::vector<int> send_counts(size, base_count);
+  for (int i = 0; i < remainder; ++i) {
+    send_counts[i] += 1;
+  }
+
+  std::vector<int> displs(size, 0);
+  for (int i = 1; i < size; ++i) {
+    displs[i] = displs[i - 1] + send_counts[i - 1];
+  }
+
+  std::vector<int> local_data(send_counts[rank]);
+
+  if (rank == 0) {
+    for (int proc = 1; proc < size; ++proc) {
+      world.send(proc, 0, &input_[displs[proc]], send_counts[proc]);
+    }
+    std::copy(input_.begin(), input_.begin() + send_counts[0], local_data.begin());
+  } else {
+    world.recv(0, 0, local_data.data(), send_counts[rank]);
+  }
+
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  unsigned int local_max = 0;
+  if (!local_data.empty()) {
+    local_max = static_cast<unsigned int>(local_data[0]);
+    for (auto& num : local_data) {
+      auto val = static_cast<unsigned int>(num);
+      if (val > local_max) {
+        local_max = val;
+      }
+    }
+  }
+
+  unsigned int global_max = 0;
+  boost::mpi::all_reduce(world, local_max, global_max, boost::mpi::maximum<unsigned int>());
+
+  int num_bits = 0;
+  const int MAX_BITS = static_cast<int>(sizeof(unsigned int) * 8);
+  while (num_bits < MAX_BITS && (global_max >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  {
+    std::vector<int> output(local_data.size());
+    for (int bit = 0; bit < num_bits; ++bit) {
+      int zero_count = 0;
+      for (const auto& num : local_data) {
+        if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+          zero_count++;
+        }
+      }
+
+      int zero_index = 0;
+      int one_index = zero_count;
+      for (const auto& num : local_data) {
+        if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+          output[zero_index++] = num;
+        } else {
+          output[one_index++] = num;
+        }
+      }
+      local_data = output;
+    }
+  }
+
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  std::vector<int> recv_buf;
+  if (rank == 0) {
+    recv_buf.resize(n);
+    std::copy(local_data.begin(), local_data.end(), recv_buf.begin());
+    for (int proc = 1; proc < size; ++proc) {
+      world.recv(proc, 1, &recv_buf[displs[proc]], send_counts[proc]);
+    }
+  } else {
+    world.send(0, 1, local_data.data(), send_counts[rank]);
+  }
+
+  if (rank == 0) {
+    std::vector<int> final_result;
+    final_result.insert(final_result.end(), recv_buf.begin(), recv_buf.begin() + send_counts[0]);
+
+    auto merge_two = [](const std::vector<int>& a, const std::vector<int>& b) {
+      std::vector<int> merged;
+      merged.reserve(a.size() + b.size());
+      size_t i = 0;
+      size_t j = 0;
+      while (i < a.size() && j < b.size()) {
+        if (a[i] < b[j]) {
+          merged.push_back(a[i++]);
+        } else {
+          merged.push_back(b[j++]);
+        }
+      }
+      while (i < a.size()) {
+        merged.push_back(a[i++]);
+      }
+      while (j < b.size()) {
+        merged.push_back(b[j++]);
+      }
+      return merged;
+    };
+
+    for (int proc = 1; proc < size; ++proc) {
+      std::vector<int> next_block(recv_buf.begin() + displs[proc], recv_buf.begin() + displs[proc] + send_counts[proc]);
+      final_result = merge_two(final_result, next_block);
+    }
+
+    res = std::move(final_result);
+  }
+
+  return true;
+}
+
+bool TaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res.begin(), res.end(), output_);
+  }
+  return true;
+}
+
+/*---------------------------------------------SEQUENTIAL-----------------------------------------------------------*/
+
+bool TaskSequential::validation() {
+  internal_order_test();
+
+  bool isValid = (!taskData->inputs_count.empty()) && (!taskData->inputs.empty()) && (!taskData->outputs.empty());
+
+  return isValid;
+}
+
+bool TaskSequential::pre_processing() {
+  internal_order_test();
+
+  int size = taskData->inputs_count[0];
+  input_.resize(size);
+
+  int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(input_data, input_data + size, input_.begin());
+
+  res.resize(size);
+  return true;
+}
+
+bool TaskSequential::run() {
+  internal_order_test();
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  auto max_num = static_cast<unsigned int>(input_[0]);
+  for (const auto& num : input_) {
+    if (static_cast<unsigned int>(num) > max_num) {
+      max_num = static_cast<unsigned int>(num);
+    }
+  }
+  int num_bits = 0;
+  const int MAX_BITS = sizeof(unsigned int) * 8;
+  while (num_bits < MAX_BITS && (max_num >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  std::vector<int> output(input_.size());
+
+  for (int bit = 0; bit < num_bits; ++bit) {
+    int zero_count = 0;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        zero_count++;
+      }
+    }
+
+    int zero_index = 0;
+    int one_index = zero_count;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        output[zero_index++] = num;
+      } else {
+        output[one_index++] = num;
+      }
+    }
+
+    input_ = output;
+  }
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  res = input_;
+  return true;
+}
+
+bool TaskSequential::post_processing() {
+  internal_order_test();
+
+  int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+  for (size_t i = 0; i < res.size(); ++i) {
+    output_[i] = res[i];
+  }
+  std::copy(res.begin(), res.end(), output_);
+
+  return true;
+}
+
+}  // namespace petrov_o_radix_sort_with_simple_merge_mpi
+\end{lstlisting}
+
+%---------------------- Результаты экспериментов -------------------
+
+\section{Результаты экспериментов}
+
+\subsection{Условия проведения экспериментов}
+
+\begin{itemize}
+  \item \textbf{Аппаратная конфигурация}:
+  \begin{itemize}
+    \item CPU: Intel Core i5 12400f
+    \item RAM: 16 GB
+    \item ОС: Windows 10 22H2
+  \end{itemize}
+  \item \textbf{Тестовые размеры}:
+  \begin{itemize}
+    \item Тесты производительности: массивы размером 100\,000 элементов.
+    \item Функциональные тесты: массивы размером 1000, 1024, 2187, 1013 элементов.
+  \end{itemize}
+  \item \textbf{Средства реализации}:
+  \begin{itemize}
+    \item Язык программирования: C++.
+    \item Параллелизация: MPI (Boost.MPI).
+    \item Компилятор: g++ 9.3.0.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Пример замера времени}
+
+Для сравнения были проведены замеры времени выполнения на различных размерах массивов и с разным количеством процессов.
+
+\begin{itemize}
+  \item \textbf{Последовательная версия (seq)}
+  \item \textbf{Параллельная версия (MPI)}: 2 процесса
+  \item \textbf{Параллельная версия (MPI)}: 4 процесса
+\end{itemize}
+
+Ниже приведены выдержки из протокола тестов для массива размером 1\,000\,000 элементов.
+
+\begin{itemize}
+  \item \textbf{SEQ (последовательная версия)}:
+  \begin{verbatim}
+[ RUN      ] petrov_o_radix_sort_with_simple_merge_mpi_seq.test_pipeline_run_seq
+ppc-2024-autumn\tasks\mpi\petrov_o_radix_sort_with_simple_merge:pipeline:0.0952214000
+[       OK ] petrov_o_radix_sort_with_simple_merge_mpi_seq.test_pipeline_run_seq (101 ms)
+  Итого: ~101 ms
+  \end{verbatim}
+
+  \item \textbf{MPI, 5 процессов}:
+  \begin{verbatim}
+[ RUN      ] petrov_o_radix_sort_with_simple_merge_mpi.test_pipeline_run_mpi
+ppc-2024-autumn\tasks\mpi\petrov_o_radix_sort_with_simple_merge:pipeline:0.0737897000
+[       OK ] petrov_o_radix_sort_with_simple_merge_mpi.test_pipeline_run_mpi (81 ms)
+  Итого: ~81 ms
+  \end{verbatim}
+
+  \item \textbf{MPI, 10 процессов}:
+  \begin{verbatim}
+[ RUN      ] petrov_o_radix_sort_with_simple_merge_mpi.test_pipeline_run_mpi
+ppc-2024-autumn\tasks\mpi\petrov_o_radix_sort_with_simple_merge:pipeline:0.0375792000
+[       OK ] petrov_o_radix_sort_with_simple_merge_mpi.test_pipeline_run_mpi (44 ms)
+  Итого: ~44 ms
+  \end{verbatim}
+\end{itemize}
+
+\subsection{Анализ результатов}
+
+\begin{enumerate}
+  \item \textbf{Скорость выполнения}: Параллельная реализация показывает значительное ускорение по сравнению с последовательной версией при увеличении количества процессов.
+  
+  \item \textbf{Масштабируемость}: При увеличении количества процессов время выполнения уменьшается, что свидетельствует о хорошей масштабируемости алгоритма.
+  
+  \item \textbf{Коммуникационные затраты}: Для небольших массивов накладные расходы на передачу данных могут снизить эффективность параллельной реализации. Однако для больших массивов преимущества параллельной версии становятся очевидными.
+  
+  \item \textbf{Балансировка нагрузки}: Равномерное распределение массива между процессами обеспечивает эффективное использование ресурсов и минимизирует время ожидания.
+\end{enumerate}
+
+%---------------------- Выводы -------------------------------------
+
+\section{Выводы}
+
+В ходе работы были выполнены следующие задачи:
+\begin{itemize}
+  \item Реализована последовательная версия поразрядной сортировки целых чисел с использованием простой схемы слияния.
+  \item Разработана параллельная версия алгоритма с использованием MPI, обеспечена равномерная распределённость данных и эффективное слияние отсортированных частей.
+  \item Проведена валидация корректности обеих реализаций с подтверждением совпадения результатов.
+  \item Проанализирована производительность: параллельная версия показала значительное ускорение при увеличении количества процессов, особенно на больших массивах данных.
+\end{itemize}
+
+Основные направления для дальнейшего улучшения:
+\begin{itemize}
+  \item Оптимизация коммуникационных операций для уменьшения накладных расходов при распределении и сборе данных.
+  \item Исследование различных стратегий распределения данных между процессами для повышения эффективности.
+  \item Внедрение динамической балансировки нагрузки для улучшения масштабируемости на кластерах с неоднородными ресурсами.
+  \item Применение алгоритмических оптимизаций поразрядной сортировки для повышения общей производительности.
+\end{itemize}
+
+%---------------------- Список литературы --------------------------
+
+\section{Список литературы}
+\begin{enumerate}
+  \item Документация по Boost.MPI: \url{https://www.boost.org/doc/libs/master/doc/html/mpi/tutorial.html}
+  \item Классическая литература по алгоритмам: Т. Кормен, Ч. Лейзерсон, Р. Ривест, К. Стайн. \textit{Алгоритмы: построение и анализ}.
+  \item Официальная документация по C++: \url{https://en.cppreference.com/}
+  \item Лекции по параллельным вычислениям: \url{https://disk.yandex.ru/d/LxDwnOlUo3Eqfg}
+\end{enumerate}
+
+%---------------------- Приложения ---------------------------------
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+Для полноты приводятся тексты файлов с реализацией последовательной и параллельной версий поразрядной сортировки.
+
+\subsection*{Файл \texttt{ops\_seq.hpp}}
+
+\begin{lstlisting}[caption={Последовательная версия поразрядной сортировки}]
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace petrov_o_radix_sort_with_simple_merge_seq {
+
+class TestTaskSequential : public ppc::core::Task {
+public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+private:
+  std::vector<int> input_;
+  std::vector<int> res_;
+};
+
+}  // namespace petrov_o_radix_sort_with_simple_merge_seq
+\end{lstlisting}
+
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_mpi.hpp}}
+
+\begin{lstlisting}[caption={Параллельная версия поразрядной сортировки с использованием MPI}]
+#pragma once
+
+#include "mpi/petrov_o_radix_sort_with_simple_merge/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <cmath>
+#include <limits>
+
+namespace petrov_o_radix_sort_with_simple_merge_mpi {
+
+bool TaskParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    bool isValid = (!taskData->inputs_count.empty()) && (!taskData->inputs.empty()) && (!taskData->outputs.empty());
+    return isValid;
+  }
+
+  return true;
+}
+
+bool TaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    int size = taskData->inputs_count[0];
+    input_.resize(size);
+    int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(input_data, input_data + size, input_.begin());
+    res.resize(size);
+  }
+
+  return true;
+}
+
+bool TaskParallel::run() {
+  internal_order_test();
+
+  int rank = world.rank();
+  int size = world.size();
+
+  int n = 0;
+  if (rank == 0) {
+    n = static_cast<int>(input_.size());
+  }
+  boost::mpi::broadcast(world, n, 0);
+
+  int base_count = n / size;
+  int remainder = n % size;
+
+  std::vector<int> send_counts(size, base_count);
+  for (int i = 0; i < remainder; ++i) {
+    send_counts[i] += 1;
+  }
+
+  std::vector<int> displs(size, 0);
+  for (int i = 1; i < size; ++i) {
+    displs[i] = displs[i - 1] + send_counts[i - 1];
+  }
+
+  std::vector<int> local_data(send_counts[rank]);
+
+  if (rank == 0) {
+    for (int proc = 1; proc < size; ++proc) {
+      world.send(proc, 0, &input_[displs[proc]], send_counts[proc]);
+    }
+    std::copy(input_.begin(), input_.begin() + send_counts[0], local_data.begin());
+  } else {
+    world.recv(0, 0, local_data.data(), send_counts[rank]);
+  }
+
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  unsigned int local_max = 0;
+  if (!local_data.empty()) {
+    local_max = static_cast<unsigned int>(local_data[0]);
+    for (auto& num : local_data) {
+      auto val = static_cast<unsigned int>(num);
+      if (val > local_max) {
+        local_max = val;
+      }
+    }
+  }
+
+  unsigned int global_max = 0;
+  boost::mpi::all_reduce(world, local_max, global_max, boost::mpi::maximum<unsigned int>());
+
+  int num_bits = 0;
+  const int MAX_BITS = static_cast<int>(sizeof(unsigned int) * 8);
+  while (num_bits < MAX_BITS && (global_max >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  {
+    std::vector<int> output(local_data.size());
+    for (int bit = 0; bit < num_bits; ++bit) {
+      int zero_count = 0;
+      for (const auto& num : local_data) {
+        if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+          zero_count++;
+        }
+      }
+
+      int zero_index = 0;
+      int one_index = zero_count;
+      for (const auto& num : local_data) {
+        if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+          output[zero_index++] = num;
+        } else {
+          output[one_index++] = num;
+        }
+      }
+      local_data = output;
+    }
+  }
+
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  std::vector<int> recv_buf;
+  if (rank == 0) {
+    recv_buf.resize(n);
+    std::copy(local_data.begin(), local_data.end(), recv_buf.begin());
+    for (int proc = 1; proc < size; ++proc) {
+      world.recv(proc, 1, &recv_buf[displs[proc]], send_counts[proc]);
+    }
+  } else {
+    world.send(0, 1, local_data.data(), send_counts[rank]);
+  }
+
+  if (rank == 0) {
+    std::vector<int> final_result;
+    final_result.insert(final_result.end(), recv_buf.begin(), recv_buf.begin() + send_counts[0]);
+
+    auto merge_two = [](const std::vector<int>& a, const std::vector<int>& b) {
+      std::vector<int> merged;
+      merged.reserve(a.size() + b.size());
+      size_t i = 0;
+      size_t j = 0;
+      while (i < a.size() && j < b.size()) {
+        if (a[i] < b[j]) {
+          merged.push_back(a[i++]);
+        } else {
+          merged.push_back(b[j++]);
+        }
+      }
+      while (i < a.size()) {
+        merged.push_back(a[i++]);
+      }
+      while (j < b.size()) {
+        merged.push_back(b[j++]);
+      }
+      return merged;
+    };
+
+    for (int proc = 1; proc < size; ++proc) {
+      std::vector<int> next_block(recv_buf.begin() + displs[proc], recv_buf.begin() + displs[proc] + send_counts[proc]);
+      final_result = merge_two(final_result, next_block);
+    }
+
+    res = std::move(final_result);
+  }
+
+  return true;
+}
+
+bool TaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res.begin(), res.end(), output_);
+  }
+  return true;
+}
+
+/*---------------------------------------------SEQUENTIAL-----------------------------------------------------------*/
+
+bool TaskSequential::validation() {
+  internal_order_test();
+
+  bool isValid = (!taskData->inputs_count.empty()) && (!taskData->inputs.empty()) && (!taskData->outputs.empty());
+
+  return isValid;
+}
+
+bool TaskSequential::pre_processing() {
+  internal_order_test();
+
+  int size = taskData->inputs_count[0];
+  input_.resize(size);
+
+  int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(input_data, input_data + size, input_.begin());
+
+  res.resize(size);
+  return true;
+}
+
+bool TaskSequential::run() {
+  internal_order_test();
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  auto max_num = static_cast<unsigned int>(input_[0]);
+  for (const auto& num : input_) {
+    if (static_cast<unsigned int>(num) > max_num) {
+      max_num = static_cast<unsigned int>(num);
+    }
+  }
+  int num_bits = 0;
+  const int MAX_BITS = sizeof(unsigned int) * 8;
+  while (num_bits < MAX_BITS && (max_num >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  std::vector<int> output(input_.size());
+
+  for (int bit = 0; bit < num_bits; ++bit) {
+    int zero_count = 0;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        zero_count++;
+      }
+    }
+
+    int zero_index = 0;
+    int one_index = zero_count;
+
+    for (const auto& num : input_) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        output[zero_index++] = num;
+      } else {
+        output[one_index++] = num;
+      }
+    }
+
+    input_ = output;
+  }
+
+  for (auto& num : input_) {
+    num ^= 0x80000000;
+  }
+
+  res = input_;
+  return true;
+}
+
+bool TaskSequential::post_processing() {
+  internal_order_test();
+
+  int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+  for (size_t i = 0; i < res.size(); ++i) {
+    output_[i] = res[i];
+  }
+  std::copy(res.begin(), res.end(), output_);
+
+  return true;
+}
+
+}  // namespace petrov_o_radix_sort_with_simple_merge_mpi
+\end{lstlisting}
+
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_mpi.cpp}}
+
+\begin{lstlisting}[caption={Файл реализации параллельной версии поразрядной сортировки}]
+#include "mpi/petrov_o_radix_sort_with_simple_merge/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/vector.hpp>
+#include <functional>
+#include <vector>
+
+using namespace std::chrono_literals;
+
+namespace petrov_o_radix_sort_with_simple_merge_mpi {
+
+bool TaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    int size = taskData->inputs_count[0];
+    input_.resize(size);
+    int* input_data = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(input_data, input_data + size, input_.begin());
+    res.resize(size);
+  }
+
+  return true;
+}
+
+bool TaskParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    if (taskData->inputs.size() != 1 || taskData->outputs.size() != 1) {
+      return false;
+    }
+
+    if (taskData->inputs_count.size() < 1 || taskData->outputs_count.size() < 1) {
+      return false;
+    }
+
+    return true;
+  }
+
+  return true;
+}
+
+bool TaskParallel::run() {
+  internal_order_test();
+
+  // Рассылка данных
+  boost::mpi::broadcast(world, input_, 0);
+
+  // Определение диапазона для каждого процесса
+  int n = input_.size();
+  int size = world.size();
+  int rank = world.rank();
+
+  int base = n / size;
+  int rem = n % size;
+  int start = rank * base + std::min(rank, rem);
+  int end = start + base + (rank < rem ? 1 : 0);
+
+  std::vector<int> local_data(input_.begin() + start, input_.begin() + end);
+
+  // Инверсия первого бита
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  // Поразрядная сортировка локальных данных
+  auto max_num = local_data.empty() ? 0 : static_cast<unsigned int>(*std::max_element(local_data.begin(), local_data.end()));
+  boost::mpi::all_reduce(world, max_num, max_num, boost::mpi::maximum<unsigned int>());
+
+  int num_bits = 0;
+  const int MAX_BITS = sizeof(unsigned int) * 8;
+  while (num_bits < MAX_BITS && (max_num >> num_bits) > 0) {
+    num_bits++;
+  }
+
+  std::vector<int> output(local_data.size());
+  for (int bit = 0; bit < num_bits; ++bit) {
+    int zero_count = 0;
+    for (const auto& num : local_data) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        zero_count++;
+      }
+    }
+
+    int zero_index = 0;
+    int one_index = zero_count;
+    for (const auto& num : local_data) {
+      if (((static_cast<unsigned int>(num) >> bit) & 1) == 0) {
+        output[zero_index++] = num;
+      } else {
+        output[one_index++] = num;
+      }
+    }
+    local_data = output;
+  }
+
+  // Обратная инверсия первого бита
+  for (auto& num : local_data) {
+    num ^= 0x80000000;
+  }
+
+  // Сбор отсортированных данных на корневом процессе
+  std::vector<int> sorted;
+  boost::mpi::gather(world, local_data, sorted, 0);
+
+  if (rank == 0) {
+    // Простое слияние отсортированных частей
+    std::vector<int> final_sorted;
+    for (const auto& part : sorted) {
+      final_sorted.insert(final_sorted.end(), part.begin(), part.end());
+    }
+    std::sort(final_sorted.begin(), final_sorted.end());
+    res = final_sorted;
+  }
+
+  return true;
+}
+
+bool TaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_ = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res.begin(), res.end(), output_);
+  }
+  return true;
+}
+
+}  // namespace petrov_o_radix_sort_with_simple_merge_mpi
+\end{lstlisting}
+
+\end{document}
