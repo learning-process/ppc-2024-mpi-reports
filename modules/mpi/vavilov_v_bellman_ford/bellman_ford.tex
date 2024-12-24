@@ -358,7 +358,7 @@ dist = [0, 10, 5, 8, 17]
    \]
    Для каждой вершины в локальном диапазоне (\(u \in [\text{local\_start}, \text{local\_end})\)) проверяется, можно ли обновить расстояние до её соседей:
    \[
-   \text{if (distances\_[u] != INT\_MAX && distances\_[u] + weight < local\_distances[v])}
+   \text{if (distances\_[u] != INT\_MAX \&\& distances\_[u] + weight < local\_distances[v])}
    \]
    Если условие выполняется, то расстояние обновляется:
    \[
@@ -385,7 +385,7 @@ dist = [0, 10, 5, 8, 17]
 
    После выполнения всех итераций проверяется наличие отрицательных циклов в графе. Для каждой вершины проверяется условие:
    \[
-   \text{if (distances\_[u] != INT\_MAX && distances\_[u] + weight < distances\_[v])}
+   \text{if (distances\_[u] != INT\_MAX \&\& distances\_[u] + weight < distances\_[v])}
    \]
    Если такое условие выполняется, то обнаружен отрицательный цикл.
 
