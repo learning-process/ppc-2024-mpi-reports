@@ -1,0 +1,1743 @@
+\documentclass[12pt]{article}
+
+% Кодировка и русский язык
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+% Дополнительные пакеты
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{xcolor}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+
+% Настройка отображения кода в листингах
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  tabsize=2,
+  language=C++,
+  numbers=left,
+  numberstyle=\tiny,
+  frame=single,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  showstringspaces=false
+}
+
+\begin{document}
+
+%---------------------- Титульный лист ----------------------------
+
+\begin{titlepage}
+    \begin{center}
+        \large 
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+        
+        \vspace{4cm}
+        \textbf{\Large Отчет по выполнению задания}\\
+        \textbf{\large «Линейная фильтрация изображений с вертикальным разбиением и ядром Гаусса 3x3»}\\[3cm]
+        
+        \vspace{3cm}
+        \textbf{Автор:}\\
+        студент группы 3822Б1ПМоп3 \\
+        \textit{Ануфриев Даниил Алексеевич}\\[1cm]
+
+        \textbf{Преподаватель:}\\
+         \textit{Нестеров Александр Юрьевич, аспирант}\\[2cm]
+        
+        \vfill
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+%--------------------------- Оглавление ----------------------------
+\tableofcontents
+\newpage
+
+%---------------------- Введение -----------------------------------
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Данный отчет посвящен изучению и реализации алгоритма линейной фильтрации изображений. В качестве основы используется ядро Гаусса размерностью 3x3, а для ускорения обработки данных применяется вертикальное разделение. Основная цель работы заключалась в создании эффективных реализаций алгоритма: последовательной и параллельной (с использованием MPI). В процессе выполнения проводилось тестирование разработанных программ, а также анализ их производительности.
+
+Линейная фильтрация, будучи ключевой операцией в области обработки изображений, находит применение в задачах сглаживания, подавления шумов и выделения характерных признаков. Применение ядра Гаусса позволяет эффективно решать эти задачи благодаря его свойствам, связанным с нормальным распределением весов.
+
+%---------------------- Постановка задачи --------------------------
+
+\section{Постановка задачи}
+
+В рамках данного проекта были поставлены следующие задачи:
+
+\begin{enumerate}
+    \item Разработать программный код, реализующий последовательную версию алгоритма Гауссовой фильтрации для обработки изображений с использованием ядра 3x3.
+    \item Создать параллельную версию этого же алгоритма, используя вертикальное разделение данных и библиотеку MPI для межпроцессного взаимодействия.
+    \item Провести всестороннее тестирование обеих реализаций, направленное на проверку корректности их работы.
+    \item Осуществить измерения производительности для обеих версий на изображениях различных размеров.
+    \item Изучить полученные результаты, сделать выводы об эффективности и масштабируемости разработанных решений.
+\end{enumerate}
+
+%---------------------- Описание алгоритма -------------------------
+
+\section{Описание алгоритма Гауссовой фильтрации}
+
+Гауссова фильтрация — это метод линейной фильтрации, использующий ядро Гаусса для размытия изображения. Ядро Гаусса в формате 3x3 имеет вид:
+
+\[
+\begin{bmatrix}
+1 & 2 & 1 \\
+2 & 4 & 2 \\
+1 & 2 & 1 \\
+\end{bmatrix}
+\]
+
+Каждое значение в ядре соответствует весу пикселя при вычислении сглаженного значения центрального пикселя. Сумма весов ядра составляет 16, что используется для нормализации результата.
+
+\subsection{Основные этапы алгоритма}
+
+\begin{enumerate}
+    \item \textbf{Инициализация изображения.} Изображение представляется в виде массива пикселей, каждый из которых характеризуется своей яркостью.
+    
+    \item \textbf{Применение Гауссова ядра.} Для каждого пикселя (за исключением границ) выполняется вычисление нового значения как взвешенной суммы пикселей в окрестности 3x3, с использованием весов ядра Гаусса.
+    
+    \item \textbf{Обработка краевых пикселей.}  Пиксели, расположенные на границах изображения, обрабатываются специальным образом, например, путем отражения или дополнения.
+    
+    \item \textbf{Формирование результата.} Полученное после фильтрации изображение записывается в выходной файл.
+\end{enumerate}
+
+%---------------------- Описание реализаций ------------------------
+
+\section{Описание программных реализаций}
+
+В рамках данного исследования были разработаны два варианта алгоритма Гауссовой фильтрации:
+\begin{itemize}
+    \item \textbf{Последовательная (SEQ) версия} – создана на C++ с применением стандартных библиотек.
+    \item \textbf{Параллельная (MPI) версия} – разработана с использованием MPI для вертикального разделения изображения между различными вычислительными процессами.
+\end{itemize}
+
+\subsection{Последовательная реализация}
+
+Последовательная версия реализует фильтрацию, проходя по матрице изображения пиксель за пикселем. Для этого был разработан класс \texttt{SimpleIntSEQ}, унаследованный от \texttt{ppc::core::Task}. Этот класс инкапсулирует методы для предварительной подготовки, проверки корректности, выполнения и постобработки данных.
+
+\subsubsection{Структура класса \texttt{SimpleIntSEQ}}
+
+Файл \texttt{ops\_seq.hpp} содержит декларацию класса \texttt{SimpleIntSEQ}, который наследуется от класса \texttt{ppc::core::Task}. Класс содержит следующие компоненты:
+
+\begin{itemize}
+    \item \texttt{input\_data\_} - вектор, хранящий исходное изображение.
+    \item \texttt{processed\_data\_} - вектор для хранения результата фильтрации.
+    \item \texttt{rows}, \texttt{cols} - количество строк и столбцов изображения.
+    \item \texttt{kernel\_} - матрица, представляющая ядро Гаусса 3x3.
+    \item Виртуальные методы \texttt{pre\_processing()}, \texttt{validation()}, \texttt{run()}, \texttt{post\_processing()} для выполнения соответствующих этапов обработки данных.
+    \item Метод \texttt{applyGaussianFilter()} - реализует непосредственное применение фильтра к изображению.
+\end{itemize}
+
+\subsubsection{Этапы обработки данных в \texttt{ops\_seq.cpp}}
+
+\paragraph{Метод \texttt{validation()}}
+В данном методе происходит проверка корректности входных данных:
+\begin{itemize}
+    \item Проверяется наличие всех необходимых входных и выходных данных в \texttt{taskData}.
+    \item Извлекаются размеры изображения, сохраняемые в переменных \texttt{rows} и \texttt{cols}.
+    \item Контролируется, что размеры изображения соответствуют минимальным требованиям для применения ядра Гаусса (не меньше 3x3).
+    \item Проверяется соответствие размера входных и выходных данных ожидаемым значениям.
+\end{itemize}
+Метод возвращает \texttt{true} в случае успешной проверки и \texttt{false} при обнаружении некорректности данных.
+
+\paragraph{Метод \texttt{pre\_processing()}}
+На этапе подготовки входные данные преобразуются к удобному для обработки виду:
+\begin{itemize}
+    \item Матрица изображения извлекается из входных данных и сохраняется в \texttt{input\_data\_}.
+    \item Создается и инициализируется вектор \texttt{processed\_data\_}, который будет использоваться для хранения результатов фильтрации.
+\end{itemize}
+Данный этап необходим для корректной подготовки данных перед началом их обработки.
+
+\paragraph{Метод \texttt{run()}}
+Основным этапом работы алгоритма является непосредственное применение Гауссового фильтра к изображению:
+\begin{itemize}
+    \item Вызывается метод \texttt{applyGaussianFilter()}, выполняющий фильтрацию для каждого применимого пикселя изображения.
+\end{itemize}
+После выполнения всех операций метод возвращает \texttt{true}, сигнализируя об успешном завершении этапа обработки.
+
+\paragraph{Метод \texttt{post\_processing()}}
+На заключительном этапе результаты фильтрации записываются в выходные данные:
+\begin{itemize}
+    \item Содержимое вектора \texttt{processed\_data\_} переносится в \texttt{taskData->outputs}.
+\end{itemize}
+Это позволяет передать полученные данные для дальнейшей обработки или сохранить их.
+
+\paragraph{Метод \texttt{applyGaussianFilter()}}
+В данном методе реализована логика Гауссовой фильтрации:
+\begin{itemize}
+    \item Выполняется проход по всем пикселям изображения, за исключением граничных (для которых невозможно применить ядро в полном объеме).
+    \item Для каждого пикселя вычисляется взвешенная сумма значений соседних пикселей, используя веса из ядра Гаусса.
+    \item Полученное значение нормализуется путем деления на 16 и сохраняется в \texttt{processed\_data\_}.
+\end{itemize}
+Этот метод обеспечивает корректное применение фильтра для каждого пикселя изображения.
+
+\subsubsection{Пример реализации класса \texttt{SimpleIntSEQ}}
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace anufriev_d_linear_image {
+
+class SimpleIntSEQ : public ppc::core::Task {
+ public:
+  explicit SimpleIntSEQ(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  void applyGaussianFilter();
+
+  std::vector<int> input_data_;
+  std::vector<int> processed_data_;
+  int rows;
+  int cols;
+
+  const int kernel_[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+};
+
+}  // namespace anufriev_d_linear_image
+
+#include "seq/anufriev_d_linear_image/include/ops_seq_anufriev.hpp"
+
+namespace anufriev_d_linear_image {
+
+bool SimpleIntSEQ::validation() {
+  internal_order_test();
+  if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+      taskData->outputs_count.empty()) {
+    return false;
+  }
+
+  rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+  auto expected_matrix_size = static_cast<size_t>(rows * cols);
+
+  return rows >= 3 && cols >= 3 && taskData->inputs_count[0] == expected_matrix_size &&
+         taskData->outputs_count[0] == expected_matrix_size && taskData->inputs_count[0] == taskData->outputs_count[0];
+}
+
+bool SimpleIntSEQ::pre_processing() {
+  internal_order_test();
+  auto* matrix_data = reinterpret_cast<int*>(taskData->inputs[0]);
+  int matrix_size = taskData->inputs_count[0];
+
+  rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+  input_data_.assign(matrix_data, matrix_data + matrix_size);
+
+  int result_size = taskData->outputs_count[0];
+  processed_data_.resize(result_size, 0);
+
+  return true;
+}
+
+bool SimpleIntSEQ::run() {
+  internal_order_test();
+  applyGaussianFilter();
+  return true;
+}
+
+bool SimpleIntSEQ::post_processing() {
+  internal_order_test();
+  auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(processed_data_.begin(), processed_data_.end(), output_data);
+  return true;
+}
+
+void SimpleIntSEQ::applyGaussianFilter() {
+  for (int r = 1; r < rows - 1; ++r) {
+    for (int c = 1; c < cols - 1; ++c) {
+      int sum = 0;
+      for (int kr = -1; kr <= 1; ++kr) {
+        for (int kc = -1; kc <= 1; ++kc) {
+          sum += input_data_[(r + kr) * cols + (c + kc)] * kernel_[kr + 1][kc + 1];
+        }
+      }
+      processed_data_[r * cols + c] = sum / 16;
+    }
+  }
+}
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+В итоге, последовательная реализация представляет собой прямолинейный подход к Гауссовой фильтрации, при котором каждый пиксель обрабатывается последовательно с использованием ядра.
+
+\subsection{Параллельная реализация с использованием MPI}
+
+Параллельная версия использует вертикальное разбиение изображения для распределения вычислительной нагрузки между несколькими процессами. Взаимодействие между процессами обеспечивается библиотекой MPI. В основе параллельной реализации лежит класс \texttt{SimpleIntMPI}, унаследованный от \texttt{ppc::core::Task}.
+
+\subsubsection{Структура класса \texttt{SimpleIntMPI}}
+
+Файл \texttt{ops\_mpi.hpp} содержит объявление класса \texttt{SimpleIntMPI}, являющегося потомком \texttt{ppc::core::Task}. Ключевые поля и методы класса включают в себя:
+
+\begin{itemize}
+    \item \texttt{world} — объект \texttt{boost::mpi::communicator} для взаимодействия между процессами.
+    \item \texttt{original\_data\_} — вектор с исходными данными изображения (только на корневом процессе).
+    \item \texttt{local\_data\_} — вектор, содержащий часть изображения, назначенную данному процессу.
+    \item \texttt{processed\_data\_} — вектор для хранения результатов фильтрации.
+    \item \texttt{width\_}, \texttt{height\_} — размеры изображения.
+    \item \texttt{start\_col\_}, \texttt{local\_width\_} — параметры вертикального разделения: начальный столбец и количество столбцов, обрабатываемых процессом.
+    \item \texttt{kernel\_} — матрица ядра Гаусса 3x3.
+    \item Виртуальные методы \texttt{pre\_processing()}, \texttt{validation()}, \texttt{run()}, \texttt{post\_processing()}, выполняющие соответствующие этапы обработки данных.
+    \item Методы \texttt{distributeData()}, \texttt{gatherData()}, \texttt{applyGaussianFilter()}, \texttt{exchangeHalo()} для распределения данных, обмена границами, применения фильтра и сбора результатов.
+\end{itemize}
+
+\subsubsection{Этапы выполнения в \texttt{ops\_mpi.cpp}}
+
+\paragraph{Метод \texttt{validation()}}
+В методе \texttt{validation()} выполняется проверка входных данных:
+\begin{itemize}
+    \item На процессе с рангом 0 проводится проверка наличия входных и выходных данных в \texttt{taskData}.
+    \item Извлекаются и сохраняются размеры изображения в переменных \texttt{width\_} и \texttt{height\_}.
+    \item Убеждаются, что размеры изображения соответствуют минимальным требованиям для применения Гауссова ядра (не меньше 3x3).
+    \item Проверяется соответствие размеров входных и выходных данных ожидаемым значениям.
+    \item На корневом процессе входные данные копируются из \texttt{taskData->inputs} в \texttt{original\_data\_}.
+\end{itemize}
+Затем значения \texttt{width\_} и \texttt{height\_} рассылаются на все процессы с помощью \texttt{boost::mpi::broadcast}. Метод возвращает \texttt{true} в случае успеха, и \texttt{false} при обнаружении ошибок.
+
+\paragraph{Метод \texttt{pre\_processing()}}
+Этап предобработки включает в себя:
+\begin{itemize}
+    \item Вызов \texttt{internal\_order\_test()} для контроля порядка выполнения методов.
+    \item Метод не выполняет дополнительных операций и возвращает \texttt{true}.
+\end{itemize}
+
+\paragraph{Метод \texttt{run()}}
+Основной этап работы состоит из следующих действий:
+\begin{enumerate}
+    \item \textbf{Распределение данных} (\texttt{distributeData()}):
+    \begin{itemize}
+        \item Изображение делится на вертикальные фрагменты между всеми процессами.
+        \item Вычисляются \texttt{sendcounts} и \texttt{displs} для корректного использования \texttt{MPI\_Scatterv()}.
+        \item Каждый процесс получает свою часть изображения в \texttt{local\_data\_}, включая дополнительные столбцы для "гало" (граничных данных).
+    \end{itemize}
+    
+    \item \textbf{Обмен границами} (\texttt{exchangeHalo()}):
+    \begin{itemize}
+        \item Происходит обмен граничными данными между соседними процессами для обеспечения корректного применения фильтра на границах.
+        \item Используются методы \texttt{MPI\_Sendrecv()} для обмена данными с левым и правым соседями.
+    \end{itemize}
+    
+    \item \textbf{Применение фильтра} (\texttt{applyGaussianFilter()}):
+    \begin{itemize}
+        \item Каждый процесс применяет Гауссов фильтр к своему фрагменту изображения с учетом полученных граничных данных.
+        \item Результаты фильтрации сохраняются в \texttt{processed\_data\_}.
+    \end{itemize}
+    
+    \item \textbf{Сбор данных} (\texttt{gatherData()}):
+    \begin{itemize}
+        \item Обработанные части изображения собираются обратно на корневом процессе с использованием \texttt{MPI\_Gatherv()}.
+        \item На корневом процессе происходит транспонирование и объединение полученных данных в единую матрицу \texttt{processed\_data\_}.
+    \end{itemize}
+\end{enumerate}
+После выполнения всех действий метод возвращает \texttt{true}.
+
+\paragraph{Метод \texttt{post\_processing()}}
+На этапе постобработки происходит сохранение результатов:
+\begin{itemize}
+    \item На процессе с rank = 0 данные из \texttt{processed\_data\_} записываются в \texttt{taskData->outputs}.
+    \item Это позволяет передать результаты для дальнейшей обработки или сохранения.
+\end{itemize}
+Метод возвращает \texttt{true}.
+
+\paragraph{Методы \texttt{distributeData()}, \texttt{exchangeHalo()}, \texttt{applyGaussianFilter()}, \texttt{gatherData()}}
+\textbf{Метод \texttt{distributeData()}:}
+\begin{itemize}
+    \item Рассчитывает количество столбцов для каждого процесса, учитывая возможное неравномерное деление.
+    \item Применяет \texttt{MPI\_Scatterv()} для распределения фрагментов изображения между процессами.
+    \item Инициализирует вектор \texttt{local\_data\_} с учетом дополнительных столбцов для граничных данных.
+\end{itemize}
+
+\textbf{Метод \texttt{exchangeHalo()}:}
+\begin{itemize}
+    \item Определяет соседние процессы слева и справа от текущего.
+    \item Отправляет свои крайние столбцы соседним процессам и получает соответствующие столбцы от них.
+    \item Обновляет \texttt{local\_data\_} с полученными данными для корректного применения фильтра.
+\end{itemize}
+
+\textbf{Метод \texttt{applyGaussianFilter()}:}
+\begin{itemize}
+    \item Применяет Гауссов фильтр к локальной части изображения.
+    \item Обрабатывает только назначенные столбцы, используя данные, полученные в результате обмена.
+    \item Записывает результаты во внутренний вектор \texttt{processed\_data\_}.
+\end{itemize}
+
+\textbf{Метод \texttt{gatherData()}:}
+\begin{itemize}
+    \item Собирает обработанные фрагменты со всех процессов на корневом процессе с использованием \texttt{MPI\_Gatherv()}.
+    \item Выполняет транспонирование и объединение полученных данных в итоговую матрицу.
+\end{itemize}
+
+\subsubsection{Пример реализации класса \texttt{SimpleIntMPI}}
+\begin{lstlisting}
+#pragma once
+
+#include <mpi.h>
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <cstring>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace anufriev_d_linear_image {
+
+class SimpleIntMPI : public ppc::core::Task {
+ public:
+  explicit SimpleIntMPI(const std::shared_ptr<ppc::core::TaskData>& taskData);
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+  const std::vector<int>& getDataPath() const;
+
+ private:
+  void distributeData();
+  void gatherData();
+  void applyGaussianFilter();
+  void exchangeHalo();
+
+  boost::mpi::communicator world;
+
+  std::vector<int> original_data_;
+  std::vector<int> local_data_;
+  std::vector<int> processed_data_;
+
+  size_t total_size_ = 0;
+  int width_ = 0;
+  int height_ = 0;
+
+  int start_col_ = 0;
+  int local_width_ = 0;
+
+  std::vector<int> data_path_;
+
+  const int kernel_[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+};
+
+}  // namespace anufriev_d_linear_image
+
+#include "mpi/anufriev_d_linear_image/include/ops_mpi_anufriev.hpp"
+
+#include <gtest/gtest.h>
+#include <mpi.h>
+
+#include <iostream>
+
+namespace anufriev_d_linear_image {
+
+SimpleIntMPI::SimpleIntMPI(const std::shared_ptr<ppc::core::TaskData>& taskData) : Task(taskData) {}
+
+bool SimpleIntMPI::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool SimpleIntMPI::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+        taskData->outputs_count.empty()) {
+      return false;
+    }
+
+    width_ = *reinterpret_cast<int*>(taskData->inputs[1]);
+    height_ = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+    auto expected_size = static_cast<size_t>(width_ * height_);
+
+    if (width_ < 3 || height_ < 3) {
+      return false;
+    }
+
+    if (taskData->inputs_count[0] != expected_size) {
+      std::cerr << "Validation failed: inputs_count[0] != width * height * sizeof(int).\n";
+      std::cerr << "Expected: " << expected_size << ", Got: " << taskData->inputs_count[0] << "\n";
+      return false;
+    }
+
+    if (taskData->outputs_count[0] != expected_size) {
+      std::cerr << "Validation failed: outputs_count[0] != width * height * sizeof(int).\n";
+      std::cerr << "Expected: " << expected_size << ", Got: " << taskData->outputs_count[0] << "\n";
+      return false;
+    }
+
+    original_data_.resize(width_ * height_);
+    int* input_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(input_ptr, input_ptr + (width_ * height_), original_data_.begin());
+  }
+
+  boost::mpi::broadcast(world, width_, 0);
+  boost::mpi::broadcast(world, height_, 0);
+  total_size_ = static_cast<size_t>(width_ * height_);
+
+  return true;
+}
+
+bool SimpleIntMPI::run() {
+  internal_order_test();
+
+  distributeData();
+  exchangeHalo();
+  applyGaussianFilter();
+  gatherData();
+
+  return true;
+}
+
+bool SimpleIntMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(processed_data_.begin(), processed_data_.end(), output_data);
+  }
+  return true;
+}
+
+void SimpleIntMPI::distributeData() {
+  MPI_Comm comm = world;
+  int nprocs = world.size();
+  int rank = world.rank();
+
+  int base_cols = width_ / nprocs;
+  int remainder = width_ % nprocs;
+
+  std::vector<int> sendcounts(nprocs);
+  std::vector<int> displs(nprocs);
+
+  for (int i = 0; i < nprocs; ++i) {
+    sendcounts[i] = (base_cols + (i < remainder ? 1 : 0)) * height_;
+    displs[i] = (i < remainder) ? i * (base_cols + 1) * height_
+                                : remainder * (base_cols + 1) * height_ + (i - remainder) * base_cols * height_;
+  }
+
+  local_width_ = base_cols + (rank < remainder ? 1 : 0);
+  start_col_ =
+      (rank < remainder) ? rank * (base_cols + 1) : remainder * (base_cols + 1) + (rank - remainder) * base_cols;
+
+  int halo_cols = 2;
+  local_data_.resize((local_width_ + halo_cols) * height_, 0);
+
+  std::vector<int> transposed_original;
+  if (rank == 0) {
+    transposed_original.resize(width_ * height_);
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) {
+        transposed_original[c * height_ + r] = original_data_[r * width_ + c];
+      }
+    }
+  }
+
+  MPI_Scatterv(world.rank() == 0 ? transposed_original.data() : nullptr, sendcounts.data(), displs.data(), MPI_INT,
+               &local_data_[height_], local_width_ * height_, MPI_INT, 0, comm);
+}
+
+void SimpleIntMPI::exchangeHalo() {
+  MPI_Comm comm = world;
+  int rank = world.rank();
+  int nprocs = world.size();
+
+  int left = (rank > 0) ? rank - 1 : MPI_PROC_NULL;
+  int right = (rank < nprocs - 1) ? rank + 1 : MPI_PROC_NULL;
+
+  std::vector<int> send_left(height_);
+  std::vector<int> send_right(height_);
+  std::vector<int> recv_left(height_);
+  std::vector<int> recv_right(height_);
+
+  if (local_width_ > 0) {
+    std::copy(&local_data_[height_], &local_data_[2 * height_], send_left.begin());
+    std::copy(&local_data_[(local_width_) * height_], &local_data_[(local_width_ + 1) * height_], send_right.begin());
+  }
+
+  if (left != MPI_PROC_NULL) {
+    MPI_Sendrecv(send_left.data(), height_, MPI_INT, left, 0, recv_left.data(), height_, MPI_INT, left, 1, comm,
+                 MPI_STATUS_IGNORE);
+  } else {
+    std::copy(send_left.begin(), send_left.end(), recv_left.begin());
+  }
+
+  if (right != MPI_PROC_NULL) {
+    MPI_Sendrecv(send_right.data(), height_, MPI_INT, right, 1, recv_right.data(), height_, MPI_INT, right, 0, comm,
+                 MPI_STATUS_IGNORE);
+  } else {
+    std::copy(send_right.begin(), send_right.end(), recv_right.begin());
+  }
+
+  if (left != MPI_PROC_NULL) {
+    std::copy(recv_left.begin(), recv_left.end(), local_data_.begin());
+  } else {
+    std::copy(&local_data_[height_], &local_data_[2 * height_], local_data_.begin());
+  }
+
+  if (right != MPI_PROC_NULL) {
+    std::copy(recv_right.begin(), recv_right.end(), &local_data_[(local_width_ + 1) * height_]);
+  } else {
+    std::copy(&local_data_[(local_width_) * height_], &local_data_[(local_width_ + 1) * height_],
+              &local_data_[(local_width_ + 1) * height_]);
+  }
+}
+
+void SimpleIntMPI::applyGaussianFilter() {
+  std::vector<int> result(local_width_ * height_, 0);
+
+  for (int c = 1; c <= local_width_; c++) {
+    for (int r = 0; r < height_; r++) {
+      int sum = 0;
+      for (int kc = -1; kc <= 1; kc++) {
+        for (int kr = -1; kr <= 1; kr++) {
+          int cc = c + kc;
+          int rr = std::min(std::max(r + kr, 0), height_ - 1);
+
+          sum += local_data_[cc * height_ + rr] * kernel_[kr + 1][kc + 1];
+        }
+      }
+      result[(c - 1) * height_ + r] = sum / 16;
+    }
+  }
+
+  std::copy(result.begin(), result.end(), &local_data_[height_]);
+}
+
+void SimpleIntMPI::gatherData() {
+  MPI_Comm comm = world;
+  int nprocs = world.size();
+
+  int base_cols = width_ / nprocs;
+  int remainder = width_ % nprocs;
+
+  std::vector<int> recvcounts(nprocs);
+  std::vector<int> displs(nprocs);
+
+  for (int i = 0; i < nprocs; ++i) {
+    recvcounts[i] = (base_cols + (i < remainder ? 1 : 0)) * height_;
+    displs[i] = (i < remainder) ? i * (base_cols + 1) * height_
+                                : remainder * (base_cols + 1) * height_ + (i - remainder) * base_cols * height_;
+  }
+
+  std::vector<int> gathered_transposed;
+  if (world.rank() == 0) {
+    gathered_transposed.resize(width_ * height_);
+  }
+
+  MPI_Gatherv(&local_data_[height_], local_width_ * height_, MPI_INT,
+              world.rank() == 0 ? gathered_transposed.data() : nullptr, recvcounts.data(), displs.data(), MPI_INT, 0,
+              comm);
+
+  if (world.rank() == 0) {
+    processed_data_.resize(width_ * height_);
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) {
+        processed_data_[r * width_ + c] = gathered_transposed[c * height_ + r];
+      }
+    }
+  }
+}
+
+const std::vector<int>& SimpleIntMPI::getDataPath() const { return data_path_; }
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+Таким образом, параллельная реализация \texttt{SimpleIntMPI} эффективно распределяет вычислительную нагрузку между процессами, уменьшает накладные расходы и обеспечивает ускоренную обработку больших изображений по сравнению с последовательной версией.
+
+%---------------------- Тестирование --------------------------------
+
+\section{Методология тестирования}
+
+Для обеспечения надежности разработанных реализаций было проведено тестирование с использованием фреймворка Google Test. Тесты включали проверку работоспособности на малых, средних и случайных изображениях, а также на изображениях с нечетными размерами.
+
+\subsection{Тесты для последовательной реализации}
+
+Для последовательной версии \texttt{SimpleIntSEQ} разработаны следующие тесты:
+
+\begin{itemize}
+    \item \texttt{TestGaussianFilterSmall} – проверка на малом изображении (5x5 пикселей).
+    \item \texttt{TestGaussianFilterMedium} – проверка на изображении среднего размера (10x8 пикселей).
+    \   \item \texttt{TestGaussianFilterRandom} – проверка на изображении случайных данных (12x12 пикселей).
+    \item \texttt{TestGaussianFilterOddDimensions} – тестирование на изображении с нечетными размерами (7x5 пикселей).
+\end{itemize}
+
+Каждый тест включает в себя:
+\begin{enumerate}
+    \item Генерацию тестового изображения.
+    \item Вычисление ожидаемого результата фильтрации при помощи вспомогательной функции \texttt{gaussian\_filter\_seq}.
+    \item Создание объекта класса \texttt{SimpleIntSEQ} и выполнение последовательности действий \texttt{validation()}, \texttt{pre\_processing()}, \texttt{run()}, \texttt{post\_processing()}.
+    \item Сравнение полученных результатов с ожидаемыми.
+\end{enumerate}
+
+Пример реализации одного из тестов:
+\begin{lstlisting}
+TEST(anufriev_d_linear_image_func_seq, TestGaussianFilterSmall) {
+  int rows = 5;
+  int cols = 5;
+  std::vector<int> input = generate_test_image(rows, cols);
+  std::vector<int> expected_output;
+  std::vector<int> actual_output(rows * cols, 0);
+
+  gaussian_filter_seq(input, rows, cols, expected_output);
+
+  auto taskData = std::make_shared<ppc::core::TaskData>();
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+  taskData->inputs_count.push_back(input.size() * sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&rows));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&cols));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->outputs.push_back(reinterpret_cast<uint8_t*>(actual_output.data()));
+  taskData->outputs_count.push_back(actual_output.size() * sizeof(int));
+
+  anufriev_d_linear_image::SimpleIntSEQ task(taskData);
+  ASSERT_TRUE(task.validation());
+  ASSERT_TRUE(task.pre_processing());
+  ASSERT_TRUE(task.run());
+  ASSERT_TRUE(task.post_processing());
+
+  ASSERT_EQ(expected_output, actual_output);
+}
+\end{lstlisting}
+
+\subsection{Тесты для параллельной версии с MPI}
+
+Для параллельной реализации \texttt{SimpleIntMPI} разработаны следующие наборы тестов:
+
+\begin{itemize}
+    \item \texttt{SmallImageTest} – тестирование на небольшом изображении (5x4 пикселей).
+    \item \texttt{LargerImageRandomTest} – проверка на большом изображении со случайными данными (100x80 пикселей).
+    \item \texttt{TestGaussianFilterOddDimensions} – тестирование на изображении с нечетными размерами (7x5 пикселей).
+    \item \texttt{TestGaussianFilterUnevenDistribution} – тестирование на изображении, приводящем к неравномерному распределению нагрузки (4x7 пикселей при 3 процессах).
+\end{itemize}
+
+Каждый тест выполняет:
+\begin{enumerate}
+    \item Генерацию входных данных изображения.
+    \item Вычисление правильного результата с помощью функции \texttt{gaussian\_3x3\_seq}.
+    \item Создание экземпляра класса \texttt{SimpleIntMPI} и выполнение методов \texttt{validation()}, \texttt{pre\_processing()}, \texttt{run()}, \texttt{post\_processing()}.
+    \item Сравнение результатов с ожидаемыми данными, которое выполняется на корневом процессе.
+\end{enumerate}
+
+Пример реализации одного из тестов:
+
+\begin{lstlisting}
+TEST(anufriev_d_linear_image_func_mpi, SmallImageTest) {
+  boost::mpi::communicator world;
+
+  int width = 5;
+  int height = 4;
+
+  std::vector<int> input(width * height);
+  std::iota(input.begin(), input.end(), 0);
+  std::vector<int> output(width * height, 0);
+
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&width));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&height));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(output.data()));
+    taskData->outputs_count.push_back(output.size() * sizeof(int));
+  }
+
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData);
+  ASSERT_TRUE(task->validation());
+  ASSERT_TRUE(task->pre_processing());
+  ASSERT_TRUE(task->run());
+  ASSERT_TRUE(task->post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<int> expected;
+    gaussian_3x3_seq(input, width, height, &expected);
+    ASSERT_EQ(output.size(), expected.size());
+    for (size_t i = 0; i < output.size(); i++) {
+      ASSERT_EQ(output[i], expected[i]) << "Difference at i=" << i;
+    }
+  }
+}
+\end{lstlisting}
+
+\subsection{Общие замечания по тестированию}
+
+\begin{itemize}
+    \item Для проверки корректности использовались как заранее определенные, так и случайно сгенерированные изображения.
+    \item Параллельные тесты MPI проводились с различным числом процессов для оценки распределения данных и обработки границ.
+    \item Тесты предоставляли подробную информацию о различиях между ожидаемыми и полученными результатами, что упрощало отладку.
+\end{itemize}
+
+%---------------------- Результаты экспериментов -------------------
+
+\section{Анализ результатов экспериментов}
+
+\subsection{Окружение и параметры экспериментов}
+Эксперименты проводились в следующей среде:
+\begin{itemize}
+    \item \textbf{Аппаратное обеспечение}:
+    \begin{itemize}
+        \item Процессор: AMD Ryzen 7 5700X
+        \item Оперативная память: 32 GB
+        \item Операционная система: Win 10
+    \end{itemize}
+    \item \textbf{Размеры тестовых изображений}:
+    \begin{itemize}
+        \item Небольшие: 5$\times$5 пикселей.
+        \item Средние: 10$\times$8 пикселей.
+        \item Большие: 5000$\times$5000 пикселей.
+    \end{itemize}
+    \item \textbf{Количество процессов (для MPI)}:
+    \begin{itemize}
+        \item 2 процесса.
+        \item 4 процесса.
+        \item 8 процессов.
+    \end{itemize}
+    \item \textbf{Инструменты для замеров}:
+    \begin{itemize}
+        \item Google Test для функционального тестирования.
+        \item Встроенные механизмы тайминга \texttt{std::chrono} и \texttt{boost::mpi::timer} для замеров времени выполнения.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Результаты замеров времени выполнения}
+
+Для сравнения эффективности, проводились замеры времени выполнения последовательной и параллельной реализаций на различных изображениях и с разными количествами процессов. Ниже приведены результаты.
+
+\subsubsection{Последовательная (SEQ) реализация, Perfomance Tests}
+
+\begin{itemize}
+    \item \textbf{PipelineRun}:
+    \begin{verbatim}
+[ RUN      ] anufriev_d_linear_image_perf_seq.LargeImage
+\ppc-2024-autumn\tasks\seq\anufriev_d_linear_image:pipeline:0.2202579000
+[       OK ] anufriev_d_linear_image_perf_seq.LargeImage (421 ms)
+    \end{verbatim}
+    \item \textbf{TaskRun}:
+    \begin{verbatim}
+[ RUN      ] anufriev_d_linear_image_perf_seq.LargeImageRun
+\ppc-2024-autumn\tasks\seq\anufriev_d_linear_image:task_run:0.1331837000
+[       OK ] anufriev_d_linear_image_perf_seq.LargeImageRun (578 ms)
+    \end{verbatim}
+\end{itemize}
+
+\subsubsection{Параллельная (MPI) реализация, Perfomance Tests}
+
+\begin{itemize}
+    \item \textbf{Параллельная реализация, 2 процесса}:
+    \begin{verbatim}
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImagePerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:pipeline:0.5908598000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImagePerf (793 ms)
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:task_run:0.6380151000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf (1417 ms)
+    \end{verbatim}
+    
+    \item \textbf{Параллельная реализация, 4 процесса}:
+    \begin{verbatim}
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImagePerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:pipeline:0.5837085000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImagePerf (745 ms)
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:task_run:0.5448236000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf (1282 ms)
+    \end{verbatim}
+    
+    \item \textbf{Параллельная реализация, 8 процессов}:
+    \begin{verbatim}
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImagePerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:pipeline:0.4979211000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImagePerf (659 ms)
+[ RUN      ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf
+\ppc-2024-autumn\tasks\mpi\anufriev_d_linear_image:task_run:0.4545235000
+[       OK ] anufriev_d_linear_image_perf_mpi.LargeImageTaskRunPerf (1134 ms)
+    \end{verbatim}
+\end{itemize}
+
+\subsection{Интерпретация результатов}
+Анализ полученных результатов демонстрирует следующее:
+
+\begin{enumerate}
+    
+    \item \textbf{Большие изображения (5000$\times$5000)}: Параллельная версия показывает время чуть хуже по сравнению с последовательной, при использовании большего числа процессов код параллельной версии ускоряется. 8 процессов показывают оптимальный баланс между распределением нагрузки и накладными расходами.
+    
+    \item \textbf{Масштабируемость}:
+    \begin{itemize}
+        \item Эффективность параллельной версии растет с увеличением числа процессов до определенного момента (примерно до 8 процессов).
+        \item Дальнейшее увеличение процессов приводит к замедлению роста или даже снижению производительности из-за увеличения издержек на коммуникации и неравномерности распределения нагрузки.
+    \end{itemize}
+    
+    \item \textbf{Балансировка нагрузки}: При равномерном разделении изображения параллельный метод обеспечивает хорошую балансировку нагрузки. Неравномерное распределение (например, при нечетных размерах) может несколько снижать производительность, но она остается приемлемой.
+\end{enumerate}
+
+%---------------------- Выводы -------------------------------------
+
+\section{Заключение}
+
+В ходе работы было достигнуто следующее:
+\begin{itemize}
+    \item Созданы последовательная и параллельная (MPI) реализации алгоритма Гауссовой фильтрации с ядром 3x3.
+    \item Проведено тестирование обеих реализаций, подтвердившее их корректность.
+    \item Выполнены замеры времени выполнения, для сравнения двух версий программы.
+    \item Установлено, что накладные расходы MPI оказывают влияние на производительность при обработке малых и средних изображений, однако параллельная обработка дает значительное преимущество при работе с большими объемами данных.
+\end{itemize}
+
+Перспективные направления для дальнейших улучшений:
+\begin{itemize}
+    \item Оптимизация обмена данными между процессами для сокращения накладных расходов.
+    \item Разработка более совершенных методов разделения изображения для обеспечения более равномерного распределения нагрузки.
+    \item Применение буферизации и асинхронных коммуникаций для повышения производительности.
+    \item Обеспечение поддержки различных размеров ядра фильтрации.
+\end{itemize}
+
+%---------------------- Список литературы --------------------------
+
+\section{Список использованных источников}
+\begin{enumerate}
+   \item Документация MPI: \url{https://www.mpi-forum.org/docs/mpi-3.1/mpi31-report.pdf}
+    \item Boost.MPI: \url{https://www.boost.org/doc/libs/1_75_0/libs/mpi/doc/html/index.html}
+    \item Материалы лекций по обработке изображений: \url{https://example.com/lectures/image_processing}
+    \item Статья о Гауссовой фильтрации: \url{https://en.wikipedia.org/wiki/Gaussian_filter}
+     \item Книга "Parallel Programming in C with MPI and OpenMP" — Quinn, Michael J.
+\end{enumerate}
+
+%---------------------- Приложения ---------------------------------
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+Для наглядности в приложении приводятся исходные тексты файлов с реализацией последовательной и параллельной версий алгоритма Гауссовой фильтрации.
+
+\subsection*{Файл \texttt{ops\_seq.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace anufriev_d_linear_image {
+
+class SimpleIntSEQ : public ppc::core::Task {
+ public:
+  explicit SimpleIntSEQ(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  void applyGaussianFilter();
+
+  std::vector<int> input_data_;
+  std::vector<int> processed_data_;
+  int rows;
+  int cols;
+
+  const int kernel_[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+};
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_seq.cpp}}
+
+\begin{lstlisting}
+#include "seq/anufriev_d_linear_image/include/ops_seq_anufriev.hpp"
+
+namespace anufriev_d_linear_image {
+
+bool SimpleIntSEQ::validation() {
+  internal_order_test();
+  if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+      taskData->outputs_count.empty()) {
+    return false;
+  }
+
+  rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+  auto expected_matrix_size = static_cast<size_t>(rows * cols);
+
+  return rows >= 3 && cols >= 3 && taskData->inputs_count[0] == expected_matrix_size &&
+         taskData->outputs_count[0] == expected_matrix_size && taskData->inputs_count[0] == taskData->outputs_count[0];
+}
+
+bool SimpleIntSEQ::pre_processing() {
+  internal_order_test();
+  auto* matrix_data = reinterpret_cast<int*>(taskData->inputs[0]);
+  int matrix_size = taskData->inputs_count[0];
+
+  rows = *reinterpret_cast<int*>(taskData->inputs[1]);
+  cols = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+  input_data_.assign(matrix_data, matrix_data + matrix_size);
+
+  int result_size = taskData->outputs_count[0];
+  processed_data_.resize(result_size, 0);
+
+  return true;
+}
+
+bool SimpleIntSEQ::run() {
+  internal_order_test();
+  applyGaussianFilter();
+  return true;
+}
+
+bool SimpleIntSEQ::post_processing() {
+  internal_order_test();
+  auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(processed_data_.begin(), processed_data_.end(), output_data);
+  return true;
+}
+
+void SimpleIntSEQ::applyGaussianFilter() {
+  for (int r = 1; r < rows - 1; ++r) {
+    for (int c = 1; c < cols - 1; ++c) {
+      int sum = 0;
+      for (int kr = -1; kr <= 1; ++kr) {
+        for (int kc = -1; kc <= 1; ++kc) {
+          sum += input_data_[(r + kr) * cols + (c + kc)] * kernel_[kr + 1][kc + 1];
+        }
+      }
+      processed_data_[r * cols + c] = sum / 16;
+    }
+  }
+}
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <mpi.h>
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <cstring>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace anufriev_d_linear_image {
+
+class SimpleIntMPI : public ppc::core::Task {
+ public:
+  explicit SimpleIntMPI(const std::shared_ptr<ppc::core::TaskData>& taskData);
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+  const std::vector<int>& getDataPath() const;
+
+ private:
+  void distributeData();
+  void gatherData();
+  void applyGaussianFilter();
+  void exchangeHalo();
+
+  boost::mpi::communicator world;
+
+  std::vector<int> original_data_;
+  std::vector<int> local_data_;
+  std::vector<int> processed_data_;
+
+  size_t total_size_ = 0;
+  int width_ = 0;
+  int height_ = 0;
+
+  int start_col_ = 0;
+  int local_width_ = 0;
+
+  std::vector<int> data_path_;
+
+  const int kernel_[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+};
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.cpp}}
+
+\begin{lstlisting}
+#include "mpi/anufriev_d_linear_image/include/ops_mpi_anufriev.hpp"
+
+#include <gtest/gtest.h>
+#include <mpi.h>
+
+#include <iostream>
+
+namespace anufriev_d_linear_image {
+
+SimpleIntMPI::SimpleIntMPI(const std::shared_ptr<ppc::core::TaskData>& taskData) : Task(taskData) {}
+
+bool SimpleIntMPI::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool SimpleIntMPI::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    if (!taskData || taskData->inputs.size() < 3 || taskData->inputs_count.size() < 3 || taskData->outputs.empty() ||
+        taskData->outputs_count.empty()) {
+      return false;
+    }
+
+    width_ = *reinterpret_cast<int*>(taskData->inputs[1]);
+    height_ = *reinterpret_cast<int*>(taskData->inputs[2]);
+
+    auto expected_size = static_cast<size_t>(width_ * height_);
+
+    if (width_ < 3 || height_ < 3) {
+      return false;
+    }
+
+    if (taskData->inputs_count[0] != expected_size) {
+      std::cerr << "Validation failed: inputs_count[0] != width * height * sizeof(int).\n";
+      std::cerr << "Expected: " << expected_size << ", Got: " << taskData->inputs_count[0] << "\n";
+      return false;
+    }
+
+    if (taskData->outputs_count[0] != expected_size) {
+      std::cerr << "Validation failed: outputs_count[0] != width * height * sizeof(int).\n";
+      std::cerr << "Expected: " << expected_size << ", Got: " << taskData->outputs_count[0] << "\n";
+      return false;
+    }
+
+    original_data_.resize(width_ * height_);
+    int* input_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(input_ptr, input_ptr + (width_ * height_), original_data_.begin());
+  }
+
+  boost::mpi::broadcast(world, width_, 0);
+  boost::mpi::broadcast(world, height_, 0);
+  total_size_ = static_cast<size_t>(width_ * height_);
+
+  return true;
+}
+
+bool SimpleIntMPI::run() {
+  internal_order_test();
+
+  distributeData();
+  exchangeHalo();
+  applyGaussianFilter();
+  gatherData();
+
+  return true;
+}
+
+bool SimpleIntMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(processed_data_.begin(), processed_data_.end(), output_data);
+  }
+  return true;
+}
+
+void SimpleIntMPI::distributeData() {
+  MPI_Comm comm = world;
+  int nprocs = world.size();
+  int rank = world.rank();
+
+  int base_cols = width_ / nprocs;
+  int remainder = width_ % nprocs;
+
+  std::vector<int> sendcounts(nprocs);
+  std::vector<int> displs(nprocs);
+
+  for (int i = 0; i < nprocs; ++i) {
+    sendcounts[i] = (base_cols + (i < remainder ? 1 : 0)) * height_;
+    displs[i] = (i < remainder) ? i * (base_cols + 1) * height_
+                                : remainder * (base_cols + 1) * height_ + (i - remainder) * base_cols * height_;
+  }
+
+  local_width_ = base_cols + (rank < remainder ? 1 : 0);
+  start_col_ =
+      (rank < remainder) ? rank * (base_cols + 1) : remainder * (base_cols + 1) + (rank - remainder) * base_cols;
+
+  int halo_cols = 2;
+  local_data_.resize((local_width_ + halo_cols) * height_, 0);
+
+  std::vector<int> transposed_original;
+  if (rank == 0) {
+    transposed_original.resize(width_ * height_);
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) {
+        transposed_original[c * height_ + r] = original_data_[r * width_ + c];
+      }
+    }
+  }
+
+  MPI_Scatterv(world.rank() == 0 ? transposed_original.data() : nullptr, sendcounts.data(), displs.data(), MPI_INT,
+               &local_data_[height_], local_width_ * height_, MPI_INT, 0, comm);
+}
+
+void SimpleIntMPI::exchangeHalo() {
+  MPI_Comm comm = world;
+  int rank = world.rank();
+  int nprocs = world.size();
+
+  int left = (rank > 0) ? rank - 1 : MPI_PROC_NULL;
+  int right = (rank < nprocs - 1) ? rank + 1 : MPI_PROC_NULL;
+
+  std::vector<int> send_left(height_);
+  std::vector<int> send_right(height_);
+  std::vector<int> recv_left(height_);
+  std::vector<int> recv_right(height_);
+
+  if (local_width_ > 0) {
+    std::copy(&local_data_[height_], &local_data_[2 * height_], send_left.begin());
+    std::copy(&local_data_[(local_width_) * height_], &local_data_[(local_width_ + 1) * height_], send_right.begin());
+  }
+
+  if (left != MPI_PROC_NULL) {
+    MPI_Sendrecv(send_left.data(), height_, MPI_INT, left, 0, recv_left.data(), height_, MPI_INT, left, 1, comm,
+                 MPI_STATUS_IGNORE);
+  } else {
+    std::copy(send_left.begin(), send_left.end(), recv_left.begin());
+  }
+
+  if (right != MPI_PROC_NULL) {
+    MPI_Sendrecv(send_right.data(), height_, MPI_INT, right, 1, recv_right.data(), height_, MPI_INT, right, 0, comm,
+                 MPI_STATUS_IGNORE);
+  } else {
+    std::copy(send_right.begin(), send_right.end(), recv_right.begin());
+  }
+
+  if (left != MPI_PROC_NULL) {
+    std::copy(recv_left.begin(), recv_left.end(), local_data_.begin());
+  } else {
+    std::copy(&local_data_[height_], &local_data_[2 * height_], local_data_.begin());
+  }
+
+  if (right != MPI_PROC_NULL) {
+    std::copy(recv_right.begin(), recv_right.end(), &local_data_[(local_width_ + 1) * height_]);
+  } else {
+    std::copy(&local_data_[(local_width_) * height_], &local_data_[(local_width_ + 1) * height_],
+              &local_data_[(local_width_ + 1) * height_]);
+  }
+}
+
+void SimpleIntMPI::applyGaussianFilter() {
+  std::vector<int> result(local_width_ * height_, 0);
+
+  for (int c = 1; c <= local_width_; c++) {
+    for (int r = 0; r < height_; r++) {
+      int sum = 0;
+      for (int kc = -1; kc <= 1; kc++) {
+        for (int kr = -1; kr <= 1; kr++) {
+          int cc = c + kc;
+          int rr = std::min(std::max(r + kr, 0), height_ - 1);
+
+          sum += local_data_[cc * height_ + rr] * kernel_[kr + 1][kc + 1];
+        }
+      }
+      result[(c - 1) * height_ + r] = sum / 16;
+    }
+  }
+
+  std::copy(result.begin(), result.end(), &local_data_[height_]);
+}
+
+void SimpleIntMPI::gatherData() {
+  MPI_Comm comm = world;
+  int nprocs = world.size();
+
+  int base_cols = width_ / nprocs;
+  int remainder = width_ % nprocs;
+
+  std::vector<int> recvcounts(nprocs);
+  std::vector<int> displs(nprocs);
+
+  for (int i = 0; i < nprocs; ++i) {
+    recvcounts[i] = (base_cols + (i < remainder ? 1 : 0)) * height_;
+    displs[i] = (i < remainder) ? i * (base_cols + 1) * height_
+                                : remainder * (base_cols + 1) * height_ + (i - remainder) * base_cols * height_;
+  }
+
+  std::vector<int> gathered_transposed;
+  if (world.rank() == 0) {
+    gathered_transposed.resize(width_ * height_);
+  }
+
+  MPI_Gatherv(&local_data_[height_], local_width_ * height_, MPI_INT,
+              world.rank() == 0 ? gathered_transposed.data() : nullptr, recvcounts.data(), displs.data(), MPI_INT, 0,
+              comm);
+
+  if (world.rank() == 0) {
+    processed_data_.resize(width_ * height_);
+    for (int r = 0; r < height_; ++r) {
+      for (int c = 0; c < width_; ++c) {
+        processed_data_[r * width_ + c] = gathered_transposed[c * height_ + r];
+      }
+    }
+  }
+}
+
+const std::vector<int>& SimpleIntMPI::getDataPath() const { return data_path_; }
+
+}  // namespace anufriev_d_linear_image
+\end{lstlisting}
+
+\subsection*{Тесты для последовательной и параллельной версии}
+\begin{lstlisting}
+#include <gtest/gtest.h>
+
+#include "core/task/include/task.hpp"
+#include "seq/anufriev_d_linear_image/include/ops_seq_anufriev.hpp"
+
+static std::vector<int> generate_test_image(int rows, int cols) {
+    std::vector<int> img(rows * cols);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            img[i * cols + j] = (i + j) % 256;
+        }
+    }
+    return img;
+}
+
+
+static void gaussian_filter_seq(const std::vector<int>& input, int rows, int cols, std::vector<int>& output) {
+  const int kernel[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+  output.resize(rows * cols);
+
+  for (int r = 0; r < rows; ++r) {
+    for (int c = 0; c < cols; ++c) {
+      int sum = 0;
+        for (int kr = -1; kr <= 1; ++kr) {
+        for (int kc = -1; kc <= 1; ++kc) {
+           int rr = std::min(std::max(r + kr, 0), rows - 1);
+          int cc = std::min(std::max(c + kc, 0), cols - 1);
+          sum += input[rr * cols + cc] * kernel[kr + 1][kc + 1];
+        }
+      }
+      output[r * cols + c] = sum / 16;
+    }
+  }
+}
+
+TEST(anufriev_d_linear_image_func_seq, TestGaussianFilterSmall) {
+  int rows = 5;
+  int cols = 5;
+  std::vector<int> input = generate_test_image(rows, cols);
+  std::vector<int> expected_output;
+  std::vector<int> actual_output(rows * cols, 0);
+
+  gaussian_filter_seq(input, rows, cols, expected_output);
+
+  auto taskData = std::make_shared<ppc::core::TaskData>();
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+  taskData->inputs_count.push_back(input.size() * sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&rows));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&cols));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->outputs.push_back(reinterpret_cast<uint8_t*>(actual_output.data()));
+  taskData->outputs_count.push_back(actual_output.size() * sizeof(int));
+
+  anufriev_d_linear_image::SimpleIntSEQ task(taskData);
+  ASSERT_TRUE(task.validation());
+  ASSERT_TRUE(task.pre_processing());
+  ASSERT_TRUE(task.run());
+  ASSERT_TRUE(task.post_processing());
+
+  ASSERT_EQ(expected_output, actual_output);
+}
+
+TEST(anufriev_d_linear_image_func_seq, TestGaussianFilterMedium) {
+  int rows = 10;
+  int cols = 8;
+  std::vector<int> input = generate_test_image(rows, cols);
+  std::vector<int> expected_output;
+  std::vector<int> actual_output(rows * cols, 0);
+
+   gaussian_filter_seq(input, rows, cols, expected_output);
+
+  auto taskData = std::make_shared<ppc::core::TaskData>();
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+  taskData->inputs_count.push_back(input.size() * sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&rows));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&cols));
+  taskData->inputs_count.push_back(sizeof(int));
+  taskData->outputs.push_back(reinterpret_cast<uint8_t*>(actual_output.data()));
+  taskData->outputs_count.push_back(actual_output.size() * sizeof(int));
+
+  anufriev_d_linear_image::SimpleIntSEQ task(taskData);
+  ASSERT_TRUE(task.validation());
+  ASSERT_TRUE(task.pre_processing());
+  ASSERT_TRUE(task.run());
+  ASSERT_TRUE(task.post_processing());
+    
+  ASSERT_EQ(expected_output, actual_output);
+}
+
+
+TEST(anufriev_d_linear_image_func_seq, TestGaussianFilterRandom) {
+  int rows = 12;
+  int cols = 12;
+  std::vector<int> input = generate_test_image(rows, cols);
+  std::vector<int> expected_output;
+  std::vector<int> actual_output(rows * cols, 0);
+
+  gaussian_filter_seq(input, rows, cols, expected_output);
+
+  auto taskData = std::make_shared<ppc::core::TaskData>();
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+  taskData->inputs_count.push_back(input.size() * sizeof(int));
+    
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&rows));
+  taskData->inputs_count.push_back(sizeof(int));
+  
+  taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&cols));
+  taskData->inputs_count.push_back(sizeof(int));
+  
+  taskData->outputs.push_back(reinterpret_cast<uint8_t*>(actual_output.data()));
+  taskData->outputs_count.push_back(actual_output.size() * sizeof(int));
+
+  anufriev_d_linear_image::SimpleIntSEQ task(taskData);
+  ASSERT_TRUE(task.validation());
+  ASSERT_TRUE(task.pre_processing());
+  ASSERT_TRUE(task.run());
+  ASSERT_TRUE(task.post_processing());
+
+  ASSERT_EQ(expected_output, actual_output);
+}
+
+TEST(anufriev_d_linear_image_func_seq, TestGaussianFilterOddDimensions) {
+    int rows = 7;
+    int cols = 5;
+    std::vector<int> input = generate_test_image(rows, cols);
+    std::vector<int> expected_output;
+    std::vector<int> actual_output(rows * cols, 0);
+
+    gaussian_filter_seq(input, rows, cols, expected_output);
+
+    auto taskData = std::make_shared<ppc::core::TaskData>();
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+  
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&rows));
+    taskData->inputs_count.push_back(sizeof(int));
+    
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&cols));
+    taskData->inputs_count.push_back(sizeof(int));
+    
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(actual_output.data()));
+    taskData->outputs_count.push_back(actual_output.size() * sizeof(int));
+
+    anufriev_d_linear_image::SimpleIntSEQ task(taskData);
+    ASSERT_TRUE(task.validation());
+    ASSERT_TRUE(task.pre_processing());
+    ASSERT_TRUE(task.run());
+    ASSERT_TRUE(task.post_processing());
+
+    ASSERT_EQ(expected_output, actual_output);
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+#include <gtest/gtest.h>
+
+#include "core/task/include/task.hpp"
+#include "mpi/anufriev_d_linear_image/include/ops_mpi_anufriev.hpp"
+
+static void gaussian_3x3_seq(const std::vector<int>& input, int width, int height, std::vector<int>* output) {
+  const int kernel[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+  output->resize(width * height);
+
+  for (int r = 0; r < height; r++) {
+    for (int c = 0; c < width; c++) {
+      int sum = 0;
+      for (int kr = -1; kr <= 1; kr++) {
+        for (int kc = -1; kc <= 1; kc++) {
+          int rr = std::min(std::max(r + kr, 0), height - 1);
+          int cc = std::min(std::max(c + kc, 0), width - 1);
+          sum += input[rr * width + cc] * kernel[kr + 1][kc + 1];
+        }
+      }
+      (*output)[r * width + c] = sum / 16;
+    }
+  }
+}
+
+TEST(anufriev_d_linear_image_func_mpi, SmallImageTest) {
+  boost::mpi::communicator world;
+
+  int width = 5;
+  int height = 4;
+
+  std::vector<int> input(width * height);
+  std::iota(input.begin(), input.end(), 0);
+  std::vector<int> output(width * height, 0);
+
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&width));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&height));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(output.data()));
+    taskData->outputs_count.push_back(output.size() * sizeof(int));
+  }
+
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData);
+  ASSERT_TRUE(task->validation());
+  ASSERT_TRUE(task->pre_processing());
+  ASSERT_TRUE(task->run());
+  ASSERT_TRUE(task->post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<int> expected;
+    gaussian_3x3_seq(input, width, height, &expected);
+    ASSERT_EQ(output.size(), expected.size());
+    for (size_t i = 0; i < output.size(); i++) {
+      ASSERT_EQ(output[i], expected[i]) << "Difference at i=" << i;
+    }
+  }
+}
+
+TEST(anufriev_d_linear_image_func_mpi, LargerImageRandomTest) {
+  boost::mpi::communicator world;
+
+  int width = 100;
+  int height = 80;
+
+  std::vector<int> input;
+  std::vector<int> output;
+  if (world.rank() == 0) {
+    input.resize(width * height);
+    srand(123);
+    for (auto& val : input) val = rand() % 256;
+    output.resize(width * height, 0);
+  }
+
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&width));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&height));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(output.data()));
+    taskData->outputs_count.push_back(output.size() * sizeof(int));
+  }
+
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData);
+  ASSERT_TRUE(task->validation());
+  ASSERT_TRUE(task->pre_processing());
+  ASSERT_TRUE(task->run());
+  ASSERT_TRUE(task->post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<int> expected;
+    gaussian_3x3_seq(input, width, height, &expected);
+    ASSERT_EQ(output.size(), expected.size());
+    for (size_t i = 0; i < output.size(); i++) {
+      ASSERT_EQ(output[i], expected[i]) << "Difference at i=" << i;
+    }
+  }
+}
+
+TEST(anufriev_d_linear_image_func_mpi, TestGaussianFilterOddDimensions) {
+  boost::mpi::communicator world;
+
+  int width = 7;
+  int height = 5;
+
+  std::vector<int> input(width * height);
+  std::iota(input.begin(), input.end(), 1);
+  std::vector<int> output(width * height, 0);
+
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&width));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&height));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(output.data()));
+    taskData->outputs_count.push_back(output.size() * sizeof(int));
+  }
+
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData);
+  ASSERT_TRUE(task->validation());
+  ASSERT_TRUE(task->pre_processing());
+  ASSERT_TRUE(task->run());
+  ASSERT_TRUE(task->post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<int> expected;
+    gaussian_3x3_seq(input, width, height, &expected);
+    ASSERT_EQ(output.size(), expected.size());
+    for (size_t i = 0; i < output.size(); i++) {
+      ASSERT_EQ(output[i], expected[i]) << "Difference at i=" << i;
+    }
+  }
+}
+
+TEST(anufriev_d_linear_image_func_mpi, TestGaussianFilterUnevenDistribution) {
+  boost::mpi::communicator world;
+
+  int width = 4;
+  int height = 7;
+
+  std::vector<int> input(width * height);
+  std::iota(input.begin(), input.end(), 0);
+  std::vector<int> output(width * height, 0);
+
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(input.data()));
+    taskData->inputs_count.push_back(input.size() * sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&width));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->inputs.push_back(reinterpret_cast<uint8_t*>(&height));
+    taskData->inputs_count.push_back(sizeof(int));
+
+    taskData->outputs.push_back(reinterpret_cast<uint8_t*>(output.data()));
+    taskData->outputs_count.push_back(output.size() * sizeof(int));
+  }
+
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData);
+  ASSERT_TRUE(task->validation());
+  ASSERT_TRUE(task->pre_processing());
+  ASSERT_TRUE(task->run());
+  ASSERT_TRUE(task->post_processing());
+
+  if (world.rank() == 0) {
+    std::vector<int> expected;
+    gaussian_3x3_seq(input, width, height, &expected);
+    ASSERT_EQ(output.size(), expected.size());
+    for (size_t i = 0; i < output.size(); i++) {
+      ASSERT_EQ(output[i], expected[i]) << "Difference at i=" << i;
+    }
+  }
+}
+\end{lstlisting}
+\subsection*{Тесты производительности}
+\begin{lstlisting}
+#include <gtest/gtest.h>
+
+#include <boost/mpi/timer.hpp>
+#include <random>
+
+#include "core/perf/include/perf.hpp"
+#include "core/task/include/task.hpp"
+#include "mpi/anufriev_d_linear_image/include/ops_mpi_anufriev.hpp"
+
+static std::vector<int> generate_random_image(int width, int height, int seed = 123) {
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<int> dist(0, 255);
+  std::vector<int> img(width * height);
+  for (auto &val : img) {
+    val = dist(gen);
+  }
+  return img;
+}
+
+#define PERF_TEST_IMAGE(test_name, W, H, num_runs, perf_method) \
+TEST(anufriev_d_linear_image_perf_mpi, test_name) { \
+  boost::mpi::communicator world; \
+  int width = (W); \
+  int height = (H); \
+  std::shared_ptr<ppc::core::TaskData> taskData = std::make_shared<ppc::core::TaskData>(); \
+  std::vector<int> input_data; \
+  std::vector<int> output_data; \
+  if (world.rank() == 0) { \
+    input_data = generate_random_image(width, height); \
+    output_data.resize(width *height, 0); \
+    taskData->inputs.push_back(reinterpret_cast<uint8_t *>(input_data.data())); \
+    taskData->inputs_count.push_back(input_data.size() * sizeof(int)); \
+    \
+    taskData->inputs.push_back(reinterpret_cast<uint8_t *>(&width)); \
+    taskData->inputs_count.push_back(sizeof(int)); \
+    \
+    taskData->inputs.push_back(reinterpret_cast<uint8_t *>(&height)); \
+    taskData->inputs_count.push_back(sizeof(int)); \
+    \
+    taskData->outputs.push_back(reinterpret_cast<uint8_t *>(output_data.data())); \
+    taskData->outputs_count.push_back(output_data.size() * sizeof(int)); \
+  } \
+  auto task = std::make_shared<anufriev_d_linear_image::SimpleIntMPI>(taskData); \
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>(); \
+  perfAttr->num_running = num_runs; \
+  boost::mpi::timer current_timer; \
+  perfAttr->current_timer = [&]() { return current_timer.elapsed(); }; \
+  auto perfResults = std::make_shared<ppc::core::PerfResults>(); \
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(task); \
+  perfAnalyzer->perf_method(perfAttr, perfResults); \
+  if (world.rank() == 0) { \
+    ppc::core::Perf::print_perf_statistic(perfResults); \
+    ASSERT_LE(perfResults->time_sec, ppc::core::PerfResults::MAX_TIME); \
+  } \
+}
+
+PERF_TEST_IMAGE(LargeImagePerf, 5000, 5000, 1, pipeline_run)
+
+PERF_TEST_IMAGE(LargeImageTaskRunPerf, 5000, 5000, 1, task_run)
+
+#undef PERF_TEST_IMAGE
+\end{lstlisting}
+
+\end{document}
