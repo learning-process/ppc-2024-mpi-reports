@@ -1,6 +1,7 @@
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[russian]{babel}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
 \usepackage{geometry}
 \usepackage{titlesec}
@@ -48,26 +49,36 @@
 \begin{titlepage}
     \centering
     \large
-    Министерство образования и науки Российской Федерации\\
-    Федеральное государственное автономное образовательное учреждение высшего образования\\
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
     \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
     (ННГУ)\\[1cm]
-    Институт информационных технологий, математики и механики\\
-    Направление подготовки: «Программная инженерия»\\[2cm]
+    Институт информационных технологий, математики и механики\\[0.5cm]
+    Направление подготовки: \textbf{«Программная инженерия»}\\[2cm]
 
-    {\Large \textbf{ОТЧЕТ}}\\[0.5cm]
+    \vfill % Вертикальное заполнение для центрирования текста
+    {\LARGE \textbf{ОТЧЕТ}}\\[0.5cm]
     {\Large по задаче}\\[0.5cm]
-    {\Large \textbf{«Поразрядная сортировка для вещественных чисел \\ (тип double) с простым слиянием.»}}\\[0.5cm]
-    {\Large Вариант №20}\\[5cm]
+    {\LARGE \textbf{«Поразрядная сортировка для вещественных чисел \\[0.3cm] (тип double) с простым слиянием»}}\\[0.5cm]
+    {\Large \textbf{Вариант №20}}\\[2.5cm]
 
     \hfill\parbox{0.5\textwidth}{
-        Выполнил: студент группы 3822Б1ПР3\\
-        Соцков Андрей
-    }\\[4cm]
+        \textbf{Выполнил:} \\
+        студент группы 3822Б1ПР3 \\
+        \textbf{Соцков Андрей}
+    }\\[0.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Преподаватели:} \\
+        Нестеров А.Ю.
+        Оболенский А.А.
+        
+    }\\[2cm]
 
     Нижний Новгород\\
     2024
 \end{titlepage}
+
 
 \thispagestyle{empty}
 \clearpage
@@ -444,5 +455,141 @@ void radixSort(std::vector<double>& data, int num_bits, int radix) {
 В итоге, поставленная задача была успешно решена: алгоритм поразрядной сортировки был реализован, проведено сравнение его производительности в параллельной и последовательной версиях, и получены обоснованные выводы о преимуществах параллельной обработки данных. Результаты экспериментов подчеркивают важность использования параллельных вычислений для эффективной работы с большими массивами данных и могут служить основой для дальнейших исследований в области параллельных алгоритмов сортировки.
 
 
+\section*{Литература}
 
+\begin{enumerate}
+    \item \href{https://thecode.media/radix/}{Thecode media. "Radix Sort — самая быстрая сортировка для чисел и строк." }.
+    \item \href{https://habr.com/ru/articles/548266/5}{Habr. "MPI — Введение и первая программа"}.
+     \item \href{https://htmlacademy.ru/blog/html_old}{Htmlacademy. "Бесплатный учебник по GIT и GitHub"}.
+\end{enumerate}
+
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+В данном разделе представлены основные фрагменты реализации алгоритма Поразрядной сортировки.
+\subsection*{Функция TestMPITaskSequential::sequentialSort}
+
+\begin{lstlisting}[language=C++]
+void sotskov_a_radix_sort_for_numbers_type_double_with_simple_merging_mpi::TestMPITaskSequential::sequentialSort() {
+  sorted_data_ = input_data_;
+  radixSortWithSignHandling(sorted_data_);
+}
+\end{lstlisting}
+
+
+\subsection*{Функция radixSortWithSignHandling}
+
+\begin{lstlisting}[language=C++]
+void sotskov_a_radix_sort_for_numbers_type_double_with_simple_merging_mpi::radixSortWithSignHandling(
+    std::vector<double>& data) {
+  const int num_bits = sizeof(double) * 8;
+  const int radix = 2;
+
+  std::vector<double> positives;
+  std::vector<double> negatives;
+
+  for (double num : data) {
+    if (num < 0) {
+      negatives.push_back(-num);
+    } else {
+      positives.push_back(num);
+    }
+  }
+
+  radixSort(positives, num_bits, radix);
+  radixSort(negatives, num_bits, radix);
+
+  for (double& num : negatives) {
+    num = -num;
+  }
+
+  data.clear();
+  data.insert(data.end(), negatives.rbegin(), negatives.rend());
+  data.insert(data.end(), positives.begin(), positives.end());
+}
+
+void sotskov_a_radix_sort_for_numbers_type_double_with_simple_merging_mpi::radixSort(std::vector<double>& data, int num_bits, int radix) {
+  std::vector<std::vector<double>> buckets(radix);
+  std::vector<double> output(data.size());
+
+  for (int exp = 0; exp < num_bits; ++exp) {
+    for (auto& num : data) {
+      uint64_t bits = *reinterpret_cast<uint64_t*>(&num);
+      int digit = (bits >> exp) & 1;
+      buckets[digit].push_back(num);
+    }
+
+    int index = 0;
+    for (int i = 0; i < radix; ++i) {
+      for (auto& num : buckets[i]) {
+        output[index++] = num;
+      }
+      buckets[i].clear();
+    }
+
+    data = output;
+  }
+}
+\end{lstlisting}
+
+\subsection*{Функция TestMPITaskParallel::parallelSort}
+
+\begin{lstlisting}[language=C++]
+void sotskov_a_radix_sort_for_numbers_type_double_with_simple_merging_mpi::TestMPITaskParallel::parallelSort() {
+  int total_size;
+  if (rank == 0) total_size = input_data_.size();
+  MPI_Bcast(&total_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  std::vector<int> send_counts(size);
+  std::vector<int> displacements(size);
+
+  int base_size = total_size / size;
+  int remainder = total_size % size;
+
+  for (int i = 0; i < size; ++i) {
+    send_counts[i] = base_size + (i < remainder ? 1 : 0);
+    displacements[i] = (i > 0) ? (displacements[i - 1] + send_counts[i - 1]) : 0;
+  }
+
+  std::vector<double> local_data(send_counts[rank]);
+  MPI_Scatterv(input_data_.data(), send_counts.data(), displacements.data(), MPI_DOUBLE, local_data.data(),
+               send_counts[rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  radixSortWithSignHandling(local_data);
+
+  if (rank == 0) {
+    std::vector<double> recv_data(base_size + 1);
+    std::vector<double> merged_data;
+    sorted_data_ = local_data;
+
+    MPI_Status status;
+    merged_data.reserve(total_size);
+    for (int proc = 1; proc < size; proc++) {
+      MPI_Recv(recv_data.data(), send_counts[proc], MPI_DOUBLE, proc, 0, MPI_COMM_WORLD, &status);
+      std::merge(sorted_data_.begin(), sorted_data_.end(), recv_data.begin(), recv_data.begin() + send_counts[proc],
+                 std::back_inserter(merged_data));
+      sorted_data_ = merged_data;
+      merged_data.clear();
+    }
+  } else {
+    MPI_Send(local_data.data(), local_data.size(), MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+}
+\end{lstlisting}
+
+\clearpage
+\subsection*{Функция TestMPITaskSequential::run}
+
+\begin{lstlisting}[language=C++]
+bool sotskov_a_radix_sort_for_numbers_type_double_with_simple_merging_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+  sequentialSort();
+
+  return true;
+}
+\end{lstlisting}
 \end{document}
