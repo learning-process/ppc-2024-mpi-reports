@@ -1,0 +1,570 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{bookmark}
+\usepackage{cite}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{color}
+\newtheorem{definition}{Определение}[section]
+\geometry{left = 2.5cm}
+\geometry{right = 1.5cm}
+\geometry{top = 2cm}
+\geometry{bottom = 2cm}
+\lstdefinestyle{mystyle}{
+	basicstyle=\footnotesize,
+	breakatwhitespace=false, 
+	breaklines=true,
+	captionpos=b,
+	keepspaces=true, 
+	numbers=left,
+	numbersep=5pt,  % номера строк
+	showspaces=false, % не показывать пробелы
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+\lstset{style=mystyle}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\setlength{\parindent}{15pt} % Устанавливаем отступ
+\setlength{\parskip}{0pt}    % Убираем вертикальный отступ между абзацами
+\begin{document}
+	\begin{titlepage}
+	\begin{center}
+		\large
+		{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ\\ РОССИЙСКОЙ ФЕДЕРАЦИИ}
+		
+		Федеральное государственное автономное образовательное учреждение высшего образования
+		\vspace{0.5cm}
+		
+		\textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+		(ННГУ)\\
+		\vspace{1cm}
+		\textbf{Институт информационных технологий, математики и механики}\\
+		\vspace{1cm}
+		
+		\vfill
+
+		
+		\Large
+		Отчёт по лабораторной работе на тему:
+		
+		\textbf{<<Построение выпуклой оболочки – проход Грэхема>>}
+		{\LARGE 
+		}
+		\bigskip
+		
+		
+	\end{center}
+	\vfill
+	
+	
+	\vfill
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Выполнил:} 
+
+            студент группы 3822Б1ФИ3 
+
+            Кудряшова И.\,И. \bigskip
+            
+	\end{minipage}%
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Преподаватель:}
+		
+    к.т.н, доцент каф. ВВСП, 
+    
+    Сысоев А.\,В.
+	\end{minipage}%
+	\vfill
+	
+	\begin{center}
+		Нижний Новгород\\
+		2024 г.
+	\end{center}
+\end{titlepage}
+\thispagestyle{empty}
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+\hspace*{15pt}	Алгоритмичесткое нахождения выпуклой оболочки конечного множества точек на плоскости или в других низкоразмерных евклидовых пространствах является одной из  фундаментальных задач вычислительной геометрии. Это понятие широко используется в разных сферах, таких как компьютерная графика, робототехника и анализ данных. В современных направлениях, таких как машинное обучение и компьютерное зрение, выпуклая оболочка используется для кластеризации данных и определения границ объектов.
+
+Одним из самых известных методов для построения выпуклой оболочки является алгоритм Грэхема, предложенный американским математиком Рональдом Грэхемом в 1972 году. 
+Цель данной лабораторной работы заключается в изучении алгоритма построения выпуклой оболочки с использованием метода Грэхема, а также в реализации его последовательной и MPI версий. Также в рамках лабораторной работы будет проведен анализ производительности реализации алгоритма.
+
+\newpage
+
+\section{Постановка задачи}
+
+\hspace*{15pt}Дано множество точек \( P = \{ p_1, p_2, \ldots, p_n \} \) в двумерном пространстве, где каждая точка \( p_i \) представлена в виде координат \( p_i = (x_i, y_i) \). Задача алгоритма Грэхема заключается в нахождении выпуклой оболочки \( G \) данного множества точек \( P \).
+
+\begin{definition}\label{d1}
+	\textit{Выпуклая оболочка $G$} — это минимальный выпуклый многоугольник, который содержит заданное множество точек $P$ в пространстве.
+\end{definition}
+
+
+\begin{definition}\label{d2}
+    \textit{Выпуклый многоугольник} — это многоугольник, в котором все внутренние углы меньше $\ 180^\circ$.
+\end{definition}
+
+Отметим, что выпуклая оболочка может быть построена для любого набора точек, независимо от их расположения.
+
+Алгоритм принимает на вход множество точек \( P \) в двумерном пространстве, представленное в виде списка координат: \( P = \{ p_1, p_2, \ldots, p_n \} \), где \( p_i = ( x_i, y_i ) \) для $i$ = $\overline{1...n}$, где \( n \) — число точек в множестве \( P \).
+
+В результате выполнения алгоритм возвращает выпуклую оболочку \( G \), представленную в виде списка точек \( G = \{ g_1, g_2, \ldots, g_m \} \), где каждая точка \( g_k \) также представлена в виде координат \( g_k = (x_k, y_k) \) для $k$ = $\overline{1...m}$, где \( m \) — число точек в выпуклой оболочке \( G \).
+
+\section{Описание алгоритма}
+\hspace*{15pt}Алгоритм сканирования Грэхема — это простой и эффективный алгоритм для вычисления выпуклой оболочки выбранного набора точек. Он работает путём итеративного добавления точек к выпуклой оболочке до тех пор, пока все точки не будут добавлены. Далее рассмотрим этапы этого процесса подробнее.
+
+
+\subsection*{Выбор начальной точки}
+\hspace*{15pt}Найдём точку с наименьшей координатой \(y\). Если нашлось несколько точек с такой координатой, обратим внимание на координату \(x\) и выберем ту точку, у которой она будет меньше. Обозначим вычисленную точку \( p_0 \). Она будет опорной, с неё и начнём построение оболочки.
+
+
+\subsection*{Сортировка точек}
+\hspace*{15pt}Отсортируем все остальные точки, не включая \( p_0 \), по углу, образуемому с осью \( x \) и вектором, направленным от \( p_0 \) к каждой из точек. Если нашлось несколько точек, имеющих одинаковый угол, оставим ту, пасстояние от которой до опорной точки  \( p_0 \) меньше.
+
+
+\subsection*{Построение выпуклой оболочки}
+\hspace*{15pt}Создадим пустой список и добавим в него начальную точку \( p_0 \) и первую отсортированную точку. Далее будем добавлять точки в порядке, определенном на предыдущем шаге в результате сортировки, начиная с минимальной. Для каждой новой точки будем проверять, образует ли она выпуклую оболочку с двумя предыдущими точками с помощью левого поворота.
+
+\subsection*{Получение результата}
+
+\hspace*{15pt}Продолжим этот процесс до тех пор, пока не будут проанализированы все точки. После обработки всех точек в списке останутся вершины, составляющие выпуклую оболочку. Эти точки можно вывести в порядке обхода.
+
+
+\subsection*{Временная сложность алгоритма}
+
+\hspace*{15pt}Поиск самой нижней точки занимает \( O(n) \) времени. Сортировка точек занимает \( O(n \log n) \) времени. Далее каждый элемент добавляется и удаляется не более одного раза, это происходит за \( O(n) \). Далее операции производимые с каждой точкой в отдельности будут выполняться за \( O(n) \). Таким образом, общая сложность составляет \( O(n) + O(n \log n) + O(n) + O(n) \), что равно \( O(n \log n) \).
+
+\section{Описание схемы распараллеливания}
+
+\subsection*{Распределение входных данных}
+
+\hspace*{15pt}Корневой процесс распределяет данные между остальными процессами. Каждый процесс получает свой сегмент данных, с которым и будет работать. Главный процесс передает каждому процессу минимум 3 точки, так как иначе построить выпуклую оболочку невозможно.
+
+\subsection*{Вычисления на каждом процессе и сбор результатов}
+\hspace*{15pt}Процессы выполняют последовательный алгоритм по поиску выпуклой оболочки на предоставленном им сегменте данных. Дочерние процессы передают результат на корневой процесс.
+
+\subsection*{Вычисления на главном процессе}
+\hspace*{15pt}Корневой процесс, получив данные, также выполняет последовательный проход Грэхема. Таким образом, мы получим выпуклую оболочку, которая будет ответом.
+
+\section{Эксперименты}
+
+\subsection*{Функциональные тесты}
+\hspace*{15pt}В лабораторной работе были написаны функциональные тесты при помощи gtest. Последовательная и параллельная реализации алгоритма корректно обрабатывают ситуации, когда входные данные представляют собой вершины выпуклых фигур, выполняет тесты с большими объёмами данных, которые были сгенерированы случайным образом, а также грамотно отслеживает некорректные входные данные.
+
+\subsection*{Тест производительности}
+
+\hspace*{15pt}Далее проведём тесты производительности, чтобы отследить, как изменяется время работы алгорима в зависимости от числа процессов и разного объёма входных данных.
+
+
+
+\begin{table}[h]
+
+\begin{tabular}{|c|c|c|c|}
+	\hline
+	\textbf{Объём входных данных} & \textbf{Количество процессов} & \textbf{Вид теста} & \textbf{Время (мс)} \\
+	\hline
+	\multirow{8}{*}{10000} & \multirow{2}{*}{1} & pipeline\_run & 151 \\
+	& & task\_run & 199 \\
+	\cline{2-4}
+	& \multirow{2}{*}{4} & pipeline\_run & 147 \\
+	& & task\_run & 93  \\
+	\cline{2-4}
+	& \multirow{2}{*}{5} & pipeline\_run & 145 \\
+	& & task\_run & 81 \\
+	\cline{2-4}
+	& \multirow{2}{*}{10} & pipeline\_run & 146 \\
+	& & task\_run & 70  \\
+	\hline
+	\multirow{8}{*}{30000} & \multirow{2}{*}{1} & pipeline\_run & 495 \\
+	& & task\_run & 657 \\
+	\cline{2-4}
+	& \multirow{2}{*}{4} & pipeline\_run & 498 \\
+	& & task\_run & 304  \\
+	\cline{2-4}
+	& \multirow{2}{*}{5} & pipeline\_run & 485 \\
+	& & task\_run & 260 \\
+	\cline{2-4}
+	& \multirow{2}{*}{10} & pipeline\_run & 488 \\
+	& & task\_run & 222  \\
+	\hline
+	\multirow{8}{*}{60000} & \multirow{2}{*}{1} & pipeline\_run & 1026 \\
+	& & task\_run & 1367 \\
+	\cline{2-4}
+	& \multirow{2}{*}{4} & pipeline\_run & 1053 \\
+	& & task\_run & 667  \\
+	\cline{2-4}
+	& \multirow{2}{*}{5} & pipeline\_run & 1043 \\
+	& & task\_run & 561 \\
+	\cline{2-4}
+	& \multirow{2}{*}{10} & pipeline\_run & 1038 \\
+	& & task\_run & 481  \\
+	\hline
+\end{tabular}
+
+\end{table}
+
+
+\subsubsection*{Выводы}
+\hspace*{15pt}В результате проведённых экспериментов можно сделать вывод, что с увеличением числа процессов существенно уменьшается время выполнения программы. Также можно заметить, что на большом объёме входных данных при увеличении числа процессов наблюдаемое ускорение больше, чем при небольших объёмах данных.
+
+\newpage
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+\hspace*{15pt}В процессе выполнения работы был изучен алгоритм Грэхема, который считается одним из самых известных и эффективных способов построения выпуклой оболочки для множества точек в двумерном пространстве. В рамках исследования были реализованы как последовательный, так и параллельный алгоритмы. Кроме того, мы подтвердили, что применение параллельного программирования с использованием MPI способствует увеличению скорости обработки задач с большими объемами входных данных. Это открывает новые возможности для оптимизации алгоритмов в задачах, требующих высокой вычислительной мощности, и может быть полезно в различных областях, таких как компьютерная графика и обработка данных.
+
+\newpage
+
+\section*{Список литературы}
+\addcontentsline{toc}{section}{Список литературы}
+
+\begin{enumerate}
+	\item Левитин А. В. Глава 3. Метод грубой силы: Поиск выпуклой оболочки // Алгоритмы. Введение в разработку и анализ — М.: Вильямс, 2006. — С. 157. — 576 с. — ISBN 978-5-8459-0987-9
+	\item Половинкин Е. С, Балашов М. В. Элементы выпуклого и сильно выпуклого анализа. — М.: Физматлит, 2004. — 416 с. — ISBN 5-9221-0499-3.
+	\item Т. Кормен, Ч. Лейзерсон, Р. Ривест
+	К66 Алгоритмы: построение и анализ / Пер. с англ, под ред.
+	А. Шеня. — М.: МЦНМО, 2002. —960 с.: 263 ил.
+	ISBN 5-900916-37-5
+
+\end{enumerate}
+
+\newpage
+
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+\subsection*{mpi/kudryashova\_\_i\_\_graham's\_\_scan/include/Graham'sScanMPI.hpp}
+\begin{lstlisting}[language=C++]
+	#pragma once
+	#include <algorithm>
+	#include <boost/mpi/collectives.hpp>
+	#include <boost/mpi/communicator.hpp>
+	#include <random>
+	
+	#include "core/task/include/task.hpp"
+	namespace kudryashova_i_graham_scan_mpi {
+		class TestMPITaskSequential : public ppc::core::Task {
+			public:
+			std::vector<int8_t> runGrahamScan(std::vector<int8_t>& input_data);
+			explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+			bool pre_processing() override;
+			bool validation() override;
+			bool run() override;
+			bool post_processing() override;
+			
+			private:
+			std::vector<int8_t> input_data;
+			std::vector<int> firstHalf, secondHalf;
+			std::vector<int8_t> result_vec;
+		};
+		class TestMPITaskParallel : public ppc::core::Task {
+			public:
+			std::vector<int8_t> runGrahamScan(std::vector<int8_t>& input_data);
+			explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+			bool pre_processing() override;
+			bool validation() override;
+			bool run() override;
+			bool post_processing() override;
+			
+			private:
+			boost::mpi::communicator world;
+			std::vector<int8_t> input_data;
+			std::vector<int> firstHalf, secondHalf;
+			std::vector<int> local_input1_, local_input2_;
+			std::vector<int> segments;
+			std::vector<int8_t> local_result;
+			std::vector<int8_t> result_vec;
+			int delta{};
+			int processes{};
+		};
+	}  // namespace kudryashova_i_graham_scan_mpi
+\end{lstlisting}
+
+\subsection*{mpi/kudryashova\_\_i\_\_graham's\_\_scan/include/Graham'sScanMPI.cpp}
+\begin{lstlisting}[language=C++]
+#include "mpi/kudryashova_i_graham's_scan/include/Graham'sScanMPI.hpp"
+
+#include <boost/mpi.hpp>
+#include <boost/serialization/access.hpp>
+#include <boost/serialization/vector.hpp>
+
+namespace kudryashova_i_graham_scan_mpi {
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskSequential::pre_processing() {
+		internal_order_test();
+		input_data.resize(taskData->inputs_count[0]);
+		if (taskData->inputs[0] == nullptr || taskData->inputs_count[0] == 0) {
+			return false;
+		}
+		auto* tmp_ptr = reinterpret_cast<uint8_t*>(taskData->inputs[0]);
+		std::copy(tmp_ptr, tmp_ptr + taskData->inputs_count[0], input_data.begin());
+		return true;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskSequential::validation() {
+		internal_order_test();
+		return taskData->inputs_count[0] >= 6 && taskData->inputs_count[0] % 2 == 0;
+	}
+	
+	bool isCounterClockwise(const std::pair<int8_t, int8_t>& p1, const std::pair<int8_t, int8_t>& p2,
+	const std::pair<int8_t, int8_t>& p3) {
+		return (p2.first - p1.first) * (p3.second - p1.second) > (p2.second - p1.second) * (p3.first - p1.first);
+	}
+	
+	void sortPoints(std::vector<int8_t>& points) {
+		int n = points.size() / 2;
+		std::pair<int8_t, int8_t> p0(points[0], points[n]);
+		std::vector<std::pair<int8_t, int8_t>> pointList;
+		pointList.reserve(points.size());
+		for (int i = 0; i < n; ++i) {
+			pointList.emplace_back(points[i], points[n + i]);
+		}
+		std::sort(pointList.begin(), pointList.end(),
+		[&p0](const std::pair<int8_t, int8_t>& a, const std::pair<int8_t, int8_t>& b) {
+			if (atan2(a.second - p0.second, a.first - p0.first) == atan2(b.second - p0.second, b.first - p0.first)) {
+				return ((a.first - p0.first) * (a.first - p0.first) + (a.second - p0.second) * (a.second - p0.second)) <
+				((b.first - p0.first) * (b.first - p0.first) + (b.second - p0.second) * (b.second - p0.second));
+			}
+			return atan2(a.second - p0.second, a.first - p0.first) < atan2(b.second - p0.second, b.first - p0.first);
+		});
+		for (int i = 0; i < n; ++i) {
+			points[i] = pointList[i].first;
+			points[n + i] = pointList[i].second;
+		}
+	}
+	
+	std::vector<int8_t> kudryashova_i_graham_scan_mpi::TestMPITaskSequential::runGrahamScan(
+	std::vector<int8_t>& Graham_input_data) {
+		std::vector<int8_t> hull;
+		std::vector<int8_t> points = Graham_input_data;
+		int n = points.size() / 2;
+		int min_y_index = 0;
+		for (int i = 1; i < n; ++i) {
+			if (points[n + i] < points[n + min_y_index] ||
+			(points[n + i] == points[n + min_y_index] && points[i] < points[min_y_index])) {
+				min_y_index = i;
+			}
+		}
+		std::swap(points[0], points[min_y_index]);
+		std::swap(points[n], points[min_y_index + n]);
+		std::vector<int> indices(n);
+		for (int i = 1; i < n; ++i) indices[i] = i;
+		sortPoints(points);
+		hull.push_back(points[0]);
+		hull.push_back(points[n]);
+		for (int i = 1; i < n; ++i) {
+			int index = indices[i];
+			while (hull.size() >= 4 &&
+			!isCounterClockwise({hull[hull.size() - 4], hull[hull.size() - 3]},
+			{hull[hull.size() - 2], hull[hull.size() - 1]}, {points[index], points[n + index]})) {
+				hull.pop_back();
+				hull.pop_back();
+			}
+			if (!isCounterClockwise({hull[hull.size() - 2], hull[hull.size() - 1]}, {points[index], points[n + index]},
+			{points[index], points[n + index]})) {
+				hull.push_back(points[index]);
+				hull.push_back(points[n + index]);
+			}
+		}
+		result_vec.resize(hull.size());
+		std::copy(hull.begin(), hull.end(), result_vec.data());
+		return result_vec;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskSequential::run() {
+		internal_order_test();
+		runGrahamScan(input_data);
+		return true;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskSequential::post_processing() {
+		internal_order_test();
+		auto* outputData = reinterpret_cast<int8_t*>(taskData->outputs[0]);
+		std::copy(result_vec.begin(), result_vec.end(), outputData);
+		return true;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskParallel::pre_processing() {
+		internal_order_test();
+		int remainder = 0;
+		processes = world.size();
+		int counting_proc = world.size() - 1;
+		if (world.rank() == 0) {
+			if (processes == 1 || (int)(taskData->inputs_count[0]) < processes) {
+				delta = (taskData->inputs_count[0]) / 2;
+			} else {
+				delta = (taskData->inputs_count[0] / 2) / counting_proc;
+				remainder = (taskData->inputs_count[0] / 2) % counting_proc;
+			}
+		}
+		segments.resize(processes);
+		if (world.rank() == 0) {
+			segments[0] = delta;
+			for (int i = 1; i < processes; ++i) {
+				segments[i] = delta + (i <= remainder ? 1 : 0);
+			}
+		}
+		if (world.rank() == 0) {
+			input_data.resize(taskData->inputs_count[0]);
+			if (taskData->inputs[0] == nullptr || taskData->inputs_count[0] == 0) {
+				return false;
+			}
+			auto* source_ptr = reinterpret_cast<uint8_t*>(taskData->inputs[0]);
+			std::copy(source_ptr, source_ptr + taskData->inputs_count[0], input_data.begin());
+			sortPoints(input_data);
+		}
+		return true;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskParallel::validation() {
+		internal_order_test();
+		if (world.rank() == 0) {
+			return taskData->inputs_count[0] >= 6 && taskData->inputs_count[0] % 2 == 0;
+		}
+		return true;
+	}
+	
+	std::vector<int8_t> rearrangeAndSort(const std::vector<int8_t>& input) {
+		std::vector<int8_t> x_values;
+		std::vector<int8_t> y_values;
+		for (unsigned long i = 0; i < input.size(); i += 2) {
+			if (i < input.size()) {
+				x_values.push_back(input[i]);
+			}
+			if (i + 1 < input.size()) {
+				y_values.push_back(input[i + 1]);
+			}
+		}
+		std::vector<int8_t> result;
+		result.reserve(x_values.size() + y_values.size());
+		result.insert(result.end(), x_values.begin(), x_values.end());
+		result.insert(result.end(), y_values.begin(), y_values.end());
+		return result;
+	}
+	
+	std::vector<int8_t> kudryashova_i_graham_scan_mpi::TestMPITaskParallel::runGrahamScan(
+	std::vector<int8_t>& Graham_input_data) {
+		std::vector<int8_t> hull;
+		std::vector<int8_t> points = Graham_input_data;
+		int n = points.size() / 2;
+		int min_y_index = 0;
+		for (int i = 1; i < n; ++i) {
+			if (points[n + i] < points[n + min_y_index] ||
+			(points[n + i] == points[n + min_y_index] && points[i] < points[min_y_index])) {
+				min_y_index = i;
+			}
+		}
+		std::swap(points[0], points[min_y_index]);
+		std::swap(points[n], points[min_y_index + n]);
+		std::vector<int> indices(n);
+		for (int i = 1; i < n; ++i) indices[i] = i;
+		sortPoints(points);
+		hull.push_back(points[0]);
+		hull.push_back(points[n]);
+		for (int i = 1; i < n; ++i) {
+			int index = indices[i];
+			while (hull.size() >= 4 &&
+			!isCounterClockwise({hull[hull.size() - 4], hull[hull.size() - 3]},
+			{hull[hull.size() - 2], hull[hull.size() - 1]}, {points[index], points[n + index]})) {
+				hull.pop_back();
+				hull.pop_back();
+			}
+			if (!isCounterClockwise({hull[hull.size() - 2], hull[hull.size() - 1]}, {points[index], points[n + index]},
+			{points[index], points[n + index]})) {
+				hull.push_back(points[index]);
+				hull.push_back(points[n + index]);
+			}
+		}
+		result_vec.resize(hull.size());
+		std::copy(hull.begin(), hull.end(), result_vec.data());
+		return result_vec;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskParallel::run() {
+		internal_order_test();
+		broadcast(world, segments.data(), processes, 0);
+		if (world.rank() == 0) {
+			size_t count = taskData->inputs_count[0];
+			size_t halfSize = count / 2;
+			firstHalf.resize(halfSize);
+			secondHalf.resize(count - halfSize);
+			std::copy(input_data.begin(), input_data.begin() + halfSize, firstHalf.begin());
+			std::copy(input_data.begin() + halfSize, input_data.begin() + count, secondHalf.begin());
+			int pointer = 0;
+			for (int proc = 1; proc < world.size(); ++proc) {
+				int proc_segment = segments[proc];
+				world.send(proc, 0, firstHalf.data() + pointer, proc_segment);
+				world.send(proc, 1, secondHalf.data() + pointer, proc_segment);
+				pointer += proc_segment;
+			}
+		}
+		if (world.rank() != 0) {
+			local_input1_.resize(segments[world.rank()]);
+			local_input2_.resize(segments[world.rank()]);
+			world.recv(0, 0, local_input1_.data(), segments[world.rank()]);
+			world.recv(0, 1, local_input2_.data(), segments[world.rank()]);
+			std::vector<int8_t> local_GrahamScan_data;
+			local_GrahamScan_data.reserve(local_input1_.size() + local_input2_.size());
+			local_GrahamScan_data.insert(local_GrahamScan_data.end(), local_input1_.begin(), local_input1_.end());
+			local_GrahamScan_data.insert(local_GrahamScan_data.end(), local_input2_.begin(), local_input2_.end());
+			local_result = runGrahamScan(local_GrahamScan_data);
+		}
+		size_t local_size = local_result.size();
+		std::vector<size_t> sizes(world.size());
+		world.barrier();
+		gather(world, local_size, sizes, 0);
+		std::vector<int8_t> full_results;
+		std::vector<size_t> displacements(world.size(), 0);
+		if (world.rank() == 0) {
+			size_t total_size = std::accumulate(sizes.begin(), sizes.end(), 0);
+			full_results.resize(total_size);
+			displacements[0] = 0;
+			for (int i = 1; i < world.size(); ++i) {
+				displacements[i] = displacements[i - 1] + sizes[i - 1];
+			}
+			if ((int)(taskData->inputs_count[0]) < world.size() || (world.size() == 1)) {
+				runGrahamScan(input_data);
+				return true;
+			}
+		} else {
+			world.send(0, 0, local_result.data(), local_size);
+		}
+		if (world.rank() == 0) {
+			for (int i = 1; i < world.size(); ++i) {
+				world.recv(i, 0, full_results.data() + displacements[i], sizes[i]);
+			}
+			std::copy(local_result.begin(), local_result.end(), full_results.data() + displacements[world.rank()]);
+			std::vector<int8_t> full_results_sort = rearrangeAndSort(full_results);
+			runGrahamScan(full_results_sort);
+		}
+		return true;
+	}
+	
+	bool kudryashova_i_graham_scan_mpi::TestMPITaskParallel::post_processing() {
+		internal_order_test();
+		if (world.rank() == 0) {
+			if (!taskData->outputs.empty()) {
+				auto* outputData = reinterpret_cast<int8_t*>(taskData->outputs[0]);
+				std::copy(result_vec.begin(), result_vec.end(), outputData);
+			} else {
+				return false;
+			}
+		}
+		return true;
+	}
+}  // namespace kudryashova_i_graham_scan_mpi
+	}  // namespace kudryashova_i_graham_scan_mpi
+\end{lstlisting}
+\end{document}
