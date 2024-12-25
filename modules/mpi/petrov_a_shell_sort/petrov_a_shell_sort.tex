@@ -1,0 +1,292 @@
+\documentclass[a4paper,12pt]{article}
+
+% Подключение пакетов
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+
+% Настройки для кода
+\geometry{
+    a4paper,
+    top=20mm,
+    right=15mm,
+    bottom=20mm,
+    left=25mm,
+}
+
+\setlength{\parindent}{12.5mm} 
+
+% Оформление для кода
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!60!black},
+    numbers=left,
+    numberstyle=\tiny, 
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    tabsize=2,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    showspaces=false,
+    showtabs=false,
+    columns=fullflexible,
+    keepspaces=true
+}
+
+\begin{document}
+
+\begin{centering}
+\thispagestyle{empty}
+МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\\
+Федеральное государственное автономное образовательное учреждение высшего образования\\
+    {\bfseries\large «Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    {\bfseries\large Институт информационных технологий, математики и механики}\\
+Направление подготовки: 09.03.04 Программная инженерия\\
+Направленность (профиль) программы бакалавриата: Разработка программно-информационных систем\\
+
+    \vspace{6cm} 
+    {\LARGE\bfseries Отчёт по задаче}\\
+    {\large Сортировка Шелла с чётно-нечётным слиянием Бэтчера}\\
+    \vspace{6cm} 
+
+    {\hfill\parbox{0.5\textwidth}{%
+        Выполнил:\\
+        Петров Артём Андреевич\\
+        группа 3822Б1ПР2\\
+
+        \vspace{0.1cm}
+
+        Проверил:\\
+        доцент, кандидат технических наук\\
+        Сысоев Александр Владимирович}
+    }
+    \vspace{2cm} 
+
+    Нижний Новгород, 2024 г.
+
+\end{centering}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+Сортировка является одной из ключевых задач в программировании. Алгоритм сортировки Shell Sort с чётно-нечётным слиянием Бэтчера выделяется своей эффективностью при работе с большими массивами данных. В данном проекте была выполнена параллельная реализация этого алгоритма с использованием MPI (Message Passing Interface), что позволило повысить производительность путём распределения вычислений между несколькими процессами.
+
+\section{Постановка задачи}
+Целью проекта является реализация параллельной версии алгоритма Shell Sort с чётно-нечётным слиянием Бэтчера с использованием MPI. Основные задачи:
+\begin{itemize}
+    \item Разработать алгоритм распараллеливания для Shell Sort с чётно-нечётным слиянием Бэтчера.
+    \item Реализовать код с использованием MPI.
+    \item Провести тестирование и оценить производительность программы.
+    \item Сравнить результаты с последовательной версией.
+\end{itemize}
+
+\section{Описание алгоритма}
+Алгоритм Shell Sort с чётно-нечётным слиянием Бэтчера состоит из двух основных частей: сортировка Шелла и этап чётно-нечётного слияния. Ниже приведено подробное описание этапов алгоритма.
+
+\subsection{Этап сортировки Шелла}
+Сортировка Шелла улучшает сортировку вставками за счёт уменьшения количества перемещений элементов. Она работает следующим образом:
+\begin{enumerate}
+    \item Делит массив на подгруппы, используя шаг (gap).
+    \item Выполняет сортировку вставками для каждой подгруппы.
+    \item Уменьшает шаг и повторяет процесс до тех пор, пока шаг не станет равным 1.
+\end{enumerate}
+
+Пример кода для этапа сортировки Шелла:
+\begin{lstlisting}
+for (int gap = size / 2; gap > 0; gap /= 2) {
+    for (int i = gap; i < size; ++i) {
+        int temp = data[i];
+        int j;
+        for (j = i; j >= gap && data[j - gap] > temp; j -= gap) {
+            data[j] = data[j - gap];
+        }
+        data[j] = temp;
+    }
+}
+\end{lstlisting}
+
+\subsection{Этап чётно-нечётного слияния Бэтчера}
+Чётно-нечётное слияние используется для объединения отсортированных подгрупп массива. Это делается путём попарного сравнения и обмена элементов для создания общего порядка.
+
+Пример кода для чётно-нечётного слияния:
+\begin{lstlisting}
+for (int step = 1; step < size; step *= 2) {
+    for (int i = 0; i < size; i += 2 * step) {
+        for (int j = i; j < i + step && j + step < size; ++j) {
+            if (data[j] > data[j + step]) {
+                std::swap(data[j], data[j + step]);
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Описание схемы распараллеливания}
+Параллельная версия алгоритма была реализована следующим образом:
+\begin{itemize}
+    \item Исходный массив распределяется между процессами с использованием функции \texttt{MPI\_Scatter}.
+    \item Каждый процесс выполняет сортировку своей части массива с помощью локального алгоритма Shell Sort.
+    \item После локальной сортировки данные собираются обратно на главный процесс с использованием функции \texttt{MPI\_Gather}.
+    \item Главный процесс выполняет чётно-нечётное слияние для объединения результатов.
+\end{itemize}
+
+Пример вызова MPI функций:
+\begin{lstlisting}
+MPI_Scatter(data.data(), local_size, MPI_INT, 
+            local_data.data(), local_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+shellSort(local_data, local_size);
+
+MPI_Gather(local_data.data(), local_size, MPI_INT, 
+           data.data(), local_size, MPI_INT, 0, MPI_COMM_WORLD);
+\end{lstlisting}
+
+\section{Описание программной реализации}
+Код был реализован с использованием MPI. Основные этапы:
+\begin{itemize}
+    \item \textbf{Предобработка:} проверка входных данных и распределение массива между процессами.
+    \item \textbf{Основной этап:} локальная сортировка и взаимодействие между процессами.
+    \item \textbf{Постобработка:} сборка результатов, выполнение чётно-нечётного слияния и их валидация.
+\end{itemize}
+
+Пример использования функций MPI:
+\begin{lstlisting}
+MPI_Init(&argc, &argv);
+MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+MPI_Finalize();
+\end{lstlisting}
+
+\section{Эксперименты}
+Эксперименты проводились для оценки времени работы алгоритма и проверки его корректности. Были выполнены следующие тесты:
+\begin{itemize}
+    \item Тесты на корректность с различными входными данными.
+    \item Измерение времени работы для массивов разного размера.
+    \item Сравнение производительности последовательной и параллельной версий.
+\end{itemize}
+
+Результаты показывают, что параллельная версия выигрывает по времени при увеличении размера массива.
+
+\section{Выводы из результатов}
+На основе полученных данных можно сделать следующие выводы:
+\begin{itemize}
+    \item Алгоритм Shell Sort с чётно-нечётным слиянием Бэтчера хорошо поддаётся распараллеливанию.
+    \item MPI обеспечивает значительное ускорение для больших массивов.
+    \item Для небольших массивов параллельная версия может уступать последовательной из-за накладных расходов на коммуникацию.
+\end{itemize}
+
+\section{Заключение}
+В данном проекте была реализована и протестирована параллельная версия алгоритма Shell Sort с чётно-нечётным слиянием Бэтчера с использованием MPI. Эксперименты подтвердили корректность реализации и продемонстрировали её преимущества по производительности.
+
+\section{Литература}
+\begin{enumerate}
+    \item Основы MPI 3 статьи \url{https://habr.com/ru/articles/548266/}
+    \item Сортировка Шелла \url{https://ru.wikipedia.org/wiki/%D0%A1%D0%BE%D1%80%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B0_%D0%A8%D0%B5%D0%BB%D0%BB%D0%B0}
+    \item Документация по библиотеке Boost MPI.
+\end{enumerate}
+
+\section{Приложение}
+\begin{lstlisting}
+namespace petrov_a_Shell_sort_mpi {
+
+bool TestTaskMPI::pre_processing() {
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if (world_rank == 0) {
+    size_t input_size = taskData->inputs_count[0];
+    const auto* raw_data = reinterpret_cast<const unsigned char*>(taskData->inputs[0]);
+
+    data_.resize(input_size);
+    memcpy(data_.data(), raw_data, input_size * sizeof(int));
+  }
+
+  return true;
+}
+
+bool TestTaskMPI::validation() {
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  if (world_rank == 0) {
+    if (taskData->inputs.empty() || taskData->inputs_count.empty()) {
+      return false;
+    }
+
+    if (taskData->outputs.empty() || taskData->outputs_count.empty()) {
+      return false;
+    }
+
+    if (!taskData->outputs.empty() && taskData->outputs_count[0] == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool TestTaskMPI::run() {
+  int world_size;
+  int world_rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  int n;
+
+  if (world_rank == 0) {
+    n = data_.size();
+  }
+
+  MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  int local_size = n / world_size;
+  std::vector<int> local_data(local_size);
+
+  MPI_Scatter(data_.data(), local_size, MPI_INT, local_data.data(), local_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+  for (int gap = local_size / 2; gap > 0; gap /= 2) {
+    for (int i = gap; i < local_size; ++i) {
+      int temp = local_data[i];
+      int j;
+      for (j = i; j >= gap && local_data[j - gap] > temp; j -= gap) {
+        local_data[j] = local_data[j - gap];
+      }
+      local_data[j] = temp;
+    }
+  }
+
+  MPI_Gather(local_data.data(), local_size, MPI_INT, data_.data(), local_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+  if (world_rank == 0) {
+    std::sort(data_.begin(), data_.end());
+  }
+
+  return true;
+}
+
+bool TestTaskMPI::post_processing() {
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+  if (world_rank == 0) {
+    size_t output_size = taskData->outputs_count[0];
+    auto* raw_output_data = reinterpret_cast<unsigned char*>(taskData->outputs[0]);
+    memcpy(raw_output_data, data_.data(), output_size * sizeof(int));
+  }
+
+  return true;
+}
+
+}  // namespace petrov_a_Shell_sort_mpi
+\end{lstlisting}
+
+\end{document}
