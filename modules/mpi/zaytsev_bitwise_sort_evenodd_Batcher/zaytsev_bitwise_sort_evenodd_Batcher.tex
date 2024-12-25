@@ -1,0 +1,268 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+    \vspace*{1cm}
+
+    \textbf{\Large Отчет по реализации поразрядной сортировки для целых чисел с четно-нечетным слиянием Бэтчера с использованием MPI}
+
+    \vspace{1.5cm}
+
+    \textbf{Зайцев Денис Яковлевич ПР2}
+
+    \vfill
+
+    Учебное заведение: Нижегородский государственный университет им. Лобачевского \\
+    Преподаватель: Сысоев Александр Владимирович. Доцент, кандидат технических наук
+
+    \vspace{0.8cm}
+
+    \today
+
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+Данный отчет посвящен разработке и исследованию алгоритма поразрядной сортировки целых чисел, реализованного с использованием четно-нечетного слияния Бэтчера в параллельной среде MPI.
+
+\section{Постановка задачи}
+Необходимо разработать и реализовать алгоритм поразрядной сортировки для целых чисел, который:
+\begin{itemize}
+    \item Корректно сортирует входные данные;
+    \item Использует четно-нечетное слияние Бэтчера для параллельной обработки;
+    \item Демонстрирует высокую производительность и масштабируемость.
+\end{itemize}
+Реализация должна быть выполнена с использованием библиотеки MPI и протестирована на различных объемах данных.
+
+\section{Описание алгоритма}
+Поразрядная сортировка (Radix Sort) выполняется путем последовательной сортировки чисел по их битам. Основные шаги алгоритма:
+\begin{enumerate}
+    \item Определение максимального числа битов для сортировки.
+    \item Итеративная сортировка чисел по каждому биту с использованием временного буфера.
+    \item Коррекция отрицательных чисел, если такие присутствуют.
+\end{enumerate}
+
+\section{Описание схемы распараллеливания}
+Схема распараллеливания основана на следующих этапах, рассмотренных для примера с 4 процессами:
+\begin{enumerate}
+    \item \textbf{Разделение данных:} Входной массив данных разбивается на 4 части, каждая из которых отправляется одному из процессов с использованием функции \texttt{MPI\_Scatterv}. Например, для массива из 16 элементов каждый процесс получает по 4 элемента.
+    \item \textbf{Локальная сортировка:} Каждый процесс выполняет поразрядную сортировку на своей части массива. Для процесса 0 это первые 4 элемента, для процесса 1 — следующие 4 элемента, и так далее.
+    \item \textbf{Четно-нечетное слияние:} В итерациях:
+    \begin{itemize}
+        \item \textit{Шаг 1:} Процессы с четными номерами (0 и 2) обмениваются границами с соседними процессами (1 и 3), выполняя слияние. 
+        \item \textit{Шаг 2:} Процессы с нечетными номерами (1 и 3) обмениваются границами с соседними процессами (то есть объединяются 1 и 2 процесс, так как всего 4 процесса), выполняя слияние.
+    \end{itemize}
+    Итерации продолжаются, пока массив не будет полностью упорядочен.
+    \item \textbf{Сбор результатов:} После завершения всех этапов данные собираются на корневом процессе с использованием \texttt{MPI\_Gatherv}.
+\end{enumerate}
+
+\section{Результаты экспериментов}
+Для оценки производительности алгоритма были проведены эксперименты на массиве из $9 \times 10^6$ элементов. В таблице приведены времена выполнения (в секундах) в зависимости от числа процессов:
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Число процессов} & \textbf{Время выполнения (сек.)} \\
+\hline
+1 & 4.0 \\
+\hline
+2 & 3.7 \\
+\hline
+3 & 3.5 \\
+\hline
+4 & 3.2 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Подтверждение корректности}
+Для проверки корректности алгоритма использовались различные тесты с различными массивами данных, включая случайные массивы, пустые массивы, обратно отсортированные массивы и т. д. В результате все тесты подтвердили корректность работы алгоритма, так как отсортированные массивы соответствовали ожиданиям.
+
+\section{Выводы из результатов}
+Результаты экспериментов показывают:
+\begin{itemize}
+    \item При использовании 2 процессов время выполнения сокращается до 3.7 секунд, что дает прирост производительности.
+    \item При увеличении числа процессов до 3 время выполнения уменьшается до 3.5 секунд, и при 4 процессах достигается время 3.2 секунды.
+    \item Видно, что с увеличением числа процессов время выполнения снижается, но прирост производительности становится менее выраженным по мере увеличения числа процессов.
+\end{itemize}
+Это свидетельствует о том, что алгоритм эффективно масштабируется с увеличением числа процессов, но с увеличением числа процессов снижается прирост производительности, что может быть связано с накладными расходами на обмен данными между процессами.
+
+\section{Заключение}
+В ходе работы был разработан и реализован алгоритм поразрядной сортировки для целых чисел с четно-нечетным слиянием Бэтчера, использующий возможности параллельной обработки через библиотеку MPI. Алгоритм был протестирован на массиве из $9 \times 10^6$ элементов, и проведены эксперименты с различным числом процессов для оценки производительности.
+
+Результаты экспериментов продемонстрировали значительное улучшение времени выполнения при увеличении числа процессов.
+
+Для оценки корректности работы алгоритма были проведены тесты с различными входными массивами, включая случайные массивы, пустые массивы и обратно отсортированные массивы. Во всех случаях алгоритм продемонстрировал корректные результаты, подтверждая свою способность эффективно сортировать данные в различных условиях.
+
+Таким образом, выполненная работа представляет собой успешную реализацию и оценку алгоритма параллельной сортировки.
+
+\section{Литература}
+\begin{enumerate}
+    \item Документация по Boost.MPI:\\ \url{https://www.boost.org/doc/libs/master/doc/html/mpi/tutorial.html}
+    \item Видео объяснение:\\ 
+    \url{https://www.youtube.com/watch?v=BwHIu38PCCo}
+    \item {А.С. Антонов <<Параллельное программирование с использованием MPI>>}.
+\end{enumerate}
+
+\section{Приложение}
+
+Ниже представлен код реализации поразрядной сортировки для целых чисел с четно-нечетным слиянием Бэтчера с использованием библиотеки MPI.
+
+\begin{lstlisting}[language=C++]
+
+void zaytsev_bitwise_sort_evenodd_Batcher::radix_sort(std::vector<int>&
+data, int min_value, int max_value) {
+    std::vector<int> buffer(data.size());
+
+    int max_bits = 0;
+    while (max_value > 0) {
+        max_value >>= 1;
+        ++max_bits;
+    }
+
+    for (int bit = 0; bit < max_bits; ++bit) {
+        size_t zero_count = 0;
+
+        for (int num : data) {
+            if ((num & (1 << bit)) == 0) {
+                buffer[zero_count++] = num;
+            }
+        }
+        for (int num : data) {
+            if ((num & (1 << bit)) != 0) {
+                buffer[zero_count++] = num;
+            }
+        }
+
+        data = buffer;
+    }
+
+    if (min_value < 0) {
+        for (int& num : data) {
+            num += min_value;
+        }
+    }
+}
+
+bool zaytsev_bitwise_sort_evenodd_Batcher::TestMPITaskParallel::pre_processing() {
+    internal_order_test();
+
+    if (world.rank() == 0) {
+        input_ = std::vector<int>(taskData->inputs_count[0]);
+        auto* tmp_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+        std::copy(tmp_ptr, tmp_ptr + taskData->inputs_count[0], input_.begin());
+    }
+
+    return true;
+}
+
+bool zaytsev_bitwise_sort_evenodd_Batcher::TestMPITaskParallel::validation() {
+    internal_order_test();
+    if (world.rank() == 0) {
+        return taskData->outputs_count[0] == taskData->inputs_count[0];
+    }
+    return true;
+}
+
+bool zaytsev_bitwise_sort_evenodd_Batcher::TestMPITaskParallel::run() {
+    internal_order_test();
+
+    int world_size = world.size();
+    int world_rank = world.rank();
+
+    int total_size = 0;
+    if (world_rank == 0) {
+        total_size = input_.size();
+    }
+    MPI_Bcast(&total_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int chunk_size = total_size / world_size;
+    int remainder = total_size % world_size;
+
+    int local_size = chunk_size + (world_rank < remainder ? 1 : 0);
+    std::vector<int> local_data(local_size);
+
+    std::vector<int> counts(world_size);
+    std::vector<int> displacements(world_size, 0);
+    if (world_rank == 0) {
+        for (int i = 0; i < world_size; ++i) {
+            counts[i] = chunk_size + (i < remainder ? 1 : 0);
+            if (i > 0) {
+                displacements[i] = displacements[i - 1] + counts[i - 1];
+            }
+        }
+    }
+
+    MPI_Scatterv(input_.data(), counts.data(), displacements.data(), MPI_INT, local_data.data(), local_size, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int local_min = local_data.empty() ? 0 : *std::min_element(local_data.begin(), local_data.end());
+    int global_min = 0;
+    MPI_Allreduce(&local_min, &global_min, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    if (global_min < 0) {
+        for (int& num : local_data) {
+            num -= global_min;
+        }
+    }
+    int max_value = local_data.empty() ? 0 : *std::max_element(local_data.begin(), local_data.end());
+    int global_max_value = 0;
+    MPI_Allreduce(&max_value, &global_max_value, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+    radix_sort(local_data, global_min, global_max_value);
+
+    for (int step = 0; step < world_size; ++step) {
+        int neighbor;
+        if (step % 2 == 0) {
+            neighbor = (world_rank % 2 == 0) ? world_rank + 1 : world_rank - 1;
+        } else {
+            neighbor = (world_rank % 2 == 0) ? world_rank - 1 : world_rank + 1;
+        }
+
+        if (neighbor >= 0 && neighbor < world_size) {
+            std::vector<int> neighbor_data(local_size);
+            MPI_Sendrecv(local_data.data(), local_size, MPI_INT, neighbor, 0, neighbor_data.data(), local_size, MPI_INT,
+                         neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            std::vector<int> merged_data(local_data.size() + neighbor_data.size());
+            std::merge(local_data.begin(), local_data.end(), neighbor_data.begin(), neighbor_data.end(), merged_data.begin());
+
+            if (world_rank < neighbor) {
+                local_data.assign(merged_data.begin(), merged_data.begin() + local_data.size());
+            } else {
+                local_data.assign(merged_data.end() - local_data.size(), merged_data.end());
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    MPI_Gatherv(local_data.data(), local_data.size(), MPI_INT, input_.data(), counts.data(), displacements.data(),
+                MPI_INT, 0, MPI_COMM_WORLD);
+
+    return true;
+}
+
+bool zaytsev_bitwise_sort_evenodd_Batcher::TestMPITaskParallel::post_processing() {
+    internal_order_test();
+
+    if (world.rank() == 0) {
+        auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+        std::copy(input_.begin(), input_.end(), output_data);
+    }
+
+    return true;
+}
+\end{lstlisting}
+
+
+\end{document}
