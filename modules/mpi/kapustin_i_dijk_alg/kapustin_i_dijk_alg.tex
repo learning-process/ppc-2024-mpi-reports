@@ -1,0 +1,512 @@
+\documentclass[a4paper,14pt]{extarticle}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\geometry{a4paper, top=30mm, left=35mm, right=20mm, bottom=25mm}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \vspace*{-1cm} % Смещение вверх
+        {\large \textbf{«Национальный исследовательский Нижегородский государственный университет»}}
+        
+        \vspace{4cm} % Расстояние между названием университета и заголовком работы
+        {\LARGE \textbf{Реализация алгоритма Дейкстры с использованием технологии MPI}}
+        
+        \vspace{3cm} % Расстояние между заголовком работы и автором
+        \textbf{Автор работы:}\\
+        \vspace{0.5cm}
+        \textbf{Капустин Иван Александрович}\\
+        Группа 3822Б1ПР1
+        
+        \vspace{1.5cm}
+        \textbf{Преподаватель:}\\
+        \vspace{0.5cm}
+        \textbf{Сысоев Александр Владимирович}\\
+        Кандидат технических наук, доцент
+        
+        \vfill % Заполнение оставшегося пространства
+        Нижний Новгород, \the\year{} г.
+    \end{center}
+\end{titlepage}
+
+\end{document}
+
+\section*{Введение}
+
+Алгоритм Дейкстры является одним из самых известных и широко используемых методов поиска кратчайших путей в графе. Основная идея алгоритма заключается в последовательном нахождении минимального пути от заданной стартовой вершины до всех остальных вершин графа. Алгоритм работает только с графами, в которых все рёбра имеют неотрицательные веса, что обеспечивает корректность вычислений.
+Основные цели работы:
+\begin{itemize}
+    \item Разработка и реализация последовательной версии алгоритма.
+    \item Разработка и реализация параллельной версии алгоритма.
+    \item Сравнение результатов скорости работы последовательной и параллельной версий алгоритмов.
+\end{itemize}
+\section*{Описание последовательной версии алгоритма}
+
+\subsection*{Конвертация матрицы смежности в формат CRS}
+
+Функция \texttt{CRSconvert} отвечает за преобразование входной матрицы смежности в формат разреженного хранения CRS (Compressed Row Storage). Этот формат позволяет эффективно хранить и обрабатывать графы с большим количеством вершин и рёбер. В рамках данной функции:
+\begin{itemize}
+    \item Вектор \texttt{values} хранит ненулевые значения рёбер.
+    \item Вектор \texttt{columns} содержит индексы вершин, соответствующих этим рёбрам.
+    \item Вектор \texttt{row\_ptr} указывает начало и конец диапазона ненулевых значений для каждой строки.
+\end{itemize}
+Итерация по строкам матрицы происходит с использованием указателей, что обеспечивает высокую производительность.
+
+\subsection*{Предварительная обработка данных}
+
+Метод \texttt{pre\_processing} выполняет следующие действия:
+\begin{enumerate}
+    \item Извлекает матрицу смежности и параметры графа из входных данных.
+    \item Вызывает функцию \texttt{CRSconvert} для преобразования данных в формат CRS.
+    \item Инициализирует массив результатов \texttt{res\_} с начальными значениями: все расстояния установлены как бесконечность (\texttt{INF}), кроме начальной вершины, расстояние до которой равно 0.
+\end{enumerate}
+
+\subsection*{Основной алгоритм}
+
+Метод \texttt{run} реализует сам алгоритм Дейкстры, используя структуру данных \texttt{std::set} для отслеживания активных вершин. Основные шаги:
+\begin{itemize}
+    \item Инициализация массива \texttt{distances} для хранения минимальных расстояний до вершин.
+    \item Отметка всех вершин как непосещённых с помощью массива \texttt{visited}.
+    \item Использование множества \texttt{active\_vertices}, в котором хранятся вершины, отсортированные по текущей минимальной стоимости пути.
+\item Для каждой вершины:
+    \begin{enumerate}
+        \item Извлекается вершина с минимальным расстоянием.
+        \item Проводится релаксация рёбер, исходящих из текущей вершины.
+        \item Если найден новый более короткий путь, расстояние обновляется, а вершина добавляется в множество активных вершин.
+    \end{enumerate}
+\end{itemize}
+После завершения работы алгоритма массив \texttt{res\_} обновляется минимальными расстояниями до всех вершин.
+
+\subsection*{Валидация данных}
+
+Метод \texttt{validation} проверяет:
+\begin{itemize}
+    \item Наличие входных и выходных данных.
+    \item Корректность указателей на массивы данных.
+\end{itemize}
+Если проверки не пройдены, выполнение алгоритма завершается.
+
+\subsection*{Постобработка данных}
+
+На этапе постобработки методом \texttt{post\_processing} результаты работы алгоритма записываются в выходной массив, чтобы обеспечить передачу данных другим компонентам системы.
+
+\section*{Описание параллельной версии алгоритма}
+
+\subsection*{Конвертация матрицы смежности в формат CRS}
+
+ Основные этапы:
+\begin{itemize}
+    \item Ненулевые значения рёбер записываются в вектор \texttt{values}.
+    \item Индексы целевых вершин для каждого ребра сохраняются в вектор \texttt{columns}.
+    \item Границы диапазонов ненулевых элементов для строк матрицы фиксируются в \texttt{row\_ptr}.
+\end{itemize}
+Дополнительно вычисляются размеры векторов (\texttt{values\_size}, \texttt{columns\_size}, \texttt{row\_ptr\_size}) для дальнейшего распределения данных между процессами.
+
+\subsection*{Предварительная обработка данных}
+
+Метод \texttt{pre\_processing} выполняет следующие действия:
+\begin{enumerate}
+    \item На процессе с рангом 0 извлекаются матрица смежности и параметры графа (\texttt{V} и \texttt{E}) из входных данных.
+    \item Вызывается функция \texttt{CRSconvert} для преобразования данных в формат CRS.
+\end{enumerate}
+
+\subsection*{Основной алгоритм}
+
+Метод \texttt{run} реализует параллельную версию алгоритма Дейкстры с использованием библиотеки \texttt{Boost.MPI}. Основные шаги:
+\begin{itemize}
+    \item Распределение данных:
+    \begin{itemize}
+        \item Глобальные параметры графа (\texttt{V}, \texttt{E}) и размеры векторов CRS (\texttt{values\_size}, \texttt{columns\_size}, \texttt{row\_ptr\_size}) рассылаются всем процессам.
+        \item Вектора \texttt{values}, \texttt{columns}, \texttt{row\_ptr} передаются в процессы с помощью функции \texttt{broadcast}.
+    \end{itemize}
+    \item Разделение вершин между процессами:
+    \begin{itemize}
+       \item Каждому процессу назначается диапазон вершин \\
+(\texttt{start\_vertex\_index} и \texttt{end\_vertex\_index})
+        \item Результаты и метки посещённых вершин инициализируются локально.
+    \end{itemize}
+    \item Итеративный процесс:
+    \begin{enumerate}
+        \item Каждый процесс вычисляет локальный минимум расстояния для своего диапазона вершин.
+        \item С помощью \texttt{reduce} на корневом процессе определяется глобальный минимум, который рассылается обратно всем процессам (\texttt{broadcast}).
+        \item Обновляются расстояния до соседних вершин через релаксацию рёбер.
+        \item Процессы синхронизируют результаты через коллективные операции (\texttt{all\_reduce}).
+    \end{enumerate}
+\end{itemize}
+
+\subsection*{Валидация данных}
+
+Метод \texttt{validation} проверяет:
+\begin{itemize}
+    \item Наличие входных и выходных данных.
+    \item Корректность указателей на массивы данных.
+\end{itemize}
+\subsection*{Постобработка данных}
+
+На этапе постобработки методом \texttt{post\_processing} результаты работы алгоритма собираются на процессе с рангом 0:
+\begin{itemize}
+    \item С помощью функции \texttt{all\_reduce} все процессы синхронизируют свои результаты.
+    \item Итоговые значения расстояний до вершин записываются в выходной массив, доступный другим компонентам системы.
+\end{itemize}
+\section*{Сравнение результатов}
+
+В данной секции представлены результаты тестирования алгоритма Дейкстры в последовательной и параллельной версиях, а также проведено сравнение их эффективности при увеличении числа процессов. Тестирование проводилось на следующем аппаратном обеспечении:
+
+\begin{itemize}
+    \item Видеокарта: \texttt{Radeon RX 6750 XT}
+    \item Процессор: \texttt{AMD Ryzen 5 5600}
+    \item Оперативная память: \texttt{32 GB RAM}
+    \item Операционная система: \texttt{Windows 11}
+\end{itemize}
+Для каждой версии алгоритма были собраны данные о времени выполнения, ускорении и эффективности при различных числах процессов. Результаты представлены в виде таблиц , показывающих зависимость этих метрик от числа процессов, а также наглядно демонстрирующие, как параллельная версия алгоритма ускоряет выполнение по сравнению с последовательной.
+
+\subsection*{Тестирование последовательной версии}
+
+Последовательная версия алгоритма Дейкстры была протестирована на одном процессе. Время выполнения алгоритма на различных графах с разными размерами было зафиксировано и использовано для дальнейшего анализа. 
+
+\subsection*{Тестирование параллельной версии}
+
+Параллельная версия алгоритма была протестирована на различных числах процессов. Время выполнения, ускорение и эффективность были рассчитаны для каждого числа четного процесса, начиная с 2-го до 8-го.
+\section*{Сравнение результатов}
+
+В таблицах ниже приведены результаты тестирования для различных чисел процессов, включая ускорение и эффективность. Первая таблица отображает результаты для теста \texttt{pipeline}, а вторая — для теста \texttt{task\_run}.
+
+Тесты проводились на графе, содержащем 20000 вершин и 40000 рёбер. Для генерации графа был использован случайный генератор, который заполняет граф следующим образом:
+
+\begin{itemize}
+    \item Граф состоит из 20000 вершин и 40000 рёбер, что делает его разрежённым (в среднем каждая вершина соединена с 2 другими вершинами).
+    \item Рёбра генерируются случайным образом между вершинами, при этом между одной и той же вершиной самосоединения не допускаются.
+    \item Для каждого рёбра случайным образом генерируется вес в пределах от 1 до 100.
+    \item Граф представлен в виде матрицы смежности, где для каждой пары вершин, между которыми существует ребро, в соответствующем элементе матрицы хранится вес этого ребра.
+\end{itemize}
+
+В процессе тестирования количество активных задач было установлено на уровне 25 (\texttt{perfAttr->num\_running = 25}).
+
+\begin{table}[h!]
+\centering
+\setlength{\tabcolsep}{3pt} % Уменьшаем ширину столбцов
+\small
+\begin{tabular}{|c|c|c|c|}  
+\hline
+\textbf{Число процессов} & \textbf{Время  (с)} & \textbf{Ускорение } & \textbf{Эффективность } \\ \hline
+1 & 21.9 & 1.00 & 1.00 \\ \hline
+2 & 12.1 & 1.81 & 0.91 \\ \hline
+4 & 10.2 & 2.15 & 0.54 \\ \hline
+8 & 8.7 & 2.52 & 0.31 \\ \hline
+\end{tabular}
+\caption{Результаты тестирования для \texttt{pipeline}: время выполнения, ускорение и эффективность}
+\end{table}
+\vspace*{-1cm} %
+
+\begin{table}[t] % 
+\centering
+\setlength{\tabcolsep}{3pt} % Уменьшаем ширину столбцов
+\small
+\begin{tabular}{|c|c|c|c|}  
+\hline
+\textbf{Число процессов} & \textbf{Время (с)} & \textbf{Ускорение} & \textbf{Эффективность } \\ \hline
+1 & 17.05 & 1.00 & 1.00 \\ \hline
+2 & 7 & 2.43 & 1.22 \\ \hline
+4 & 5.2 & 3.28 & 0.82 \\ \hline
+8 & 3.4 & 5.02 & 0.63 \\ \hline
+\end{tabular}
+\caption{Результаты тестирования для \texttt{task\_run}: время выполнения, ускорение и эффективность}
+\end{table}
+
+\clearpage
+
+\section*{Вывод}
+
+На основе проведённого тестирования результаты показали различия в зависимости от числа процессов.
+
+Во-первых, тесты демонстрируют, что с увеличением числа процессов время выполнения снижается. Для алгоритма \texttt{pipeline} можно заметить, что время выполнения значительно уменьшается при переходе от одного процесса (21.9 секунды) к двум (12.1 секунды), но затем снижение замедляется.  Ускорение в тестах увеличивается с ростом числа процессов, однако эффективность начинает падать. Это связано с тем, что при большем числе процессов возникает дополнительная нагрузка на синхронизацию и коммуникацию между процессами.
+
+Для теста \texttt{task\_run} ситуация схожа: время выполнения также сокращается с увеличением числа процессов, начиная с 17.05 секунд для одного процесса и достигая 3.4 секунды для восьми процессов. Ускорение в этом случае увеличивается более существенно, чем для \texttt{pipeline}, достигая 5.02 для восьми процессов. Однако эффективность, как и в предыдущем случае, снижалась с ростом числа процессов.
+
+Таким образом, результаты показывают, что на практике увеличение числа процессов может существенно снизить время выполнения, но при этом эффективность параллельных вычислений уменьшается. Это может быть связано с ограничениями в производительности системы или с накладными расходами на синхронизацию данных между процессами. 
+
+\section{Литература}
+\begin{thebibliography}{9}
+    \bibitem{dijkstra_geeks} GeeksforGeeks, \textit{Dijkstra’s Shortest Path Algorithm (Greedy Algorithm)}, [Online]. Available: \url{https://www.geeksforgeeks.org/dijkstras-shortest-path-algorithm-greedy-algo-7/}
+    \bibitem{dijkstra_favtutor} FavTutor, \textit{Dijkstra’s Algorithm in C++}, [Online]. Available: \url{https://favtutor.com/blogs/dijkstras-algorithm-cpp}
+    \bibitem{boost_mpi_collectives} Boost, \textit{Boost.MPI: all\_reduce}, [Online]. Available: \url{https://www.boost.org/doc/libs/1_84_0/boost/mpi/collectives/all_reduce.hpp}
+\end{thebibliography}
+\section*{Приложение}
+
+\subsection*{Основные функции}
+
+\subsection{Run}
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Функция run последовательного алгоритма}]
+bool kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmSEQ::run() {
+  internal_order_test();
+  std::vector<int> distances(V, INF);
+  std::vector<bool> visited(V, false);
+  std::set<std::pair<int, int>> active_vertices;
+
+  distances[0] = 0;
+  active_vertices.insert({0, 0});
+
+  while (!active_vertices.empty()) {
+    int u = active_vertices.begin()->second;
+    active_vertices.erase(active_vertices.begin());
+
+    if (visited[u]) continue;
+    visited[u] = true;
+
+    for (int j = row_ptr[u]; j < row_ptr[u + 1]; ++j) {
+      int v = columns[j];
+      int weight = values[j];
+      int new_dist = distances[u] + weight;
+
+      if (new_dist < distances[v]) {
+        active_vertices.erase({distances[v], v});
+        distances[v] = new_dist;
+        active_vertices.insert({new_dist, v});
+      }
+    }
+  }
+
+  for (size_t i = 0; i < V; ++i) {
+    res_[i] = distances[i];
+  }
+
+  return true;
+}
+\end{lstlisting}
+\clearpage
+\subsection{Код функций}
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Функция run параллельного алгоритма}]
+bool kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmMPI::run() {
+  internal_order_test();
+
+  boost::mpi::broadcast(world, V, 0);
+  boost::mpi::broadcast(world, E, 0);
+  boost::mpi::broadcast(world, values_size, 0);
+  boost::mpi::broadcast(world, row_ptr_size, 0);
+  boost::mpi::broadcast(world, columns_size, 0);
+
+  values.resize(values_size);
+  row_ptr.resize(row_ptr_size);
+  columns.resize(columns_size);
+
+  boost::mpi::broadcast(world, values.data(), values.size(), 0);
+  boost::mpi::broadcast(world, row_ptr.data(), row_ptr.size(), 0);
+  boost::mpi::broadcast(world, columns.data(), columns.size(), 0);
+
+  int vertices_per_process = V / world.size();
+  int start_vertex_index = world.rank() * vertices_per_process;
+  int end_vertex_index = (world.rank() == world.size() - 1) ? V : start_vertex_index + vertices_per_process;
+
+  res_.resize(V, INF);
+  std::vector<bool> visited(V, false);
+
+  if (world.rank() == 0) {
+    res_[0] = 0;
+  }
+
+  boost::mpi::broadcast(world, res_.data(), V, 0);
+
+  for (size_t iteration = 0; iteration < V; iteration++) {
+    int local_min_distance = INF;
+    int local_min_vertex = -1;
+    int current_vertex = start_vertex_index;
+
+    while (current_vertex < end_vertex_index) {
+      if (!visited[current_vertex] && res_[current_vertex] < local_min_distance) {
+        local_min_distance = res_[current_vertex];
+        local_min_vertex = current_vertex;
+      }
+      current_vertex++;
+    }
+
+    std::pair<int, int> local_min_pair = {local_min_distance, local_min_vertex};
+    std::pair<int, int> global_min_pair = {INF, -1};
+
+    boost::mpi::reduce(
+        world, local_min_pair, global_min_pair,
+        [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+          if (a.first < b.first) return a;
+          if (a.first > b.first) return b;
+          return (a.second < b.second) ? a : b;
+        },
+        0);
+
+    boost::mpi::broadcast(world, global_min_pair, 0);
+
+    if (global_min_pair.first == INF) {
+      break;
+    }
+
+    visited[global_min_pair.second] = true;
+
+    for (int edge_index = row_ptr[global_min_pair.second]; edge_index < row_ptr[global_min_pair.second + 1];
+         edge_index++) {
+      int neighbor_vertex = columns[edge_index];
+      int edge_weight = values[edge_index];
+
+      if (!visited[neighbor_vertex] && res_[global_min_pair.second] != INF &&
+          (res_[global_min_pair.second] + edge_weight < res_[neighbor_vertex])) {
+        res_[neighbor_vertex] = res_[global_min_pair.second] + edge_weight;
+      }
+    }
+  }
+  std::vector<int> global_result(V, INF);
+  boost::mpi::all_reduce(world, res_.data(), V, global_result.data(), boost::mpi::minimum<int>());
+  res_ = global_result;
+
+  return true;
+}
+\end{lstlisting}
+\clearpage
+\subsection{Код функций}
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Функция CRSconvert для преобразования матрицы в формат CRS. MPI версия.}]
+void kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmMPI::CRSconvert(const int* input_matrix) {
+  row_ptr.resize(V + 1);
+  size_t non_zero_count = 0;
+
+  for (size_t i = 0; i < V; ++i) {
+    const int* row_start = input_matrix + i * V;
+    const int* row_end = row_start + V;
+
+    for (; row_start != row_end; ++row_start) {
+      if (*row_start != 0) {
+        values.push_back(*row_start);
+        columns.push_back(row_start - (input_matrix + i * V));
+        ++non_zero_count;
+      }
+    }
+    row_ptr[i + 1] = non_zero_count;
+  }
+
+  values_size = values.size();
+  columns_size = columns.size();
+  row_ptr_size = row_ptr.size();
+}
+\end{lstlisting}
+\clearpage
+\subsection{Пример теста для алгоритма Дейкстры}
+
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Пример теста  на разорванном графе}]
+TEST(kapustin_dijkstras_algorithm_mpi, test_disconnected_graph) {
+  boost::mpi::communicator world;
+  const int V = 4;
+  const int E = 2;
+
+  std::vector<int> graph = {0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0};
+  std::vector<int> resMPI(V, 0);
+  std::vector<int> expected_res = {0, 1, INT_MAX, INT_MAX};
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+
+  taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(graph.data()));
+  taskDataPar->inputs_count.emplace_back(static_cast<uint32_t>(V));
+  taskDataPar->inputs_count.emplace_back(static_cast<uint32_t>(E));
+  taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(resMPI.data()));
+  taskDataPar->outputs_count.emplace_back(resMPI.size());
+
+  kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmMPI testMpiTaskParallel(taskDataPar);
+
+  ASSERT_EQ(testMpiTaskParallel.validation(), true);
+
+  testMpiTaskParallel.pre_processing();
+  testMpiTaskParallel.run();
+  testMpiTaskParallel.post_processing();
+
+  if (world.rank() == 0) {
+    ASSERT_EQ(resMPI, expected_res);
+  }
+}
+\end{lstlisting}
+\clearpage
+\subsection{Pipeline тест}
+
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Пример теста для pipeline}]
+TEST(kapustin_dijkstras_algorithm_mpi, test_pipeline_run) {
+  const int V = 20000;
+  const int E = 40000;
+  boost::mpi::communicator world;
+  std::vector<int> graph = generateGraph::generateGraph(V, E);
+  std::vector<int> resMPI(V, 0);
+  std::shared_ptr<ppc::core::TaskData> taskDataMPI = std::make_shared<ppc::core::TaskData>();
+  taskDataMPI->inputs.emplace_back(reinterpret_cast<uint8_t*>(graph.data()));
+  taskDataMPI->inputs_count.emplace_back(static_cast<uint32_t>(V));
+  taskDataMPI->inputs_count.emplace_back(static_cast<uint32_t>(E));
+  taskDataMPI->outputs.emplace_back(reinterpret_cast<uint8_t*>(resMPI.data()));
+  taskDataMPI->outputs_count.emplace_back(resMPI.size());
+  auto testTaskMPI = std::make_shared<kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmMPI>(taskDataMPI);
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 25;
+  const auto t0 = std::chrono::high_resolution_clock::now();
+  perfAttr->current_timer = [&] {
+    auto current_time_point = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time_point - t0).count();
+    return static_cast<double>(duration) * 1e-9;
+  };
+
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  ppc::core::Perf perfAnalyzer(testTaskMPI);
+  perfAnalyzer.pipeline_run(perfAttr, perfResults);
+
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+\end{lstlisting}
+\clearpage
+\subsection{Taskrun тест}
+
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+
+\begin{lstlisting}[caption={Пример теста для taskrun}]
+TEST(kapustin_dijkstras_algorithm_mpi, test_task_run) {
+  const int V = 20000;
+  const int E = 40000;
+  boost::mpi::communicator world;
+  std::vector<int> graph = generateGraph::generateGraph(V, E);
+  std::vector<int> resMPI(V, 0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataMPI = std::make_shared<ppc::core::TaskData>();
+  taskDataMPI->inputs.emplace_back(reinterpret_cast<uint8_t*>(graph.data()));
+  taskDataMPI->inputs_count.emplace_back(static_cast<uint32_t>(V));
+  taskDataMPI->inputs_count.emplace_back(static_cast<uint32_t>(E));
+  taskDataMPI->outputs.emplace_back(reinterpret_cast<uint8_t*>(resMPI.data()));
+  taskDataMPI->outputs_count.emplace_back(resMPI.size());
+  auto testTaskMPI = std::make_shared<kapustin_dijkstras_algorithm_mpi::DijkstrasAlgorithmMPI>(taskDataMPI);
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 25;
+  const auto t0 = std::chrono::high_resolution_clock::now();
+  perfAttr->current_timer = [&] {
+    auto current_time_point = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time_point - t0).count();
+    return static_cast<double>(duration) * 1e-9;
+  };
+
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  ppc::core::Perf perfAnalyzer(testTaskMPI);
+  perfAnalyzer.task_run(perfAttr, perfResults);
+
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+\end{lstlisting}
+
+\end{document}
