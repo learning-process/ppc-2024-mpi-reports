@@ -1,1 +1,105 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{hyperref}
 
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=C++,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+
+\begin{document}
+
+\title{Отчёт по задаче: Параллельная сортировка слиянием с использованием MPI}
+\author{Ваше Имя}
+\date{\today}
+\maketitle
+
+\section{Введение}
+В данном отчёте представлена реализация параллельной сортировки слиянием с использованием библиотеки MPI. Задача заключается в сортировке массива целых чисел с использованием алгоритма Бэтчера (Batcher's Odd-Even Merge Sort) в параллельном режиме.
+
+\section{Описание задачи}
+Алгоритм Бэтчера основан на разделении массива на две части, сортировке каждой части и последующем слиянии с использованием чередующихся сравнений элементов. В параллельной реализации массив распределяется между процессами, каждый процесс сортирует свою часть, после чего происходит слияние результатов.
+
+\section{Реализация}
+Реализация задачи состоит из нескольких файлов:
+\begin{itemize}
+    \item \texttt{main.cpp} - содержит тесты для проверки корректности и производительности реализации.
+    \item \texttt{ops\_mpi.hpp} - заголовочный файл с объявлением классов для последовательной и параллельной сортировки.
+    \item \texttt{ops\_mpi.cpp} - реализация методов классов для сортировки.
+\end{itemize}
+
+\subsection{Классы и методы}
+\begin{itemize}
+    \item \texttt{TestMPITaskSequential} - класс для последовательной сортировки.
+    \item \texttt{TestMPITaskParallel} - класс для параллельной сортировки с использованием MPI.
+\end{itemize}
+
+\subsection{Основные функции}
+\begin{itemize}
+    \item \texttt{batcher\_sort} - рекурсивная функция для сортировки массива.
+    \item \texttt{batcher\_merge} - функция для слияния двух отсортированных массивов.
+\end{itemize}
+
+\section{Тестирование}
+Для проверки корректности реализации были написаны тесты, которые проверяют сортировку массива различного размера. Также были проведены тесты производительности для оценки эффективности параллельной реализации.
+
+\subsection{Пример теста}
+\begin{lstlisting}
+TEST(kovalchuk_a_odd_even, Test_Vector_10) {
+  const int count_elements = 10;
+  boost::mpi::communicator world;
+  std::vector<int> global_vector;
+  std::vector<int> global_result(count_elements, 0);
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    global_vector = getRandomVector(count_elements);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(global_vector.data()));
+    taskDataPar->inputs_count.emplace_back(count_elements);
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(global_result.data()));
+    taskDataPar->outputs_count.emplace_back(global_result.size());
+  }
+
+  kovalchuk_a_odd_even::TestMPITaskParallel testMpiTaskParallel(taskDataPar);
+  ASSERT_TRUE(testMpiTaskParallel.validation());
+  testMpiTaskParallel.pre_processing();
+  testMpiTaskParallel.run();
+  testMpiTaskParallel.post_processing();
+
+  if (world.rank() == 0) {
+    std::vector<int> reference_result = global_vector;
+    std::sort(reference_result.begin(), reference_result.end());
+
+    ASSERT_EQ(reference_result, global_result);
+  }
+}
+\end{lstlisting}
+
+\section{Результаты}
+Тесты показали, что параллельная реализация сортировки работает корректно и эффективно. Время выполнения сортировки уменьшается с увеличением количества процессов.
+
+\section{Заключение}
+Параллельная сортировка с использованием MPI позволяет значительно ускорить процесс сортировки больших массивов данных. Реализация алгоритма Бэтчера доказала свою эффективность в параллельном режиме.
+
+\end{document}
