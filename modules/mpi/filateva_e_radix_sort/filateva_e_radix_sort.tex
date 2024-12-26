@@ -422,19 +422,18 @@ void GeneratorVector(std::vector<int> &vec, int max_z, int min_z) {
 
 В заключение следует отметить, что разработанный параллельный алгоритм поразрядной сортировки с простым слиянием, основанный на MPI, обладает значительным потенциалом для ускорения обработки больших объёмов данных в распределённых вычислительных системах. Однако для достижения наилучших результатов при работе с небольшими массивами и для эффективного использования ресурсов вычислительного кластера может потребоваться дальнейший анализ и оптимизация.
 	
-	\newpage
+		\newpage
 	\section*{\centering Список литературы}
 	\addcontentsline{toc}{section}{Список литературы}
-	\begin{enumerate}[label={[\arabic*]}]
-  
-    \item  Sanders, P., &  Clauss, M. (2000). Sequential and Parallel radix sort with efficient memory usage. In \textit{Proceedings of the 7th International Euro-Par Conference (Euro-Par'01)} (pp. 209-218). Springer.
-    \item  Li, C. C., &  Hsu, C. W. (2005). An efficient parallel radix sort using pipelined merge. In \textit{Proceedings of the International Conference on Parallel Processing (ICPP'05)} (pp. 440-447). IEEE.
-     \item  Blelloch, G. E. (1990). Prefix sums and their applications. \textit{Technical Report CMU-CS-90-190}, Carnegie Mellon University.
-    \item  Cole, R. (1988). Parallel merge sort. \textit{SIAM Journal on Computing}, \textit{17}(4), 770-785.
-    \item  Voevodin, V.V., &  Voevodin, Vl.V. (2004). \textit{Parallel computing}. BHV-Peterburg.
-    \item  Ануфриев, И. Е., Смирнов, А. Г., \& Смирнов, А. А. (2008). \textit{Параллельные вычислительные системы}. Изд-во С.-Петерб. ун-та.
-\end{enumerate}
 	
+    \begin{thebibliography}{9}
+        \bibitem{Sanders2000}  Sanders, P., &  Clauss, M. (2000). Sequential and Parallel radix sort with efficient memory usage. In \textit{Proceedings of the 7th International Euro-Par Conference (Euro-Par'01)} (pp. 209-218). Springer.
+        \bibitem{Li2005}  Li, C. C., &  Hsu, C. W. (2005). An efficient parallel radix sort using pipelined merge. In \textit{Proceedings of the International Conference on Parallel Processing (ICPP'05)} (pp. 440-447). IEEE.
+        \bibitem{Blelloch1990} Blelloch, G. E. (1990). Prefix sums and their applications. \textit{Technical Report CMU-CS-90-190}, Carnegie Mellon University.
+        \bibitem{Cole1988} Cole, R. (1988). Parallel merge sort. \textit{SIAM Journal on Computing}, \textit{17}(4), 770-785.
+        \bibitem{Voevodin2004} Voevodin, V.V., &  Voevodin, Vl.V. (2004). \textit{Parallel computing}. BHV-Peterburg.
+        \bibitem{Anufriev2008} Ануфриев, И. Е., Смирнов, А. Г., \& Смирнов, А. А. (2008). \textit{Параллельные вычислительные системы}. Изд-во С.-Петерб. ун-та.
+    \end{thebibliography}
 	
 	\newpage
 	\section*{\centering Приложение}
