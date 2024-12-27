@@ -1,0 +1,457 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{xcolor} % Для цветов в блоках кода
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\hypersetup{hidelinks}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+\textbf{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ} \\[0.5cm]
+\textbf{Федеральное государственное автономное образовательное учреждение высшего образования} \\[0.5cm]
+\textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»} \\[0.5cm]
+Институт информационных технологий, математики и механики \\
+\vfill
+{\Large
+\textbf{Отчёт по лабораторной работе на тему:} \\[0.5cm]
+\textbf{Построение выпуклой оболочки – проход Грэхема.} \\
+}
+\vfill
+\begin{flushright}
+Выполнил: студент группы 3822Б1ФИ1 \\
+Куракин Матвей \\
+\vspace{1cm}
+Преподаватель: \\
+Сысоев Александр Владимирович, доцент, кандидат технических наук \\
+\end{flushright}
+\vfill
+Нижний Новгород \\
+2024
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Выпуклая оболочка является важным понятием в области вычислительной геометрии и находит широкое применение в различных областях, таких как компьютерная графика, обработка изображений, робототехника и анализ данных. Выпуклая оболочка множества точек в двумерном пространстве представляет собой наименьший выпуклый многоугольник, который окружает данное множество точек. Построение выпуклой оболочки позволяет эффективно решать задачи, связанные с нахождением границ объектов, а также упрощает анализ и визуализацию данных.
+
+Одним из наиболее известных алгоритмов для построения выпуклой оболочки является алгоритм Грэхема, который был предложен американским математиком Рональдом Грэхемом в 1972 году. 
+
+Цель данной лабораторной работы — изучить алгоритм построения выпуклой оболочки методом Грэхемаа также реализовать его последовательную и MPI версии.
+
+\newpage
+
+\section{Постановка задачи}
+Дано множество точек \( P = \{ p_1, p_2, \ldots, p_n \} \) в двумерном пространстве, где каждая точка \( p_i \) представлена в виде координат \( p_i = (x_i, y_i) \). Задача алгоритма Грэхема заключается в нахождении выпуклой оболочки \( H \) данного множества точек \( P \).
+
+Выпуклая оболочка \( H \) определяется как наименьший выпуклый многоугольник, который содержит все точки из множества \( P \). Формально, \( H \) может быть описана как:
+
+\[
+H = \{ p_i \in P \mid \forall p_j \in P, \text{ точка } p_j \text{ лежит внутри или на границе многоугольника } H \}
+\]
+
+Алгоритм принимает на вход множество точек \( P \) в двумерном пространстве, представленное в виде списка координат:
+\[
+    P = \{ p_1, p_2, \ldots, p_n \}, \quad \text{где } p_i = (x_i, y_i) \text{ для } i = 1, 2, \ldots, n.
+\]
+    Число \( n \) - количество точек в множестве \( P \).
+
+Алгоритм возвращает выпуклую оболочку \( H \), представленную в виде списка точек \( H = \{ h_1, h_2, \ldots, h_k \} \), где каждая точка \( h_j \) также представлена в виде координат \( h_j = (x_j, y_j) \) для \( j = 1, 2, \ldots, k \). \( k \) - количество точек в выпуклой оболочке \( H \).
+
+\section{Описание алгоритма}
+Алгоритм Грэхема, известный также как алгоритм построения выпуклой оболочки, является одним из наиболее эффективных методов для нахождения выпуклой оболочки множества точек в двумерном пространстве. Этот алгоритм имеет временную сложность \(O(n \log n)\), что делает его подходящим для обработки больших наборов данных.
+
+\subsection*{Алгоритм}
+
+\subsubsection*{1. Выбор начальной точки}
+Находим точку с наименьшей координатой \(y\) (в случае равенства выбираем точку с наименьшей координатой \(x\)). Эта точка будет служить начальной для построения выпуклой оболочки и обозначается как \(p_{\text{min}}\).
+
+\subsubsection*{2. Сортировка точек}
+После выбора начальной точки, все остальные точки сортируются по углу, который они образуют с горизонтальной осью \(x\) относительно точки \(p_{\text{min}}\). Если несколько точек имеют одинаковый угол, они сортируются по расстоянию от \(p_{\text{min}}\) — ближние точки располагаются раньше.
+
+\subsubsection*{3. Построение выпуклой оболочки}
+Начинаем с точки \(p_{\text{min}}\) и добавляем точки по порядку, определенному на предыдущем шаге. Для каждой новой точки проверяем, образует ли она выпуклую оболочку с двумя предыдущими точками с помощь. левого поворота.
+
+\subsubsection*{4. Получение результата}
+Процесс продолжается до тех пор, пока не будут обработаны все точки. В конце алгоритм возвращает список точек, которые образуют выпуклую оболочку.
+
+
+\subsection*{Сложность алгоритма}
+
+Алгоритм работает за \(O(n \log n)\), где $n$ — число точек. Самая долгая операция - сортировка, она работает за \(O(n \log n)\), операции поиска и построения выпуклой оболочки линейные, работают за \(O(n)\).
+
+\section{Описание способа распараллеливания}
+
+\subsection*{Алгоритм}
+
+\subsubsection*{1. Распределение входных данных}
+Главный процесс передает каждому процессу минимум три точки для формирования оболочки.
+
+\subsubsection*{2. Вычисления на каждом процессе}
+На каждом процессе запускается последовательный алгоритм, который находит выпуклую оболочку для переданных точек.
+
+\subsubsection*{3. Сбор результатов}
+В главном процессе собираются локальные выпуклые оболочки от каждого процесса, эти точки формируют общее множество точек.
+
+\subsubsection*{4. Вычисления на главном процессе}
+Главный процесс для общего множества точек формирует выпуклую оболочку, которая является окончательной.
+
+\section{Тестирование}
+
+\subsection*{Функциональные тесты}
+В лабораторной работе были написаны функциональные тесты при помощи Google testing framework (gtest).
+
+Алгоритмы проходят тесты, где рассматриваются обычные ситуации, крайние случае, случайные входные данные, большие и маленькие наборы данных, также есть тесты на неправильные входные данные.
+
+И параллельный и последовательный алгоритм успешно проходят написанные тесты
+
+\subsection*{Тесты производительности}
+
+Тесты производительности измеряют время работы алгоритма.
+Тесты проводились на разном числе процессов и разном количестве входных данных
+
+\subsubsection*{Результаты}
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    Число процессов & Число точек      & Время выполнения (с) \\ \hline
+    1               & 1000         & 0.0139                   \\ \hline
+    2               & 1000         & 0.0112                   \\ \hline
+    4               & 1000         & 0.00972                  \\ \hline
+    8               & 1000         & 0.0113                   \\ \hline
+    16              & 1000         & 0.0138                   \\ \hline
+    1               & 10000        & 0.209                    \\ \hline
+    2               & 10000        & 0.161                    \\ \hline
+    4               & 10000        & 0.140                    \\ \hline
+    8               & 10000        & 0.124                    \\ \hline
+    16              & 10000        & 0.125                    \\ \hline
+    1               & 100000       & 2.728                    \\ \hline
+    2               & 100000       & 2.038                    \\ \hline
+    4               & 100000       & 1.715                    \\ \hline
+    8               & 100000       & 1.602                    \\ \hline
+    16              & 100000       & 1.565                    \\ \hline
+\end{tabular}
+
+\subsubsection*{Выводы}
+Результаты экспериментов показывают, что с увеличением числа процессов уменьшается время, а также, что на большом количесве точек при увеличении числа процессов ускорение больше.
+
+\newpage
+
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+
+В ходе проделанной работы был подробно рассмотрен алгоритм Грэхема, который является одним из наиболее известных и эффективных методов для построения выпуклой оболочки множества точек в двумерном пространстве. Были реализованы последовательный и параллельный алгоритмы, а также мы убедились, что использование параллельного программирования при помощи MPI уменьшает скорость работы задач с большими входными данными.
+
+\newpage
+
+\section*{Список литературы}
+\addcontentsline{toc}{section}{Список литературы}
+
+\begin{enumerate}
+    \item Boost MPI Library Documentation: 
+    \url{https://www.boost.org/doc/libs/release/libs/mpi/}
+    \item GTest Documentation: 
+    \url{https://google.github.io/googletest/}
+    \item Алгоритмика: Алгоритм Грэхема 
+    \url{https://ru.algorithmica.org/cs/convex-hulls/graham/}
+    \item ИТМО Викиконспекты: Статические выпуклые оболочки: Джарвис, Грэхем, Эндрю, Чен, QuickHull: \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%A1%D1%82%D0%B0%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5_%D0%B2%D1%8B%D0%BF%D1%83%D0%BA%D0%BB%D1%8B%D0%B5_%D0%BE%D0%B1%D0%BE%D0%BB%D0%BE%D1%87%D0%BA%D0%B8:_%D0%94%D0%B6%D0%B0%D1%80%D0%B2%D0%B8%D1%81,_%D0%93%D1%80%D1%8D%D1%85%D0%B5%D0%BC,_%D0%AD%D0%BD%D0%B4%D1%80%D1%8E,_%D0%A7%D0%B5%D0%BD,_QuickHull}
+    \item Алголист: Алгоритм Грэхема: 
+    \url{https://algolist.ru/maths/geom/convhull/graham.php}
+\end{enumerate}
+
+\newpage
+
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+\subsection*{mpi/kurakin\_m\_graham\_scan/include/kurakin\_graham\_scan\_ops\_mpi.hpp}
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace kurakin_m_graham_scan_mpi {
+
+bool isLeftAngle(std::vector<double>& p1, std::vector<double>& p2, std::vector<double>& p3);
+
+int grahamScan(std::vector<std::vector<double>>& input_);
+
+int getCountPoint(int count_point, int size, int rank);
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  int count_point{};
+  std::vector<std::vector<double>> input_;
+  std::vector<double> res;
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  boost::mpi::communicator world;
+  int count_point{};
+  std::vector<double> input_;
+  int local_count_point{};
+  std::vector<double> local_input_;
+  std::vector<std::vector<double>> graham_input_;
+};
+
+}  // namespace kurakin_m_graham_scan_mpi
+\end{lstlisting}
+
+\subsection*{mpi/kurakin\_m\_graham\_scan/src/kurakin\_graham\_scan\_ops\_mpi.cpp}
+\begin{lstlisting}[language=C++]
+#include "mpi/kurakin_m_graham_scan/include/kurakin_graham_scan_ops_mpi.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <random>
+#include <thread>
+#include <vector>
+
+bool kurakin_m_graham_scan_mpi::isLeftAngle(std::vector<double>& p1, std::vector<double>& p2, std::vector<double>& p3) {
+  return ((p2[0] - p1[0]) * (p3[1] - p1[1]) - (p3[0] - p1[0]) * (p2[1] - p1[1])) < 0;
+}
+
+int kurakin_m_graham_scan_mpi::grahamScan(std::vector<std::vector<double>>& input_) {
+  int count_point = input_.size();
+  int ind_min_y = std::min_element(input_.begin(), input_.end(),
+                                   [&](std::vector<double> a, std::vector<double> b) {
+                                     return a[1] < b[1] || (a[1] == b[1] && a[0] > b[0]);
+                                   }) -
+                  input_.begin();
+  std::swap(input_[0], input_[ind_min_y]);
+  std::sort(input_.begin() + 1, input_.end(),
+            [&](std::vector<double> a, std::vector<double> b) { return isLeftAngle(a, input_[0], b); });
+
+  int k = 1;
+  for (int i = 2; i < count_point; i++) {
+    while (k > 0 && isLeftAngle(input_[k - 1], input_[k], input_[i])) {
+      k--;
+    }
+    std::swap(input_[i], input_[k + 1]);
+    k++;
+  }
+  return k + 1;
+}
+
+int kurakin_m_graham_scan_mpi::getCountPoint(int count_point, int size, int rank) {
+  if (count_point / size < 3) {
+    if (count_point / 3 <= rank) return 0;
+    size = count_point / 3;
+  }
+  if (count_point % size <= rank) {
+    return count_point / size;
+  }
+  return count_point / size + 1;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+
+  count_point = (int)taskData->inputs_count[0] / 2;
+  input_ = std::vector<std::vector<double>>(count_point, std::vector<double>(2, 0));
+  auto* tmp_ptr = reinterpret_cast<double*>(taskData->inputs[0]);
+  for (int i = 0; i < count_point * 2; i += 2) {
+    input_[i / 2][0] = tmp_ptr[i];
+    input_[i / 2][1] = tmp_ptr[i + 1];
+  }
+
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+  return taskData->inputs.size() == 1 && taskData->inputs_count.size() == 1 && taskData->outputs.size() == 2 &&
+         taskData->outputs_count.size() == 2 && taskData->inputs_count[0] % 2 == 0 &&
+         taskData->inputs_count[0] / 2 > 2 && taskData->outputs_count[0] == 1 &&
+         taskData->inputs_count[0] == taskData->outputs_count[1];
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+
+  count_point = grahamScan(input_);
+
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+
+  reinterpret_cast<int*>(taskData->outputs[0])[0] = count_point;
+  for (int i = 0; i < count_point * 2; i += 2) {
+    reinterpret_cast<double*>(taskData->outputs[1])[i] = input_[i / 2][0];
+    reinterpret_cast<double*>(taskData->outputs[1])[i + 1] = input_[i / 2][1];
+  }
+
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    return taskData->inputs.size() == 1 && taskData->inputs_count.size() == 1 && taskData->outputs.size() == 2 &&
+           taskData->outputs_count.size() == 2 && taskData->inputs_count[0] % 2 == 0 &&
+           taskData->inputs_count[0] / 2 > 2 && taskData->outputs_count[0] == 1 &&
+           taskData->inputs_count[0] == taskData->outputs_count[1];
+  }
+
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    count_point = (int)taskData->inputs_count[0] / 2;
+    input_ = std::vector<double>((int)taskData->inputs_count[0]);
+    auto* tmp_ptr = reinterpret_cast<double*>(taskData->inputs[0]);
+    for (int i = 0; i < count_point * 2; i += 2) {
+      input_[i] = tmp_ptr[i];
+      input_[i + 1] = tmp_ptr[i + 1];
+    }
+  }
+  broadcast(world, count_point, 0);
+
+  if (world.rank() == 0) {
+    local_count_point = getCountPoint(count_point, world.size(), world.rank());
+    local_input_ = std::vector<double>(input_.begin(), input_.begin() + local_count_point * 2);
+
+    int sum_next_count_point = local_count_point;
+    for (int i = 1; i < world.size(); i++) {
+      int next_count_point = getCountPoint(count_point, world.size(), i);
+      if (next_count_point != 0) {
+        world.send(i, 0, input_.data() + sum_next_count_point * 2, next_count_point * 2);
+      }
+      sum_next_count_point += next_count_point;
+    }
+  } else {
+    local_count_point = getCountPoint(count_point, world.size(), world.rank());
+    if (local_count_point != 0) {
+      local_input_ = std::vector<double>(local_count_point * 2);
+      world.recv(0, 0, local_input_.data(), local_count_point * 2);
+    }
+  }
+
+  if (local_count_point != 0) {
+    graham_input_ = std::vector<std::vector<double>>(local_count_point, std::vector<double>(2, 0));
+    for (int i = 0; i < local_count_point * 2; i += 2) {
+      graham_input_[i / 2][0] = local_input_[i];
+      graham_input_[i / 2][1] = local_input_[i + 1];
+    }
+    local_count_point = grahamScan(graham_input_);
+    for (int i = 0; i < local_count_point * 2; i += 2) {
+      local_input_[i] = graham_input_[i / 2][0];
+      local_input_[i + 1] = graham_input_[i / 2][1];
+    }
+  }
+
+  if (world.rank() == 0) {
+    std::copy(local_input_.begin(), local_input_.begin() + local_count_point * 2, input_.begin());
+    int sum_next_count_point = local_count_point;
+    for (int i = 1; i < world.size(); i++) {
+      int next_count_point;
+      world.recv(i, 0, &next_count_point, 1);
+      if (next_count_point != 0) {
+        world.recv(i, 0, input_.data() + sum_next_count_point * 2, next_count_point * 2);
+      }
+      sum_next_count_point += next_count_point;
+    }
+    local_count_point = sum_next_count_point;
+  } else {
+    world.send(0, 0, &local_count_point, 1);
+    if (local_count_point != 0) {
+      world.send(0, 0, local_input_.data(), local_count_point * 2);
+    }
+  }
+
+  if (world.rank() == 0) {
+    graham_input_ = std::vector<std::vector<double>>(local_count_point, std::vector<double>(2, 0));
+    for (int i = 0; i < local_count_point * 2; i += 2) {
+      graham_input_[i / 2][0] = input_[i];
+      graham_input_[i / 2][1] = input_[i + 1];
+    }
+    count_point = grahamScan(graham_input_);
+  }
+
+  return true;
+}
+
+bool kurakin_m_graham_scan_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    reinterpret_cast<int*>(taskData->outputs[0])[0] = count_point;
+    for (int i = 0; i < count_point * 2; i += 2) {
+      reinterpret_cast<double*>(taskData->outputs[1])[i] = graham_input_[i / 2][0];
+      reinterpret_cast<double*>(taskData->outputs[1])[i + 1] = graham_input_[i / 2][1];
+    }
+  }
+
+  return true;
+}
+
+\end{lstlisting}
+
+
+\end{document}
