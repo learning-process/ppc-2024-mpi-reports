@@ -1,43 +1,46 @@
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[russian]{babel}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
-\usepackage{hyperref} 
-\usepackage{graphicx}
-\usepackage{float}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{url}
+\usepackage{tocloft}
+\usepackage{xcolor} 
 \usepackage{listings}
-\usepackage{xcolor}
-\usepackage{array}
+\usepackage{float}
 \usepackage{multirow}
 
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
 
-\definecolor{codegreen}{rgb}{0,0.6,0}
-\definecolor{codegray}{rgb}{0.5,0.5,0.5}
-\definecolor{codepurple}{rgb}{0.58,0,0.82}
-\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
-
-
-\lstdefinestyle{cppstyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчетик},
+    pdfauthor={Мотик Кошкин},
+    pdfsubject={Оператор Собеля}
 }
 
-\lstset{style=cppstyle}
-\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
 
 \begin{document}
 
@@ -155,7 +158,7 @@ boost::mpi::scatterv(world, image, sendcounts, senddispls, locimg.data(), locimg
 \section*{Литература}
 \begin{enumerate}
     \item Gonzalez, R. C., Woods, R. E. \textit{Digital Image Processing}. Pearson, 2018.
-    \item Boost MPI Documentation: \url{https://www.boost.org/doc/libs/release/doc/html/mpi.html}
+    \item Boost MPI Documentation: \texttt{https://www.boost.org/doc/libs/release/doc/html/mpi.html}
 \end{enumerate}
 
 \newpage
