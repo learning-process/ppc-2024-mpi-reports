@@ -1,11 +1,12 @@
-% Настройки для pdfLaTeX и поддержки русского языка
 \documentclass[14pt]{extarticle}
-\usepackage[T2A]{fontenc}  % Должен быть загружен перед babel
+
+% Настройки для pdfLaTeX и поддержки русского языка
+\usepackage[T2A]{fontenc}  % Кодировка шифрования
 \usepackage[utf8]{inputenc}
 \usepackage[russian]{babel}
 
 \usepackage{bookmark}
-\usepackage{mathptmx} % Times New Roman для текста и математики
+\usepackage{mathptmx} % Используется Times New Roman для текста и математики
 
 \usepackage{cite}
 \makeatletter
@@ -32,10 +33,10 @@
 \pgfplotsset{compat=newest}
 
 \usepackage{geometry}
-\geometry{left = 2.5cm}
-\geometry{right = 1.5cm}
-\geometry{top = 2cm}
-\geometry{bottom = 2cm}
+\geometry{left=2.5cm}
+\geometry{right=1.5cm}
+\geometry{top=2cm}
+\geometry{bottom=2cm}
 
 \renewcommand\textbullet{\ensuremath{\bullet}}
 \usepackage{cancel}
@@ -77,10 +78,6 @@
 
 \usepackage[inkscapeformat=pdf]{svg}
 
-% Для использования fontspec необходимо использовать XeLaTeX или LuaLaTeX
-\usepackage{fontspec}
-\setmainfont{Times New Roman}
-
 % Настройка заголовков с использованием titlesec
 \usepackage{titlesec}
 \titleformat{\section}{\bfseries\Large}{\thesection.\hspace{0.5em}}{0pt}{}
@@ -91,7 +88,7 @@
 \titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 \titlespacing*{\subsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 
-% Настройка содержания с помощью tocloft для добавления линии точек
+% Настройка содержания для добавления линии точек
 \usepackage{tocloft}
 \renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
 \renewcommand{\cftsecfont}{}
@@ -173,6 +170,7 @@
 \end{enumerate}
 Входными данными алгоритма является полутоновое изображение размером $M \times N$ пикселей, где каждый пиксель представлен целым числом в диапазоне [0, 255]. Выходными данными является отфильтрованное изображение того же размера.
 \clearpage
+
 \section{Описание алгоритма линейной фильтрации Гаусса 3×3}
 
 Алгоритм линейной фильтрации Гаусса с ядром размером 3×3 используется для сглаживания изображений и подавления шума. Он основан на применении весов Гаусса для вычисления нового значения каждого пикселя на основе значений его соседей. Основные шаги алгоритма заключаются в следующем:
@@ -283,7 +281,7 @@ $$
 Благодаря использованию методов, таких как валидация входных данных и предварительная обработка, обеспечивает корректность и согласованность передаваемой информации. Ключевые функции, включая \texttt{run()} и \texttt{post\_processing()}, позволяют эффективно делить задачу на более мелкие части, обрабатывая данные локально и затем собирая результаты для финального вывода.
 
 \clearpage
-\section{Проведение экспиримента}
+\section{Проведение эксперимента}
 
 Для оценки эффективности разработанного параллельного алгоритма было проведено экспериментальное исследование. В качестве входных данных использовались случайно сгенерированные матрицы различных размеров: 100×100, 1000×1000 и 10000×10000 элементов. Каждый элемент матрицы представлял собой целое число в диапазоне [0, 255], что соответствует значениям пикселей в полутоновом изображении.
 
