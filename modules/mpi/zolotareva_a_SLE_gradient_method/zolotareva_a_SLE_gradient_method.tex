@@ -1,0 +1,421 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет по проекту},
+    pdfauthor={Золотарева Арина},
+    pdfsubject={Решение Слау, Метод сопряжённых градиентов}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \large
+    Министерство образования и науки Российской Федерации\\
+    Федеральное государственное автономное образовательное учреждение высшего образования\\
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+    Направление подготовки: «Программная инженерия»\\[2cm]
+    
+    {\Large \textbf{ОТЧЕТ}}\\[0.5cm]
+    {\Large по задаче}\\[0.5cm]
+    {\Large \textbf{«Реализация решения СЛАУ методом сопряжённых градиентов»}}\\[0.5cm]
+    {\Large Вариант №6}\\[4cm]
+    
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Выполнила:}\\
+        студентка группы 3822Б1ПР2\\
+        Золотарева Арина\\
+        
+        \textbf{Преподаватель:}\\
+        Сысоев Александр Владимирович \\
+    }\\[3cm]
+    
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+\thispagestyle{empty}
+\clearpage
+\pagenumbering{arabic} 
+\setcounter{page}{2} 
+\tableofcontents
+\clearpage
+\setcounter{page}{3} 
+\section{Введение}
+
+\hspace*{1.25em}Вычислительные задачи, связанные с решением систем линейных алгебраических уравнений (СЛАУ), играют ключевую роль в различных областях науки и техники. Традиционные методы, такие как метод Гаусса, имеют вычислительную сложность $O(n^3)$ и могут быть неэффективны при решении больших разреженных систем. 
+
+Метод сопряжённых градиентов (КР) представляет собой итерационный алгоритм, который эффективно справляется со СЛАУ, где матрица системы является симметричной и положительно определённой (СПО). Это условие часто встречается в задачах, связанных с методами конечных элементов, моделированием физических процессов и т.\,д. Кроме того, метод КР обладает хорошей масштабируемостью и относительно просто параллелится, что позволяет применять его на вычислительных кластерах для решения крупномасштабных задач.
+
+Целью данной работы является разработка и реализация метода сопряжённых градиентов для решения СЛАУ в двух вариантах:
+\begin{itemize}
+    \item Последовательная версия (Single-core, Seq).
+    \item Параллельная версия с использованием MPI (Multi-core/cluster).
+\end{itemize}
+
+В отчёте описана теория метода, представлены особенности реализации, приведены основные фрагменты кода, а также описаны результаты тестирования и возможные пути оптимизации.
+
+\section{Постановка задачи}
+
+\hspace*{1.25em} Требуется реализовать метод сопряжённых градиентов (КР) для решения системы линейных алгебраических уравнений вида
+\[
+    A x = b,
+\]
+где $A$ --- симметричная положительно определённая (СПО) матрица, а $b$ --- заданный вектор правой части.  
+Задачу необходимо решить в двух вариантах:
+\begin{enumerate}
+    \item Последовательная реализация (на одном процессе).
+    \item Параллельная реализация (MPI), которая распределяет матрицу и вектора по нескольким процессам.
+\end{enumerate}
+А также прровести сравнение по времени с последовательным алгоритмом и проверить корректность с помощью функциональных тестов Google Test.
+
+\section{Теоретические основы метода сопряжённых градиентов}
+
+\hspace*{1.25em}Метод сопряжённых градиентов предназначен для эффективного решения систем $Ax = b$ при условии, что:
+\begin{itemize}
+    \item Матрица $A$ --- симметричная, т.~е. $A = A^T$.
+    \item Матрица $A$ положительно определена.
+\end{itemize}
+Алгоритм метода (в классической форме) можно записать так:
+
+\begin{enumerate}
+    \item Выбрать начальное приближение $x_0$, обычно берут $x_0 = 0$.
+    \item Вычислить $r_0 = b - A x_0$ (остаток) и положить $p_0 = r_0$ (направление поиска).
+    \item На каждом шаге $k = 0,1,2,\ldots$:
+    \begin{itemize}
+        \item $\alpha_k = \frac{r_k^T r_k}{p_k^T A p_k}$ (шаг)
+        \item $x_{k+1} = x_k + \alpha_k p_k$ (обновление решения)
+        \item $r_{k+1} = r_k - \alpha_k A p_k$ (обновление остатка)
+        \item Проверка критерия остановки: если $\|r_{k+1}\| < \varepsilon$, то остановиться.
+        \item $\beta_k = \frac{r_{k+1}^T r_{k+1}}{r_k^T r_k}$ (коэффициент)
+        \item $p_{k+1} = r_{k+1} + \beta_k p_k$ (новое направление поиска)
+    \end{itemize}
+\end{enumerate}
+
+При точной арифметике данный метод сходится за не более чем $n$ итераций, где $n$ --- размерность системы. На практике, из-за ошибок округления, может потребоваться больше итераций либо дополнительные эвристики.
+
+\section{Последовательная реализация (Seq)}
+
+\subsection{Описание структуры кода}
+Последовательная версия включает следующие основные этапы:
+\begin{enumerate}
+    \item \textbf{Валидация (Validation)}: Проверка размеров входных данных, симметричности матрицы, положительной определённости (через разложение Холецкого).
+    \item \textbf{pre\_processing}: Копирование матрицы $A$ и вектора $b$ во внутренние структуры, инициализация $x$ нулевым вектором.
+    \item \textbf{run}: Запуск метода сопряжённых градиентов, собственно итерационный процесс.
+    \item \textbf{post\_processing}: Запись результата в выходные данные.
+\end{enumerate}
+
+\section{Параллельная реализация с использованием MPI}
+    
+\subsection{Особенности распараллеливания}
+Параллельная версия метода сопряжённых градиентов реализована с использованием MPI для распределения данных и вычислений между несколькими процессорами. Основные особенности реализации:
+\begin{itemize}
+    \item \textbf{Распределение данных}: Матрица $A$ и вектор $b$ распределяются построчно между процессами. Каждый процесс хранит свой блок строк матрицы и соответствующие элементы вектора $b$.
+    \item \textbf{Вычислительные операции}: На каждой итерации требуется собрать полный вектор $p$, чтобы выполнить умножение $A*p$. Для этого используется нативная функция MPI\_Allgatherv, что позволяет избежать накладных расходов на сериализацию данных.
+    \item \textbf{Коллективные операции}: Для вычисления скалярных произведений и проверки критерия остановки используются коллективные операции  boost::mpi::all\_reduce.
+    \item \textbf{Сбор результата}: После завершения итераций решение $x$ собирается на процессе с рангом 0.
+\end{itemize}
+\section{Описание схемы распараллеливания}
+Для ускорения вычислений используется распараллеливание с помощью библиотеки Boost.MPI. Основные этапы распараллеливания включают:
+\begin{itemize}
+    \item Разделение матрицы $A$ и вектора $b$ между процессами: каждая задача получает подмножество строк матрицы и соответствующие элементы вектора.
+    \item Выполнение локальных вычислений: каждое ядро выполняет умножение своей части матрицы на общий вектор.
+    \item Использование коллективных операций MPI, таких как \texttt{all\_reduce}, для объединения результатов.
+    \item Распределение промежуточных данных, например, направления поиска, между процессами через \texttt{broadcast}.
+\end{itemize}
+
+\section{Описание MPI-версии}
+Реализация параллельного метода сопряженных градиентов выполнена в файле \texttt{ops\_mpi.cpp}. Основные особенности:
+\begin{itemize}
+    \item Инициализация MPI и определение числа процессов и их рангов.
+    \item Разбиение входных данных: главной процесс распределяет строки матрицы $A$ и элементы вектора $b$ между другими процессами.
+    \item Коллективные операции: \texttt{boost::mpi::all\_reduce} используется для вычисления глобальных скалярных произведений, необходимых на каждом шаге итераций.
+    \item Итеративный процесс с локальными вычислениями: каждый процесс обновляет свою часть решения, после чего данные собираются и обрабатываются.
+\end{itemize}
+
+
+\section{Результаты экспериментов}
+Для оценки производительности реализации были проведены измерения времени выполнения последовательной и параллельной реализаций. Входные данные - для тестирования размерность матрицы и вектора была равна 1024.
+Я разделила итоги на две таблицы. В 1 представлены результаты измерения pipeline параллельного и последовательного алгоритмов, а во 2-й результаты измерения run. Так как при каждой смене количества процессов данные генерируются заново, то указано именно время выполнения Seq на этих данных, а не ускорение.При этом сгенерированные данные в seq и mpi подавались одинаковые. 
+\begin{table}[htbp]
+\centering
+\caption{Результаты замеров pipeline}
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    \textbf{Кол-во процессов} & \textbf{MPI,время (мс)} & \textbf{Seq, время (мс)} \\ \hline
+    1 & 1428 & 1403 \\ \hline
+    2 & 1372 & 1428 \\ \hline
+    3 & 1381 & 1388 \\ \hline
+    4 & 1378  & 1384 \\ \hline
+    5 & 1390  & 1388 \\ \hline
+    6 & 1388  & 1392 \\ \hline
+    7 & 1394  & 1388 \\ \hline
+    8 & 1406  & 1398 \\ \hline
+    9 & 1400  & 1405 \\ \hline
+    10 & 1389  & 1404 \\ \hline
+\end{tabular}
+\label{tab:performance_results_pipeline}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Результаты замеров run}
+\begin{tabular}{|c|c|c|}
+    \hline
+    \textbf{Кол-во процессов} & \textbf{MPI,время (мс)} & \textbf{Seq, время (мс)} \\ \hline
+    1 & 332  & 320 \\ \hline
+    2 & 295  & 314 \\ \hline
+    3 & 298  & 313 \\ \hline
+    4 & 293  & 309 \\ \hline
+    5 & 289  & 316 \\ \hline
+    6 & 290  & 318 \\ \hline
+    7 & 290  & 314 \\ \hline
+    8 & 304  & 315 \\ \hline
+    9 & 291  & 319 \\ \hline
+    10 & 291  & 314 \\ \hline
+\end{tabular}
+\label{tab:performance_results_run}
+\end{table}
+\section{Выводы из результатов}
+
+\hspace*{1.25em}Из таблиц~\ref{tab:performance_results_pipeline} и~\ref{tab:performance_results_run} видно следующее:
+\begin{itemize}
+    \item Для pipeline-этапа при увеличении числа процессов время выполнения MPI-версии остаётся на уровне последовательной реализации. Это связано с высокой степенью синхронизации между процессами, что нивелирует преимущество параллелизма.
+    \item На этапе run MPI-версия показывает некоторое улучшение производительности, особенно при увеличении числа процессов. Однако прирост незначителен, что может быть связано с накладными расходами на коммуникацию.
+\end{itemize}
+
+Эксперименты проводились на следующей системе:
+\begin{itemize}
+    \item Операционная система: Windows 10.
+    \item Процессор: AMD Ryzen 7 5800H with Radeon Graphics            3.20 GHz, 8 ядер.
+    \item Оперативная память: 16 ГБ.
+\end{itemize}
+
+
+\section{Заключение}
+
+\hspace*{1.25em}В ходе данной работы была выполнена реализация метода сопряженных градиентов для решения СЛАУ, использующая технологию MPI. 
+
+После проведения тестов на эффективность, остается два вопроса: какие требования к реализации стоит изменить, и что можно улучшить в самой реализации? Я считаю, что эту задачу можно решить, распараллелив её на потоках или открыв общую память для всех процессов. Важно, чтобы у всех процессов был доступ к общей памяти.
+
+Можно передавать с основного процесса только размеры каждого куска и указатель на индекс, с которого начинается каждый кусок, или же каждый процесс может самостоятельно рассчитать эти данные.
+
+Главная задача в этой ситуации — уменьшить объём коммуникации между процессами. По моему мнению, лучшим вариантом будет использование общей памяти. Каждый процесс будет загружать свою часть данных в общую память и легко получать необходимые промежуточные результаты.
+
+Однако хочу заметить, что при заданных данных условиях, когда входные данные доступны только основному процессу и выходные собирает тоже основной, такая реализация показала хорошие результаты. Несмотря на сложность коммуникации, она работает практически с той же скоростью, что и последовательная версия задачи.
+
+
+\section*{Литература}
+
+\begin{enumerate}
+    \item \href{https://ru.wikipedia.org/wiki/Метод_сопряжённых_градиентов_(СЛАУ)}{Метод сопряжённых градиентов (СЛАУ). Wikipedia}.
+    \item \href{https://teach-in.ru/lecture/2022-01-14-Lukyanenko}{Параллельные вычисления. Лукьяненко Д.М.}.
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+В данном разделе представлены основные фрагменты реализации метода run.
+
+\clearpage
+\subsection*{Функция TestMPITaskSequential::run}
+
+\begin{lstlisting}[language=C++]
+void zolotareva_a_SLE_gradient_method_mpi::TestMPITaskSequential::conjugate_gradient(const std::vector<double>& A, const std::vector<double>& b, std::vector<double>& x, int N) {
+  double initial_res_norm = 0.0;
+  dot_product(initial_res_norm, b, b, N);
+  initial_res_norm = std::sqrt(initial_res_norm);
+  double threshold = initial_res_norm == 0.0 ? 1e-12 : (1e-12 * initial_res_norm);
+
+  std::vector<double> r = b;
+  std::vector<double> p = r;
+  double rs_old = 0;
+  dot_product(rs_old, r, r, N);
+
+  for (int s = 0; s <= N; ++s) {
+    std::vector<double> Ap(N, 0.0);
+    matrix_vector_mult(A, p, Ap, N);
+    double pAp = 0.0;
+    dot_product(pAp, p, Ap, N);
+    if (pAp == 0.0) break;
+
+    double alpha = rs_old / pAp;
+
+    for (int i = 0; i < N; ++i) {
+      x[i] += alpha * p[i];
+      r[i] -= alpha * Ap[i];
+    }
+
+    double rs_new = 0.0;
+    dot_product(rs_new, r, r, N);
+    if (rs_new < threshold) { 
+      break;
+    }
+    double beta = rs_new / rs_old;
+    for (int i = 0; i < N; ++i) {
+      p[i] = r[i] + beta * p[i];
+    }
+
+    rs_old = rs_new;
+  }
+}
+
+void zolotareva_a_SLE_gradient_method_mpi::TestMPITaskSequential::dot_product(double& sum, const std::vector<double>& vec1, const std::vector<double>& vec2, int n) {
+  for (int i = 0; i < n; ++i) {
+    sum += vec1[i] * vec2[i];
+  }
+}
+
+void zolotareva_a_SLE_gradient_method_mpi::TestMPITaskSequential::matrix_vector_mult(const std::vector<double>& matrix, const std::vector<double>& vector, std::vector<double>& result, int n) {
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      result[i] += matrix[i * n + j] * vector[j];
+    }
+  }
+}
+\end{lstlisting}
+
+\subsection*{Функция TestMPITaskParallel::run}
+
+\begin{lstlisting}[language=C++]
+bool zolotareva_a_SLE_gradient_method_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+  int world_size = world.size();
+  int rank = world.rank();
+  boost::mpi::broadcast(world, n_, 0);
+
+  int base_rows = n_ / world_size;
+  int remainder = n_ % world_size;
+  local_rows = base_rows;
+
+  if (rank == 0) {
+    local_rows += remainder;
+
+    int start_row = local_rows;
+    for (int proc = 1; proc < world_size; ++proc) {
+      world.send(proc, 0, A_.data() + start_row * n_, base_rows * n_);
+      world.send(proc, 1, b_.data() + start_row, base_rows);
+      start_row += base_rows;
+    }
+
+    local_A_.resize(local_rows * n_);
+    local_b_.resize(local_rows);
+    std::copy(A_.begin(), A_.begin() + local_rows * n_, local_A_.begin());
+    std::copy(b_.begin(), b_.begin() + local_rows, local_b_.begin());
+  } else {
+    local_A_.resize(local_rows * n_);
+    local_b_.resize(local_rows);
+    world.recv(0, 0, local_A_.data(), local_rows * n_);
+    world.recv(0, 1, local_b_.data(), local_rows);
+  }
+
+  x_.assign(local_rows, 0.0);
+  std::vector<double> r(local_b_);
+  std::vector<double> p(r);
+
+  int local_rows_0 = base_rows + remainder;
+  std::vector<int> recvcounts(world_size, base_rows);
+  recvcounts[0] = local_rows_0;
+  std::vector<int> displs(world_size, 0);
+  for (int i = 1; i < world_size; ++i) {
+    displs[i] = displs[i - 1] + recvcounts[i - 1];
+  }
+
+  std::vector<double> global_p(n_);
+  std::vector<double> Ap(local_rows);
+
+  double rs_old = std::inner_product(r.begin(), r.end(), r.begin(), 0.0);
+  double rs_global_old;
+  boost::mpi::all_reduce(world, rs_old, rs_global_old, std::plus<>());
+  double initial_res_norm = std::sqrt(rs_global_old);
+  double threshold = (initial_res_norm == 0.0) ? 1e-12 : (1e-12 * initial_res_norm);
+
+  for (int iter = 0; iter <= n_; ++iter) {
+    MPI_Allgatherv(p.data(), local_rows, MPI_DOUBLE, global_p.data(), recvcounts.data(), displs.data(), MPI_DOUBLE,
+                   world);
+
+    for (int i = 0; i < local_rows; ++i) {
+      Ap[i] = std::inner_product(&local_A_[i * n_], &local_A_[i * n_] + n_, global_p.begin(), 0.0);
+    }
+
+    double local_dot_pAp = std::inner_product(p.begin(), p.end(), Ap.begin(), 0.0);
+    double global_dot_pAp;
+    boost::mpi::all_reduce(world, local_dot_pAp, global_dot_pAp, std::plus<>());
+
+    if (global_dot_pAp == 0.0) break;
+    double alpha = rs_global_old / global_dot_pAp;
+
+    for (int i = 0; i < local_rows; ++i) {
+      x_[i] += alpha * p[i];
+      r[i] -= alpha * Ap[i];
+    }
+
+    double local_rs_new = std::inner_product(r.begin(), r.end(), r.begin(), 0.0);
+    double rs_global_new;
+    boost::mpi::all_reduce(world, local_rs_new, rs_global_new, std::plus<>());
+
+    if (rs_global_new < threshold) break;
+    double beta = rs_global_new / rs_global_old;
+    for (int i = 0; i < local_rows; ++i) p[i] = r[i] + beta * p[i];
+    rs_global_old = rs_global_new;
+  }
+
+  if (world.rank() == 0) {
+    X_.resize(n_);
+    std::copy(x_.begin(), x_.end(), X_.begin());
+    int start_row = local_rows;
+
+    std::vector<double> buffer(base_rows);
+    for (int proc = 1; proc < world.size(); ++proc) {
+      world.recv(proc, 2, buffer);
+      std::copy(buffer.begin(), buffer.end(), X_.begin() + start_row);
+      start_row += base_rows;
+    }
+  } else
+    world.send(0, 2, x_);
+
+  return true;
+}
+\end{lstlisting}
+
+
+\end{document}
