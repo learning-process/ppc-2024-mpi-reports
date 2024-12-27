@@ -8,10 +8,11 @@
 \usepackage[T2A]{fontenc}
 
 % Настройка шрифтов
-\usepackage{fontspec}
-\setmainfont[Ligatures=TeX]{Times New Roman} % Шрифт для основного текста документа
-\setsansfont[Ligatures=TeX]{Arial}
-%\setmonofont{Consolas} % Шрифт для кода
+% \usepackage{fontspec}
+% \setmainfont[Ligatures=TeX]{Times New Roman} % Шрифт для основного текста документа
+% \setsansfont[Ligatures=TeX]{Arial}
+% \setmonofont{Consolas} % Шрифт для кода
+
 
 % Настройка отступов от краев страницы
 \usepackage[left=3cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
@@ -87,7 +88,7 @@ citecolor=black, menucolor=black, filecolor=black,
     {\fontsize{11.5pt}{10pt}\selectfont
 \newcommand{\Cafedra}{Кафедра математического обеспечения и суперкомпьютерных технологий}
 
-\newcommand{\TeacherPosition}{доцент кафедры ВВСП, к.т.н.}
+\newcommand{\TeacherPosition}{доцент каф. ВВСП, к.т.н.}
 \newcommand{\TeacherName}{Сысоев А.В.}
 
 \newcommand{\LabNumber}{3}
@@ -179,7 +180,7 @@ citecolor=black, menucolor=black, filecolor=black,
 	\centering
 	\begin{tabular}{p{1.3in}p{1.0in}p{-0.04in}p{1.63in}p{-0.04in}p{1.63in}}
 		% row no:1
-		\multicolumn{1}{p{1.3in}}{\fontsize{11pt}{1.5pt}\selectfont {СТУДЕНТЫ ГР. №}} & 
+		\multicolumn{1}{p{1.3in}}{\fontsize{10pt}{1.5pt}\selectfont {СТУДЕНТЫ ГР. №}} & 
 		\multicolumn{1}{p{1.0in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\StudentGroup}}} & 
 		\multicolumn{1}{p{-0.04in}}{} & 
 		\multicolumn{1}{p{1.63in}}{} & 
@@ -420,7 +421,7 @@ C_{22} &= M_1 - M_2 + M_3 + M_6.
 \begin{enumerate}
     \item \href{https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%A8%D1%82%D1%80%D0%B0%D1%81%D1%81%D0%B5%D0%BD%D0%B0}{Алгоритм Штрассена. Wikipedia.org}
     \item \href{https://en.wikipedia.org/wiki/Strassen_algorithm}{Strassen algorithm. Wikipedia.org}
-    \item \href{https://youtu.be/OSelhO6Qnlc?si=hPwljRSC7fxsv0gp}{Strassen algorithm for matrix multiplication (divide and conquer). YouTube.com}
+    \item \href{https://youtu.be/OSelhO6Qnlc?si=hPwljRSC7fxsv0gp}{Strassen algorithm for matrix multiplication. YouTube.com}
     \item \href{https://medium.com/swlh/strassens-matrix-multiplication-algorithm-936f42c2b344}{Strassen’s Matrix Multiplication Algorithm. Medium.com}
     \item \href{https://www.boost.org/doc/libs/1_87_0/doc/html/mpi.html}{Boost.MPI Documentation}
     \item \href{https://www.open-mpi.org/doc/}{OpenMPI Documentation}
