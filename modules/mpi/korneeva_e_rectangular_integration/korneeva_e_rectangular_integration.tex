@@ -452,7 +452,7 @@ args_.back() = low + step / 2.0;
 
 for (int i = 0; i < subdivisions; ++i) {
 if (limits_.empty()) {
-integralValue += func_(args_) * step;
+integralValue += func_(args_) * step; 
 } else {
 integralValue += calculateIntegral(func_, epsilon_, limits_, args_) * step;
 }
