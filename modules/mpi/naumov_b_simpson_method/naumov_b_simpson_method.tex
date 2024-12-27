@@ -1,12 +1,39 @@
-\documentclass{article}
-\usepackage[utf8]{inputenc} % Поддержка кодировки UTF-8
-\usepackage[russian]{babel} % Поддержка русского языка
-\usepackage{graphicx} % Для вставки изображений
-\usepackage{amsmath}  % Для математических формул
-\usepackage{amsfonts} % Для математических шрифтов
-\usepackage{amssymb}  % Для математических символов
-\usepackage{listings} % Для вставки кода
+\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{float}
 
+
+\geometry{top=20mm, bottom=20mm, left=25mm, right=25mm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
 \title{Метод Симпсона для численного интегрирования с использованием MPI}
 \author{Наумов Богдан ПР2\\Научный руководитель: Иванов И.И., к.ф.-м.н., доцент}
 \date{Декабрь 2024}
