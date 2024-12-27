@@ -1,0 +1,504 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет по проекту},
+    pdfauthor={Коровин Никита},
+    pdfsubject={Умножение матриц, алгоритм Кэннона}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \large
+    Министерство образования и науки Российской Федерации\\
+    Федеральное государственное автономное образовательное учреждение высшего образования\\
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+    Направление подготовки: «Программная инженерия»\\[2cm]
+    
+    {\Large \textbf{ОТЧЕТ}}\\[0.5cm]
+    {\Large по задаче}\\[0.5cm]
+    {\Large \textbf{«Умножение плотных матриц. Элементы типа double.\\ Блочная схема, алгоритм Кэннона»}}\\[0.5cm]
+    {\Large Вариант №1}\\[4cm]
+    
+    \hfill\parbox{0.5\textwidth}{
+        Выполнил: студент группы 3822Б1ПР2\\
+        Коровин Никита\\[1.5em]
+        Преподаватель:\\
+        доцент, кандидат технических наук\\
+        Сысоев Александр Владимирович
+    }\\[3cm]
+    
+    \vspace*{\fill}
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+\thispagestyle{empty}
+\clearpage
+\pagenumbering{arabic} 
+\setcounter{page}{2} 
+\tableofcontents
+\clearpage
+\setcounter{page}{3} 
+\section{Введение}
+
+\hspace*{1.25em}Алгоритм Кэннона — это распределённый алгоритм умножения матриц для двумерных сеток, впервые описанный в 1969 году Линн Эллиот Кэннон. Он особенно хорошо подходит для компьютеров, расположенных в виде сетки $N \times N$. Хотя алгоритм Кэннона хорошо работает на однородных двумерных сетках, его применение на неоднородных двумерных сетках оказалось затруднительным. Основное преимущество алгоритма заключается в том, что требования к памяти остаются постоянными и не зависят от количества процессоров.
+
+ На практике у нас гораздо меньше процессоров, чем элементов матрицы. Мы можем заменить элементы матрицы подматрицами, чтобы каждый процессор обрабатывал больше значений. Скалярное умножение и сложение становятся последовательным умножением и сложением матриц. Ширина и высота подматриц будут $N = n / \sqrt{p}$.
+
+\section{Постановка задачи}
+
+\hspace*{1.25em} Реализовать алгоритм Кэннона для умножения плотных матриц с элементами типа \texttt{double}, используя блочную схему и технологию MPI, провести сравнение по времени с последовательным алгоритмом и проверить корректность с помощью функциональных тестов Google Test.
+
+\section{Описание алгоритма}
+
+\hspace*{1.25em}Общее описание алгоритма рассмотрим на примере умножения квадратных матриц, однако в последующих разделах будет показано, что моя реализация поддерживает и прямоугольные матрицы.
+
+Рассмотрим задачу умножения квадратных матриц $C = A \times B$, где $C, A, B$ — матрицы размером $m \times m$. Каждая из матриц $A$ и $B$ разбивается на $p$ квадратных блоков, которые привязываются к процессорам $P(i, j)$, где $i = 1, \dots, m-1$ и $j = 1, \dots, m-1$. Блоки $A(i, j)$ и $B(i, j)$ закрепляются за процессором $P(i, j)$. Такое разбиение позволяет минимизировать обмен данными между процессорами благодаря использованию операций циклического сдвига. Алгоритм Кэннона состоит из двух этапов:
+\begin{enumerate}
+    \item \textbf{Инициализация матриц}: подготовка блоков матриц $A$ и $B$ для выполнения умножения.
+    \begin{itemize}
+        \item Для каждой строки $i$, кроме первой, производится циклический сдвиг блоков строки на $i - 1$ позиций влево.
+        \item Для каждого столбца $j$, кроме первого, выполняется циклический сдвиг блоков столбца на $j - 1$ позиций вверх.
+    \end{itemize}
+    \item \textbf{Основной цикл}: выполнение операций умножения и сложения блоков.
+    \begin{itemize}
+        \item Алгоритм использует две коммуникационные операции:
+        \begin{itemize}
+            \item $(*)$ — циклический сдвиг влево блоков строки на 1 позицию.
+            \item $(**)$ — циклический сдвиг вверх блоков столбца на 1 позицию.
+        \end{itemize}
+        \item Основной цикл:
+        \begin{enumerate}
+            \item Выполняется операция $(*)$ для всех строк.
+            \item Выполняется операция $(**)$ для всех столбцов.
+            \item Вычисляется результат: $C(i, j) = C(i, j) + A(i, j) \times B(i, j)$.
+        \end{enumerate}
+    \end{itemize}
+\end{enumerate}
+
+\clearpage
+
+Формально алгоритм представлен следующим образом:
+\begin{verbatim}
+for (int k = 0; k <= m - 1; k++) {
+    // Циклический сдвиг строк на 1 позицию влево
+    Для всех строк производим операцию (*).
+    // Циклический сдвиг столбцов на 1 позицию вверх
+    Для всех столбцов производим операцию (**).
+    // Обновляем значения блоков результирующей матрицы
+    C(i, j) = C(i, j) + A(i, j) * B(i, j).
+}
+\end{verbatim}
+
+\section{Описание схемы распараллеливания}
+\hspace*{1.25em}Схема распараллеливания алгоритма умножения матриц основывается на следующих этапах:
+\begin{enumerate}
+    \item \textbf{Разбиение задачи}: исходные матрицы делятся на блоки, которые распределяются между процессами для локальных вычислений.
+    \begin{itemize}
+        \item Размер блоков определяется с учётом общего количества процессов и размеров исходных матриц.
+        \item Каждый процесс получает блоки, соответствующие его позиции в логической сетке.
+    \end{itemize}
+    
+    \item \textbf{Организация процессов}: процессы объединяются в двумерную сетку, что соответствует блочному разбиению матриц.
+    \begin{itemize}
+        \item Логическая сетка процессов имеет размер $q \times q$, где $q = \sqrt{p}$, а $p$ — число процессов.
+        \item Координаты процесса в сетке определяют, за какие блоки данных он отвечает.
+    \end{itemize}
+    
+    \item \textbf{Коммуникации}: выполняются локальные обмены данными для минимизации объёма пересылок.
+    \begin{itemize}
+        \item Используются циклические сдвиги блоков между соседними процессами: влево по строкам и вверх по столбцам.
+        \item Локальные обмены обеспечивают корректное распределение данных между процессами без глобальных операций.
+    \end{itemize}
+    
+    \item \textbf{Параллельные вычисления}: каждый процесс выполняет локальные вычисления на своих блоках.
+    \begin{itemize}
+        \item Процессы вычисляют частичные результаты для своих блоков, выполняя операции умножения и сложения.
+        \item Схема сохраняет равномерную загрузку процессов вне зависимости от формы матриц.
+    \end{itemize}
+    
+    \item \textbf{Сбор результата}: частичные результаты передаются главному процессу для формирования итоговой матрицы.
+    \begin{itemize}
+        \item Главный процесс объединяет результаты из локальных блоков в итоговую матрицу.
+        \item Итоговая матрица корректно формируется независимо от того, квадратная она или прямоугольная.
+    \end{itemize}
+\end{enumerate}
+
+
+\section{Программная реализация}
+
+\hspace*{1.25em}В MPI-версии алгоритма Кэннона основная идея состоит в использовании квадратной решётки процессов, что обеспечивает простоту реализации и эффективность вычислений. Если общее количество процессов не является квадратом, выбирается $q = \lfloor \sqrt{\texttt{size}} \rfloor$, и только $q \times q$ процессов участвуют в вычислениях, а остальные остаются неактивными. Такой подход упрощает реализацию, так как алгоритм Кэннона нацелен на работу с квадратной топологией. Этапы MPI-версии алгоритма Кэннона:
+
+\subsubsection*{Pre-processing}
+\begin{itemize}
+    \item На корневом процессе загружаются размеры матриц $A$ и $B$.
+    \item Данные входных матриц преобразуются в линейный массив.
+\end{itemize}
+
+\subsubsection*{Validation}
+\begin{itemize}
+    \item Выполняется проверка корректности входных данных на корневом процессе:
+    \begin{itemize}
+        \item Размеры матриц должны быть больше нуля.
+        \item Матрицы $A$ и $B$ должны быть корректно инициализированы.
+        \item Буферы для результатов (выходные данные) должны быть доступны.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection*{Run}
+
+\begin{enumerate}
+    \item \textbf{Создание декартовой топологии}:
+    \begin{itemize}
+        \item Определяются активные процессы (те, которые участвуют в вычислениях). Неактивные процессы исключаются с помощью \texttt{MPI\_Comm\_split}.
+        \item Для активных процессов создаётся двумерная решётка $q \times q$ с использованием \texttt{MPI\_Cart\_create}, где:
+        \begin{itemize}
+            \item Периодические границы (циклические сдвиги) задаются с помощью \texttt{MPI\_Cart\_create}.
+            \item Каждый процесс получает координаты в решётке с помощью \texttt{MPI\_Cart\_coords}.
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Этапы выполнения}:
+    \begin{enumerate}
+        \item[a.] \textbf{Дополнение матриц (Padding)}:
+        \begin{itemize}
+            \item Матрицы $A$ и $B$ дополняются нулями до размеров, кратных $q$, чтобы обеспечить равномерное разбиение на блоки.
+            \item Для матрицы $A$: добавляются нулевые строки и столбцы, чтобы её размеры стали кратными $q$.
+            \item Для матрицы $B$: аналогично добавляются нулевые строки и столбцы.
+            \item После дополнения создаются новые размеры (padded dimensions), которые равномерно делятся на $q$.
+        \end{itemize}
+
+        \item[b.] \textbf{Распределение данных}:
+        \begin{itemize}
+            \item Корневой процесс разрезает дополненные матрицы $A$ и $B$ на равные блоки.
+            \item Каждый блок передаётся активным процессам с использованием \texttt{MPI\_Send}.
+            \item Остальные процессы получают соответствующий блок с использованием \texttt{MPI\_Recv}.
+        \end{itemize}
+
+        \item[c.] \textbf{Выполнение вычислений}:
+        \begin{itemize}
+            \item Каждый процесс выполняет локальное умножение блоков $A_{local}$ и $B_{local}$, обновляя свой блок результирующей матрицы $C_{local}$.
+            \item После каждой итерации блоки $A_{local}$ сдвигаются влево по строкам, а блоки $B_{local}$ вверх по столбцам. Для этого используется \texttt{MPI\_Sendrecv\_replace}.
+            \item Вычисления повторяются $q$ раз, что соответствует числу блоков в одной строке/столбце решётки.
+        \end{itemize}
+
+        \item[d.] \textbf{Сбор результата}:
+        \begin{itemize}
+            \item Локальные блоки $C_{local}$ отправляются корневому процессу.
+            \item Корневой процесс собирает данные и формирует итоговую матрицу $C$.
+            \item После завершения сборки корневой процесс удаляет нулевые строки и столбцы, добавленные на этапе дополнения.
+        \end{itemize}
+    \end{enumerate}
+\end{enumerate}
+
+
+\subsubsection*{Post-processing}
+\begin{itemize}
+    \item Корневой процесс копирует финальную матрицу $C$ в выходной буфер, который используется для сохранения результата умножения.
+\end{itemize}
+
+\subsubsection*{Ключевые особенности реализации}
+\begin{itemize}
+    \item Декартова топология в MPI используется для упрощения циклических сдвигов и организации обмена данными между процессами.
+    \item Алгоритм эффективно работает с матрицами любых размеров за счёт дополнения матриц до размеров, кратных числу блоков.
+    \item Использование \texttt{MPI\_Sendrecv\_replace} минимизирует накладные расходы на передачу данных между процессами.
+\end{itemize}
+
+\section{Результаты экспериментов}
+
+\hspace*{1.25em}Для оценки производительности алгоритма Кэннона были проведены измерения времени выполнения последовательной реализации и параллельной реализации с использованием MPI. Результаты тестирования приведены в таблице ниже:
+\begin{table}[htbp]
+\centering
+\caption{Результаты тестирования алгоритма Кэннона}
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    \textbf{Количество процессов} & \textbf{Вид теста} & \textbf{Время (мс)} & \textbf{Ускорение} \\ \hline
+    1 & pipeline\_run & 3033 & 1.00 \\ \hline
+    1 & task\_run     & 3130 & 1.00 \\ \hline
+    3 & pipeline\_run & 450  & 6.74 \\ \hline
+    3 & task\_run     & 453  & 6.91 \\ \hline
+    4 & pipeline\_run & 185  & 16.39 \\ \hline
+    4 & task\_run     & 189  & 16.56 \\ \hline
+    7 & pipeline\_run & 181  & 16.76 \\ \hline
+    7 & task\_run     & 186  & 16.83 \\ \hline
+    9 & pipeline\_run & 178  & 17.04 \\ \hline
+    9 & task\_run     & 177  & 17.69 \\ \hline
+\end{tabular}
+\label{tab:performance_results}
+\end{table}
+
+\section{Выводы из результатов}
+
+\hspace*{1.25em}Как видно из Таблицы 1, параллельная реализация алгоритма Кэнонна значительно ускоряет выполнение алгоритма в сравнении с последовательной версией. Размеры матриц были выбраны равными $512 \times 512$, чтобы обеспечить корректное сравнение и гарантировать, что последовательная часть выполнения алгоритма не достигает предела доступных ресурсов. Наибольшее ускорение достигается при увеличении числа процессов, что связано с эффективным распределением вычислений между процессами. Однако, начиная с определённого количества процессов, прирост производительности замедляется, что обусловлено увеличением накладных расходов на коммуникацию между процессами.
+
+Эксперименты проводились на следующей системе:
+\begin{itemize}
+    \item Операционная система: Windows 11.
+    \item Процессор: 12th Gen Intel(R) Core(TM) i7-12700H, 14 ядер.
+    \item Оперативная память: 16 ГБ.
+\end{itemize}
+
+
+\section{Заключение}
+
+\hspace*{1.25em}В ходе данной работы была выполнена реализация алгоритма Кэннона для умножения плотных матриц с элементами типа \texttt{double}, использующего блочную схему и технологию MPI. 
+
+Реализация алгоритма была протестирована с помощью функциональных тестов Google Test, которые подтвердили корректность работы программы. Для оценки производительности алгоритма проведено сравнение с последовательной реализацией на матрицах фиксированного размера $512 \times 512$. Результаты экспериментов показали значительное ускорение параллельной реализации по сравнению с последовательной версией, что подтверждает эффективность алгоритма Кэннона.
+
+Таким образом, поставленная задача была успешно выполнена: алгоритм Кэннона реализован, его производительность исследована, а корректность работы подтверждена. Полученные результаты подчёркивают преимущество использования параллельных вычислений для ускорения операций умножения плотных матриц, особенно при увеличении размеров матриц и количества процессов.
+
+
+\section*{Литература}
+
+\begin{enumerate}
+    \item \href{https://en.wikipedia.org/wiki/Cannon%27s_algorithm}{Cannon's Algorithm. Wikipedia}.
+    \item \href{https://intuit.ru/studies/courses/1156/190/lecture/4954?page=5}{Интуит. Лекция "Введение в параллельные вычисления"}.
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+\hspace*{1.25em}В данном разделе представлены основные фрагменты реализации алгоритма Кэннона метода run.
+
+\clearpage
+\subsection*{Функция TestMPITaskSequential::run}
+\addcontentsline{toc}{subsection}{Функция TestMPITaskSequential::run}
+
+\begin{lstlisting}[language=C++]
+bool korovin_n_matrix_multiple_cannon_mpi::TestMPITaskSequential::run() {
+    internal_order_test();
+
+    C_.resize(numRowsA_ * numColsB_);
+    for (int i = 0; i < numRowsA_; i++) {
+        for (int j = 0; j < numColsB_; j++) {
+            for (int p = 0; p < numColsA_RowsB_; p++) {
+                C_[i * numColsB_ + j] += A_[i * numColsA_RowsB_ + p] * B_[p * numColsB_ + j];
+            }
+        }
+    }
+
+    return true;
+}
+\end{lstlisting}
+
+\subsection*{Функция TestMPITaskParallel::run}
+\addcontentsline{toc}{subsection}{Функция TestMPITaskParallel::run}
+
+\begin{lstlisting}[language=C++]
+bool korovin_n_matrix_multiple_cannon_mpi::TestMPITaskParallel::run() {
+    internal_order_test();
+
+    int size;
+    int rank;
+    MPI_Comm_size(world, &size);
+    MPI_Comm_rank(world, &rank);
+
+    if (rank == 0) {
+        A_ = A_original_;
+        B_ = B_original_;
+    }
+
+    MPI_Bcast(&numRowsA_, 1, MPI_INT, 0, world);
+    MPI_Bcast(&numColsA_RowsB_, 1, MPI_INT, 0, world);
+    MPI_Bcast(&numColsB_, 1, MPI_INT, 0, world);
+
+    int q = static_cast<int>(std::floor(std::sqrt(size)));
+    int active_procs = q * q;
+
+    int padded_m = q * ((numRowsA_ + q - 1) / q);
+    int padded_n = q * ((numColsA_RowsB_ + q - 1) / q);
+    int padded_k = q * ((numColsB_ + q - 1) / q);
+
+    int block_m = padded_m / q;
+    int block_n = padded_n / q;
+    int block_k = padded_k / q;
+
+    if (rank == 0) {
+        std::vector<double> A_padded(padded_m * padded_n, 0.0);
+        for (int i = 0; i < numRowsA_; i++) {
+            std::copy(A_.begin() + i * numColsA_RowsB_, A_.begin() + (i + 1) * numColsA_RowsB_,
+                      A_padded.begin() + i * padded_n);
+        }
+        std::vector<double> B_padded(padded_n * padded_k, 0.0);
+        for (int i = 0; i < numColsA_RowsB_; i++) {
+            std::copy(B_.begin() + i * numColsB_, B_.begin() + (i + 1) * numColsB_, B_padded.begin() + i * padded_k);
+        }
+        A_ = std::move(A_padded);
+        B_ = std::move(B_padded);
+    }
+
+    bool is_active = (rank < active_procs);
+    int color = is_active ? 1 : MPI_UNDEFINED;
+    MPI_Comm active_comm;
+    MPI_Comm_split(world, color, rank, &active_comm);
+
+    if (!is_active) {
+        return true;
+    }
+
+    MPI_Comm cart_comm;
+    int dims_grid[2] = {q, q};
+    int periods_grid[2] = {1, 1};
+    int reorder_grid = 0;
+    MPI_Cart_create(active_comm, 2, dims_grid, periods_grid, reorder_grid, &cart_comm);
+
+    int cart_rank;
+    MPI_Comm_rank(cart_comm, &cart_rank);
+    int coords[2];
+    MPI_Cart_coords(cart_comm, cart_rank, 2, coords);
+    int row = coords[0];
+    int col = coords[1];
+
+    int left_rank;
+    int right_rank;
+    int up_rank;
+    int down_rank;
+    MPI_Cart_shift(cart_comm, 1, 1, &left_rank, &right_rank);
+    MPI_Cart_shift(cart_comm, 0, 1, &up_rank, &down_rank);
+
+    std::vector<double> A_local(block_m * block_n, 0.0);
+    std::vector<double> B_local(block_n * block_k, 0.0);
+    std::vector<double> C_local(block_m * block_k, 0.0);
+
+    if (cart_rank == 0) {
+        for (int p = 0; p < active_procs; ++p) {
+            int p_coords[2];
+            MPI_Cart_coords(cart_comm, p, 2, p_coords);
+            int p_row = p_coords[0];
+            int p_col = p_coords[1];
+
+            std::vector<double> A_block(block_m * block_n, 0.0);
+            for (int i = 0; i < block_m; i++) {
+                int src_index = (p_row * block_m + i) * padded_n + (p_col * block_n);
+                std::copy(A_.begin() + src_index, A_.begin() + src_index + block_n, A_block.begin() + i * block_n);
+            }
+            std::vector<double> B_block(block_n * block_k, 0.0);
+            for (int i = 0; i < block_n; i++) {
+                int src_index = (p_row * block_n + i) * padded_k + (p_col * block_k);
+                std::copy(B_.begin() + src_index, B_.begin() + src_index + block_k, B_block.begin() + i * block_k);
+            }
+            if (p == 0) {
+                A_local = std::move(A_block);
+                B_local = std::move(B_block);
+            } else {
+                MPI_Send(A_block.data(), block_m * block_n, MPI_DOUBLE, p, 0, cart_comm);
+                MPI_Send(B_block.data(), block_n * block_k, MPI_DOUBLE, p, 1, cart_comm);
+            }
+        }
+    } else {
+        MPI_Recv(A_local.data(), block_m * block_n, MPI_DOUBLE, 0, 0, cart_comm, MPI_STATUS_IGNORE);
+        MPI_Recv(B_local.data(), block_n * block_k, MPI_DOUBLE, 0, 1, cart_comm, MPI_STATUS_IGNORE);
+    }
+
+    for (int i = 0; i < row; i++) {
+        MPI_Sendrecv_replace(A_local.data(), block_m * block_n, MPI_DOUBLE, left_rank, 2, right_rank, 2, cart_comm,
+                             MPI_STATUS_IGNORE);
+    }
+    for (int i = 0; i < col; i++) {
+        MPI_Sendrecv_replace(B_local.data(), block_n * block_k, MPI_DOUBLE, up_rank, 3, down_rank, 3, cart_comm,
+                             MPI_STATUS_IGNORE);
+    }
+
+    for (int iter = 0; iter < q; iter++) {
+        for (int i = 0; i < block_m; i++) {
+            for (int l = 0; l < block_n; l++) {
+                double a_il = A_local[i * block_n + l];
+                for (int j = 0; j < block_k; j++) {
+                    C_local[i * block_k + j] += a_il * B_local[l * block_k + j];
+                }
+            }
+        }
+        MPI_Sendrecv_replace(A_local.data(), block_m * block_n, MPI_DOUBLE, left_rank, 4, right_rank, 4, cart_comm,
+                             MPI_STATUS_IGNORE);
+        MPI_Sendrecv_replace(B_local.data(), block_n * block_k, MPI_DOUBLE, up_rank, 5, down_rank, 5, cart_comm,
+                             MPI_STATUS_IGNORE);
+    }
+
+    if (cart_rank != 0) {
+        MPI_Send(C_local.data(), block_m * block_k, MPI_DOUBLE, 0, 6, cart_comm);
+    } else {
+        C_.resize(padded_m * padded_k, 0.0);
+        for (int p = 0; p < active_procs; p++) {
+            if (p == 0) {
+                for (int i = 0; i < block_m; i++) {
+                    int dest_index = i * padded_k;
+                    std::copy(C_local.begin() + i * block_k, C_local.begin() + (i + 1) * block_k, C_.begin() + dest_index);
+                }
+            } else {
+                std::vector<double> recv_C(block_m * block_k);
+                MPI_Recv(recv_C.data(), block_m * block_k, MPI_DOUBLE, p, 6, cart_comm, MPI_STATUS_IGNORE);
+
+                int p_coords[2];
+                MPI_Cart_coords(cart_comm, p, 2, p_coords);
+                int p_row = p_coords[0];
+                int p_col = p_coords[1];
+
+                int start_row = p_row * block_m;
+                int start_col = p_col * block_k;
+
+                for (int i = 0; i < block_m; i++) {
+                    int dest_row = start_row + i;
+                    int dest_index = dest_row * padded_k + start_col;
+                    std::copy(recv_C.begin() + i * block_k, recv_C.begin() + (i + 1) * block_k, C_.begin() + dest_index);
+                }
+            }
+        }
+
+        std::vector<double> C_final(numRowsA_ * numColsB_, 0.0);
+        for (int i = 0; i < numRowsA_; i++) {
+            std::copy(C_.begin() + i * padded_k, C_.begin() + i * padded_k + numColsB_, C_final.begin() + i * numColsB_);
+        }
+        C_ = std::move(C_final);
+    }
+
+    if (cart_comm != MPI_COMM_NULL) {
+        MPI_Comm_free(&cart_comm);
+    }
+    MPI_Comm_free(&active_comm);
+
+    return true;
+}
+\end{lstlisting}
+
+
+\end{document}
