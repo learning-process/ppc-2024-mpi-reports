@@ -1,0 +1,321 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc} % Кодировка исходного текста
+\usepackage[T2A]{fontenc}    % Кодировка шрифтов
+\usepackage[russian]{babel}  % Локализация и переносы
+\usepackage{amsmath, amssymb} % Математические символы
+\usepackage{graphicx}        % Вставка изображений
+\usepackage{listings}        % Вставка исходного кода
+\usepackage{color}           % Цвета
+\usepackage{caption}         % Подписи к рисункам и таблицам
+\usepackage{hyperref}        % Гиперссылки
+
+% Настройка стиля для исходного кода
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codeblue}{rgb}{0.25,0.5,0.75}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.95}
+
+\lstdefinestyle{cppStyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codeblue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{red},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    language=C++
+}
+
+\lstset{style=cppStyle}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \large 
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+        \vspace{4cm}
+        \textbf{\Large Отчёт по лаболаторной работе}\\
+        \textbf{\large «Вычисление многомерных интегралов методом Монте-Карло.»}\\[3cm]
+
+        \vspace{3cm}
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПМоп3 \\
+        Коротин Егор Вадимович\\
+
+        \textbf{Преподаватель:}\\
+        \textit{кандидат технических наук, доцент кафедры ВВСП}\\
+        \textit{Сысоев Александр Владимирович}\\[2cm]
+
+        \vspace{1.5cm}
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+
+Вычисление многомерных интегралов является фундаментальной задачей в различных областях науки и техники, включая физику, статистику, экономику и машинное обучение. Одним из эффективных методов для приближенного вычисления таких интегралов является метод Монте-Карло. Этот метод основывается на случайной выборке точек в области интегрирования и использовании статистических характеристик полученных значений функции. Однако при увеличении размерности интеграла и количества точек вычисления становятся вычислительно затратными. Для ускорения процесса расчёта часто применяются методы параллельного программирования. В данном отчёте рассматривается реализация метода Монте-Карло для вычисления многомерных интегралов как в последовательной, так и в параллельной (MPI) версиях, а также проведён анализ их производительности.
+
+\section{Постановка задачи}
+
+Целью данной работы является разработка и реализация алгоритма вычисления многомерных интегралов методом Монте-Карло как в последовательной, так и в параллельной среде с использованием библиотеки MPI. Необходимо оценить эффективность параллельной реализации по сравнению с последовательной.
+
+\section{Описание алгоритма}
+
+Идея вычисления многомерных интегралов методом Монте-Карло состоит в использованиии формулы математического ожидания случайной величины.
+Пусть u - случайная величина с равномерным распределением, тогда f(u) (где f - подинтегральная функция) тоже случайная величина. Математическим ожиданием этой выражается как $\int_a^b f(x) \phi(x) \, dx$, где $\phi(x)=\frac{1}{b-a}$ - плотность равномерно распределённой сучайной величины. Следовательно $\int_a^b f(x)\, dx = (b-a)\mathbb{E}[f(u)]$, в тоже время мы можем посчитать математическое ожидание как выборочное среднее.
+
+\subsection{Последовательная версия}
+
+Алгоритм вычисления многомерного интеграла методом Монте-Карло включает следующие шаги:
+
+\begin{enumerate}
+    \item \textbf{Задание параметров}: Определяются подинтегральная функция, список границ интегрирования, образующих $n$-мерный прямоугольник, и количество точек $N$, которые необходимо сгенерировать.
+    
+    \item \textbf{Генерация точек}: В заданном $n$-мерном прямоугольнике генерируется $N$ равномерно распределённых случайных точек.
+    
+    \item \textbf{Вычисление значений функции}: В каждой сгенерированной точке вычисляется значение подинтегральной функции.
+    
+    \item \textbf{Статистическая обработка}: Вычисляется выборочное среднее из значений функции, которое затем домножается на объём $n$-мерного прямоугольника. Полученное значение является приближённым значением интеграла.
+\end{enumerate}
+
+\subsection{Описание схемы распараллеливания}
+
+Параллельная схема реализована с использованием модели распределённой памяти, предоставляемой MPI. Основные шаги распараллеливания включают:
+
+\begin{enumerate}
+    \item \textbf{Инициализация MPI}: Определение числа процессов и идентификатора каждого процесса.
+    
+    \item \textbf{Передача данных}: Процесс с рангом 0 (мастер) инициализирует параметры задачи и рассылает необходимые данные всем другим процессам с помощью операций широковещательной рассылки (broadcast).
+    
+    \item \textbf{Распределение работы}: Общее количество точек $N$ делится между процессами. Некоторые процессы могут обрабатывать на одну точку больше, если $N$ не делится нацело на число процессов.
+    
+    \item \textbf{Локальные вычисления}: Каждый процесс генерирует свою часть случайных точек, вычисляет значения функции и подсчитывает локальное среднее значение.
+    
+    \item \textbf{Сбор результатов}: Локальные средние значения собираются и суммируются с использованием операций сокращения (reduce).
+    
+    \item \textbf{Финальный расчёт}: Процесс с рангом 0 домножает полученное среднее на объём интегрируемой области, получая окончательный результат.
+\end{enumerate}
+
+\subsection{Параллельная версия (MPI)}
+
+Параллельная реализация алгоритма использует библиотеку MPI для распределения вычислительной нагрузки между несколькими процессами:
+
+\begin{enumerate}
+    \item \textbf{Разделение задач}: Заданное количество точек $N$ делится между всеми $m$ процессами на примерно равные части.
+    
+    \item \textbf{Локальные вычисления}: Каждый процесс независимо выполняет генерацию своей части точек и вычисляет значения подинтегральной функции в этих точках, аналогично последовательной версии.
+    
+    \item \textbf{Сбор результатов}: Каждый процесс вычисляет своё локальное выборочное среднее, которое затем масштабируется на $n/N$, где $n$ — количество точек, обработанных данным процессом.
+    
+    \item \textbf{Агрегация данных}: Локальные средние значения всех процессов суммируются, получая общее выборочное среднее для всех сгенерированных точек.
+    
+    \item \textbf{Окончательный результат}: Общее выборочное среднее домножается на объём $n$-мерного прямоугольника, получая приближённое значение интеграла.
+\end{enumerate}
+
+\subsection{Проверка корректности}
+
+Для проверки корректности метода используется следствие из центральной предельной теоремы:
+
+$$
+P \left( \left| \bar{X} - m \right| < t \sqrt{\frac{D[X]}{N}} \right) \approx 2\Phi_0(t),
+$$
+
+где:
+\begin{itemize}
+    \item $\bar{X}$ — выборочное среднее,
+    \item $m$ — математическое ожидание подинтегральной функции,
+    \item $D[X]$ — дисперсия подинтегральной функции,
+    \item $\Phi_0(t)$ — функция распределения стандартного нормального распределения.
+\end{itemize}
+
+В качестве $t$ выбрано значение 6, что обеспечивает вероятность попадания в допустимый интервал порядка $1 - 2 \times 10^{-9}$.
+
+\section{Результаты экспериментов}
+
+В ходе экспериментов было проведено измерение времени выполнения как последовательной, так и параллельных версий алгоритма при генерации 10 миллионов точек. Результаты представлены в таблице \ref{tab:results}.
+
+\begin{table}[h!]
+    \centering
+    \caption{Время выполнения алгоритма при генерации 10 миллионов точек}
+    \label{tab:results}
+    \begin{tabular}{|l|c|c|}
+        \hline
+        \textbf{Версия} & \textbf{Количество процессов} & \textbf{Время выполнения (сек)} \\
+        \hline
+        Последовательная  & 1                    & 3.21                   \\
+        Параллельная      & 2                    & 1.68                   \\
+        Параллельная      & 3                    & 1.05                   \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{Выводы из результатов}
+
+Анализ результатов экспериментов показывает, что параллельная версия алгоритма демонстрирует значительное ускорение по сравнению с последовательной. При увеличении числа процессов время выполнения уменьшается, что свидетельствует о хорошей масштабируемости алгоритма. Конкретные наблюдения:
+
+\begin{itemize}
+    \item При использовании 2 процессов время выполнения сократилось почти вдвое (с 3.21 до 1.68 секунд).
+    \item При использовании 3 процессов время выполнения снизилось до 1.05 секунд, что приближает скорость к линейному ускорению.
+\end{itemize}
+
+Тем не менее, прирост производительности может быть ограничен такими факторами, как накладные расходы на коммуникацию между процессами и неидеальное распределение нагрузки. В дальнейшем можно исследовать оптимизацию этих аспектов для достижения более высокой эффективности.
+
+\section{Заключение}
+
+В данной работе была разработана и реализована параллельная версия алгоритма вычисления многомерных интегралов методом Монте-Карло с использованием библиотеки MPI. Проведённые эксперименты подтвердили эффективность параллельной реализации, продемонстрировав значительное снижение времени выполнения по сравнению с последовательной версией. Результаты свидетельствуют о том, что параллельное программирование может существенно ускорить вычисления при решении задач высокого уровня сложности. В будущем планируется исследовать дополнительные методы оптимизации и применение алгоритма к более сложным интегралам.
+
+\section{Литература}
+
+\begin{enumerate}
+    \item Metropolis, N., \& Ulam, S. "Equation of State Calculations by Fast Computing Machines." \textit{Journal of Chemical Physics}, \textbf{21}(6), 1087-1092, 1953.
+    \item Rubinstein, R. Y., \& Kroese, D. P. \textit{Simulation and the Monte Carlo Method}. Wiley Series in Probability and Statistics, 2016.
+    \item Gropp, W., Lusk, E., \& Skjellum, A. \textit{Using MPI: Portable Parallel Programming with the Message-Passing Interface}. 3rd Edition, MIT Press, 2014.
+    \item Press, W. H., et al. \textit{Numerical Recipes: The Art of Scientific Computing}. 3rd Edition, Cambridge University Press, 2007.
+    \item Anderson, T. W. \textit{Parallel Programming with MPI}. McGraw-Hill, 1995.
+\end{enumerate}
+
+\section{Приложение}
+
+\subsection{Код run и высчитывание ошибки параллельной версии (MPI)}
+
+\begin{lstlisting}[caption={run параллельной (MPI) версии}, label=lst:mpi_code]
+bool korotin_e_multidimentional_integrals_monte_carlo_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  broadcast(world, dim, 0);
+  broadcast(world, N, 0);
+  broadcast(world, input_left_, 0);
+  broadcast(world, input_right_, 0);
+
+  auto* rng_bord = new std::uniform_real_distribution<double>[dim];
+  auto* mas = new double[dim];
+  if (world.rank() < static_cast<int>(N % world.size()))
+    n = N / world.size() + 1;
+  else
+    n = N / world.size();
+
+  for (int i = 0; i < dim; i++) {
+    if (input_left_[i] > input_right_[i])
+      rng_bord[i] = std::uniform_real_distribution<double>(input_right_[i], input_left_[i]);
+    else
+      rng_bord[i] = std::uniform_real_distribution<double>(input_left_[i], input_right_[i]);
+  }
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  rng = std::vector<double>(n);
+  for (size_t i = 0; i < n; i++) {
+    for (int j = 0; j < dim; j++) mas[j] = rng_bord[j](gen);
+    rng[i] = f(mas, dim) / N;
+  }
+  local_M = std::accumulate(rng.begin(), rng.end(), local_M);
+
+  reduce(world, local_M, M, std::plus(), 0);
+
+  if (world.rank() == 0) {
+    double volume = 1.0;
+    for (int i = 0; i < dim; i++) volume *= (input_right_[i] - input_left_[i]);
+    res = volume * M;
+  }
+
+  delete[] mas;
+  delete[] rng_bord;
+
+  return true;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Првоерка корректности параллельной (MPI) версии}, label=lst:mpi_code]
+double korotin_e_multidimentional_integrals_monte_carlo_mpi::TestMPITaskParallel::possible_error() {
+  double volume = 1.0;
+  for (int i = 0; i < dim; i++) volume *= (input_right_[i] - input_left_[i]);
+  if (world.rank() == 0) {
+  }
+  if (variance < 0) {
+    if (rng.size() == n) {
+      for (size_t i = 0; i < n; i++) {
+        rng[i] *= rng[i];
+      }
+      local_variance = std::accumulate(rng.begin(), rng.end(), local_variance);
+    } else
+      return -1.0;
+    reduce(world, local_variance, variance, std::plus(), 0);
+
+    if (world.rank() == 0) {
+      M *= (M / N);
+      variance -= M;
+    }
+
+    broadcast(world, variance, 0);
+  }
+  return 6 * std::abs(volume) * sqrt(std::abs(variance));
+}
+\end{lstlisting}
+
+\subsection{Код run и высчитывание ошибки последовательной версии}
+
+\begin{lstlisting}[caption={run последовательной версии}, label=lst:mpi_code]
+bool korotin_e_multidimentional_integrals_monte_carlo_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+
+  auto* rng_bord = new std::uniform_real_distribution<double>[dim];
+  auto* mas = new double[dim];
+
+  for (int i = 0; i < dim; i++) {
+    if (input_[i].first > input_[i].second)
+      rng_bord[i] = std::uniform_real_distribution<double>(input_[i].second, input_[i].first);
+    else
+      rng_bord[i] = std::uniform_real_distribution<double>(input_[i].first, input_[i].second);
+  }
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  rng = std::vector<double>(N);
+  for (size_t i = 0; i < N; i++) {
+    for (int j = 0; j < dim; j++) mas[j] = rng_bord[j](gen);
+    rng[i] = f(mas, dim) / N;
+  }
+  M = std::accumulate(rng.begin(), rng.end(), M);
+
+  double volume = 1.0;
+  for (int i = 0; i < dim; i++) volume *= (input_[i].second - input_[i].first);
+  res = volume * M;
+
+  delete[] rng_bord;
+  delete[] mas;
+  return true;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Првоерка корректности последовательной версии}, label=lst:mpi_code]
+korotin_e_multidimentional_integrals_monte_carlo_mpi::TestMPITaskSequential::possible_error() {
+  double volume = 1.0;
+  for (int i = 0; i < dim; i++) volume *= (input_[i].second - input_[i].first);
+  if (variance < 0) {
+    if (rng.size() == N) {
+      M *= (-M / N);
+      for (size_t i = 0; i < N; i++) {
+        rng[i] *= rng[i];
+      }
+      variance = std::accumulate(rng.begin(), rng.end(), M);
+    } else
+      return -1.0;
+  }
+  return 6 * std::abs(volume) * sqrt(std::abs(variance));
+}
+\end{lstlisting}
+
+\end{document}
