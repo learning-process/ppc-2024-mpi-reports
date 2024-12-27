@@ -1,0 +1,173 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{hyperref} 
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{multirow}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{cppstyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=cppstyle}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+\vspace*{\fill}
+{\Huge \textbf{Отчет по лабораторной работе}}
+
+\vspace{0.5cm}
+{\Huge \textbf{Выделение рёбер на изображении с использованием оператора Собеля}}
+
+\vspace*{\fill}
+
+{\large Нижний Новгород\\ 2024}
+\end{titlepage}
+
+\newpage
+\section*{Введение}
+В данной работе рассматривается задача выделения рёбер на изображении с использованием оператора Собеля. Этот оператор является базовым инструментом для выделения границ на изображениях, так как позволяет определять резкие изменения интенсивности пикселей в горизонтальном и вертикальном направлениях. Для увеличения производительности обработка изображений была распараллелена с использованием MPI.
+
+\newpage
+\section*{Постановка задачи}
+Необходимо реализовать последовательную и параллельную версии алгоритма выделения рёбер с использованием оператора Собеля. Цель работы — сравнение производительности и корректности обеих версий. Основные этапы работы включают:
+\begin{itemize}
+    \item Разработка последовательной версии оператора Собеля.
+    \item Распараллеливание вычислений с помощью библиотеки MPI.
+    \item Проведение экспериментов для оценки ускорения параллельной версии.
+\end{itemize}
+
+\newpage
+\section*{Описание алгоритма}
+Оператор Собеля использует два свёрточных ядра для вычисления градиентов:
+\begin{equation}
+\text{Sobel Kernel X} = \begin{bmatrix}
+-1 & 0 & 1 \\
+-2 & 0 & 2 \\
+-1 & 0 & 1
+\end{bmatrix}, \quad
+\text{Sobel Kernel Y} = \begin{bmatrix}
+-1 & -2 & -1 \\
+ 0 &  0 &  0 \\
+ 1 &  2 &  1
+\end{bmatrix}.
+\end{equation}
+
+Для каждого пикселя изображения вычисляется градиент:
+\begin{equation}
+G = \sqrt{G_x^2 + G_y^2},
+\end{equation}
+где $G_x$ и $G_y$ — результаты свёртки с ядрами X и Y соответственно.
+
+\newpage
+\section*{Описание схемы распараллеливания}
+Для повышения производительности была реализована параллельная версия алгоритма с использованием MPI. Основная идея распараллеливания:
+\begin{itemize}
+    \item Изображение делится на части (по строкам) между процессами.
+    \item Каждый процесс обрабатывает свою часть изображения.
+    \item Результаты объединяются в финальное изображение с помощью MPI.
+\end{itemize}
+Синхронизация между процессами выполняется с помощью функций \texttt{scatterv} и \texttt{gatherv}.
+
+\newpage
+\section*{MPI-версия - описание программной реализации}
+Параллельная версия алгоритма состоит из следующих этапов:
+\begin{enumerate}
+    \item \textbf{Инициализация:} Главный процесс читает изображение, делит его на части и отправляет другим процессам.
+    \item \textbf{Обработка:} Каждый процесс выполняет свёртку с ядрами Собеля для своей части изображения.
+    \item \textbf{Сбор результатов:} Части обработанного изображения собираются главным процессом.
+\end{enumerate}
+Пример фрагмента кода распределения данных:
+\begin{lstlisting}[language=C++,caption={Распределение данных между процессами}]
+boost::mpi::scatterv(world, image, sendcounts, senddispls, locimg.data(), locimg.size(), 0);
+\end{lstlisting}
+
+\newpage
+\section*{Результаты экспериментов}
+Эксперименты проводились на изображении размером $1024 \times 1024$ пикселя. Были измерены следующие параметры:
+\begin{itemize}
+    \item Время выполнения последовательной версии.
+    \item Время выполнения параллельной версии на разном количестве процессов.
+    \item Ускорение параллельной версии.
+\end{itemize}
+
+Результаты представлены в таблице:
+\begin{table}[H]
+\begin{tabular}{|l|l|ll|l|}
+\hline
+\multirow{2}{*}{N}      & \multirow{2}{*}{Seq}       & \multicolumn{2}{l|}{MPI}          & \multirow{2}{*}{$\frac{\text{MPI}}{\text{Seq}}$} \\ \cline{3-4}
+                        &                            & \multicolumn{1}{l|}{n} & time     &                           \\ \hline
+\multirow{2}{*}{$10^4$} & \multirow{2}{*}{0.005021}  & \multicolumn{1}{l|}{2} & 0.004227 & 0.841864                   \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.003992 & 0.795060                 \\ \hline
+\multirow{2}{*}{$10^5$} & \multirow{2}{*}{0.055782}  & \multicolumn{1}{l|}{2} & 0.047529 & 0.852049                 \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.046559 & 0.834660                  \\ \hline
+\multirow{2}{*}{$10^6$} & \multirow{2}{*}{0.599623}  & \multicolumn{1}{l|}{2} & 0.498934 & 0,832079                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.485892 & 0,810329                  \\ \hline
+\end{tabular}
+\end{table}
+
+
+\newpage
+\section*{Выводы из результатов}
+Параллельная версия алгоритма оператора Собеля показала значительное ускорение при увеличении числа процессов. Однако эффективность параллелизации снижается из-за накладных расходов на передачу данных между процессами. Для больших изображений параллельная версия становится более выгодной.
+
+\newpage
+\section*{Заключение}
+В работе был реализован алгоритм выделения рёбер на изображении с использованием оператора Собеля. Реализация включала последовательную и параллельную версии. Эксперименты подтвердили корректность работы обеих версий и показали преимущество параллельной реализации для больших изображений.
+
+\newpage
+\section*{Литература}
+\begin{enumerate}
+    \item Gonzalez, R. C., Woods, R. E. \textit{Digital Image Processing}. Pearson, 2018.
+    \item Boost MPI Documentation: \url{https://www.boost.org/doc/libs/release/doc/html/mpi.html}
+\end{enumerate}
+
+\newpage
+\section*{Приложение}
+\begin{lstlisting}[language=C++,caption={Заголовочный файл Sobel},label={lst:header}]
+#include <array>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <vector>
+// ... код заголовочного файла
+\end{lstlisting}
+\begin{lstlisting}[language=C++,caption={Реализация Sobel},label={lst:implementation}]
+#include "../include/ops_mpi.hpp"
+// ... код реализации
+\end{lstlisting}
+
+\end{document}
