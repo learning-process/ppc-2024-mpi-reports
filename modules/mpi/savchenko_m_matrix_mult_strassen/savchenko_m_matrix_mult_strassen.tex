@@ -17,22 +17,23 @@
 % Настройка отступов от краев страницы
 \usepackage[left=3cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
 
+\usepackage{float}
 \usepackage{titleps} % Колонтитулы
 \usepackage{subfig} % Для подписей к рисункам и таблицам
 \usepackage{graphicx} % для вставки картинок
-\graphicspath{{./img/}} % Путь до папки с изображениями
+%\graphicspath{{./img/}} % Путь до папки с изображениями
 % Пакет для отрисовки графиков
-\usepackage{tikz}
-\usetikzlibrary{arrows,positioning,shadows}
-\usepackage{stmaryrd} % Стрелки в формулах
-\usepackage{indentfirst} % Красная строка после заголовка
-\usepackage{hhline} % Улучшенные горизонтальные линии в таблицах
-\usepackage{multirow} % Ячейки в несколько строчек в таблицах
-\usepackage{longtable} % Многостраничные таблицы
-\usepackage{paralist,array} % Список внутри таблицы
-\usepackage[normalem]{ulem}  % Зачеркнутый текст
-\usepackage{upgreek, tipa} % Красивые греческие буквы
-\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools} % ams пакеты для математики, табуляции
+%\usepackage{tikz}
+%\usetikzlibrary{arrows,positioning,shadows}
+%\usepackage{stmaryrd} % Стрелки в формулах
+%\usepackage{indentfirst} % Красная строка после заголовка
+%\usepackage{hhline} % Улучшенные горизонтальные линии в таблицах
+%\usepackage{multirow} % Ячейки в несколько строчек в таблицах
+%\usepackage{longtable} % Многостраничные таблицы
+%\usepackage{paralist,array} % Список внутри таблицы
+%\usepackage[normalem]{ulem}  % Зачеркнутый текст
+%\usepackage{upgreek, tipa} % Красивые греческие буквы
+%\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools} % ams пакеты для математики, табуляции
 \usepackage{nicematrix} % Особые матрицы pNiceArray
 
 \linespread{1.5} % Межстрочный интервал
@@ -40,10 +41,11 @@
 \setlength{\parskip}{0cm}
 
 % Пакет для красивого выделения кода
-\usepackage{minted}
+%\usepackage{minted}
+%\setminted{fontsize=\footnotesize}
 
 % Добавляем гипертекстовое оглавление в PDF
-\usepackage[pdftex
+\usepackage[pdftex,
 bookmarks=true, colorlinks=true, unicode=true,
 urlcolor=black,linkcolor=black, anchorcolor=black,
 citecolor=black, menucolor=black, filecolor=black,
@@ -84,131 +86,47 @@ citecolor=black, menucolor=black, filecolor=black,
 
 
 \begin{document}
-    {\fontsize{11.5pt}{10pt}\selectfont
-\newcommand{\Cafedra}{Кафедра математического обеспечения и суперкомпьютерных технологий}
-
-\newcommand{\TeacherPosition}{доцент каф. ВВСП, к.т.н.}
-\newcommand{\TeacherName}{Сысоев А.В.}
-
-\newcommand{\LabNumber}{3}
-\newcommand{\LabName}{Умножение плотных матриц. Алгоритм Штрассена.}
-\newcommand{\LabCourse}{Параллельное программирование для кластерных систем}
- 
-\newcommand{\StudentGroup}{3822Б1ФИ1}
-\newcommand{\StudentName}{Савченко М.П.}
-
-
-%%% Title page
-
-\pagenumbering{gobble} % Remove number from title page
-
-\setlength{\parindent}{0cm} % First line margin
+    \begin{titlepage}
 
 \begin{center}
-	МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ \\
-	
-	Федеральное государственное автономное образовательное учреждение высшего \mbox{образования} \\
-	\vspace{10pt}
-	«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского» (ННГУ)
-	
-\end{center}\par
+Министерство науки и высшего образования Российской Федерации
+\end{center}
 
 \begin{center}
-	\vspace{12pt}
-	\Cafedra
-\end{center}\par
-
-\vspace{54pt}
-
-ОТЧЕТ \\
-ЗАЩИЩЕН С ОЦЕНКОЙ \\ \par
-\vspace{11pt}
-ПРЕПОДАВАТЕЛИ 
-
-\begin{table}[H] \centering
-	\begin{tabular}{p{2.05in}p{0.0in}p{1.76in}p{-0.01in}p{1.89in}}
-		
-		% row no:1
-		\multicolumn{1}{p{2.05in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\TeacherPosition}}} &
-		\multicolumn{1}{p{0.0in}}{} &
-		\multicolumn{1}{p{1.76in}}{} &
-		\multicolumn{1}{p{-0.01in}}{} &
-		\multicolumn{1}{p{1.89in}}{\centering {\fontsize{12pt}{1.5pt}\selectfont{\TeacherName}}} \\[1pt]
-		\hhline{-~-~-}
-		% row no:2
-		\multicolumn{1}{p{2.05in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{уч. степень, должность, звание}}} & 
-		\multicolumn{1}{p{0.0in}}{} & 
-		\multicolumn{1}{p{1.76in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{подпись, дата}}} & 
-		\multicolumn{1}{p{-0.01in}}{} & 
-		\multicolumn{1}{p{1.89in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{фамилия, инициалы}}} \\[1pt]
-		\hhline{~~~~~}
-		
-	\end{tabular}
-\end{table}
-
-
-\vspace{20pt}
-
-\begin{table}[H]
-	\centering
-	\begin{tabular}{p{6.49in}}
-		%row no:1
-		\multicolumn{1}{c}{\fontsize{14pt}{1.5pt}\selectfont {\centering{\textbf{ОТЧЕТ ПО ЛАБОРАТОРНОЙ РАБОТЕ №\LabNumber}}}}\\[10pt]
-		\hhline{~}
-		%row no:2
-		
-		\multicolumn{1}{p{6.49in}}{ \centering{\textbf{«\LabName»}}} \\[50pt]
-		\hhline{~}
-		%row no:3
-		\multicolumn{1}{p{6.49in}}{\centering {по курсу: \MakeUppercase{\LabCourse}}
-		} \\
-		\hhline{~}
-		%row no:4
-		\multicolumn{1}{p{6.49in}}{} \\
-		
-		\hhline{~}
-		
-	\end{tabular}
-\end{table}
-
-\vspace{4pt}
-
-РАБОТУ ВЫПОЛНИЛИ\par
-
-\begin{table}[H]
-	\centering
-	\begin{tabular}{p{1.3in}p{1.0in}p{-0.04in}p{1.63in}p{-0.04in}p{1.63in}}
-		% row no:1
-		\multicolumn{1}{p{1.3in}}{\fontsize{10pt}{1.5pt}\selectfont {СТУДЕНТЫ ГР. №}} & 
-		\multicolumn{1}{p{1.0in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\StudentGroup}}} & 
-		\multicolumn{1}{p{-0.04in}}{} & 
-		\multicolumn{1}{p{1.63in}}{} & 
-		\multicolumn{1}{p{-0.04in}}{} & 
-		\multicolumn{1}{p{1.63in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\StudentName}}} \\
-		\hhline{~-~-~-}
-		% row no:2
-		\multicolumn{1}{p{1.3in}}{} & 
-		\multicolumn{1}{p{1.0in}}{\centering{\fontsize{10pt}{1.5pt}\selectfont  {№ группы}}} & 
-		\multicolumn{1}{p{-0.04in}}{} & 
-		\multicolumn{1}{p{1.63in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont  {подпись, дата}}} & 
-		\multicolumn{1}{p{-0.04in}}{} & 
-		\multicolumn{1}{p{1.63in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont  {фамилия, инициалы}}} \\
-		\hhline{~~~~~~}
-		
-	\end{tabular}
-\end{table}
-
-\vspace*{\fill}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
 
 \begin{center}
-	Нижний Новгород \the\year{}
-\end{center}\par
+Институт информационных технологий, математики и механики
+\end{center}
 
-\newpage
+\vspace{4em}
 
-\setlength{\parindent}{1.25cm} % Restore first line margin
-\pagenumbering{arabic} % Restore page numbering
-}
+\begin{center}
+\textbf{\Large Отчет по лабораторной работе №3} \\
+\end{center}
+\begin{center}
+\textbf{\Large «Умножение плотных матриц. Алгоритм Штрассена.»} \\
+\end{center}
+
+\vspace{4em}
+
+\hfill\parbox{7cm}{
+\textbf{Выполнил:} \\ 
+студент группы 3822Б1ФИ1 \\ 
+Савченко Максим\\
+\\
+\textbf{Проверил:}\\ 
+доцент кафедры МОСТ, \\ 
+кандидат технических наук \\ 
+Сысоев А.В.\\}
+
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2024 \end{center}
+
+\end{titlepage}
 
     \tableofcontents
 
