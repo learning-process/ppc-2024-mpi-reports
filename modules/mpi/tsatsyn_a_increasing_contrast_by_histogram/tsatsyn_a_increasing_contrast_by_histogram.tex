@@ -1,0 +1,343 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection.}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection.}{1em}{}
+\usepackage{tocloft}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{top=2cm, bottom=2cm, left=2cm, right=2cm}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\usepackage{amsmath,amssymb}
+\usepackage{listings}
+\hypersetup{hidelinks}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+\textbf{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ} \\
+\textbf{Федеральное государственное автономное образовательное учреждение высшего образования} \\
+\textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»} \\[1cm]
+\textbf{Институт информационных технологий, математики и механики }\\[0.5cm]
+\textbf{Кафедра: Математического обеспечения и суперкомпьютерных технологий}\\[0.5cm]
+Направление подготовки: «Программная инженерия»\\
+Профиль подготовки: «Общий»\\
+
+\vfill
+
+Отчёт по лабораторной работе на тему:\\
+{\Large
+\textbf{«Повышение контраста полутонового изображения посредством линейной растяжки гистограммы»} \\
+}
+\vfill
+\begin{flushright}
+\textbf{Выполнил}:\\
+студент группы 3822Б1ПР2 \\
+Цацын Александр \\
+\vspace{1cm}
+\textbf{Преподаватель}: \\
+Сысоев Александр Владимирович \\
+\textbf{Руководитель}: \\
+Нестеров Александр Юрьевич\\
+Оболенский Арсений Андреевич\\
+\end{flushright}
+\vfill
+Нижний Новгород \\
+2024
+\end{center}
+\end{titlepage}
+
+
+
+\tableofcontents
+\newpage
+
+
+
+
+\section{Введение}
+В данном отчёте рассматривается задача повышения контраста полутонового изображения путём линейной растяжки гистограммы, пиксели которого имеют тип int и находятся в пределах от 0 до 255. Основная цель работы - реализовать эффективный схему распараллеливания данных и исследовать производительность этого способа по сравнению с последовательным вариантом.
+\newpage
+
+
+\section{Постановка задачи}
+Дана матрица элементов n*m, имитирующая реальное полутоновое изображение с интенсивностью пикселей 
+\( x \in [0, 255] \), где
+\begin{itemize}
+  \item 0 — черный цвет (минимальная яркость),
+  \item 255 — белый цвет (максимальная яркость),
+  \item \( x \in (0, 255) \). промежуточные значения — оттенки серого.
+\end{itemize}
+и нужно посредством линейной растяжки гистограммы повысить контраст изображения.\\[0.1cm]
+Контраст - разница между значениями пикселей с самой низкой и самой высокой яркостью.\\ [0.1cm]
+Линейная растяжка гистограммы — это метод обработки изображения, который повышает контраст, распределяя значения интенсивности по всему диапазону.
+\newpage
+
+
+\section{Описание алгоритма}
+Мы получаем матрицу в виде одномерного \textit{std::vector<int>} и каждый его элемент преобразуется в новый по формуле:
+\begin{center} 
+{\Large 
+$
+\text{\normalsize newPixel} = \frac{(\text{oldPixel} - \text{min\_value}) \cdot 
+(\text{max\_range} - \text{min\_range})}{\text{max\_value} - \text{min\_value}} + \text{\normalsize min\_range}
+$, 
+}
+\end{center}
+где \begin{itemize}
+  \item newPixel - новое значение пикселя,
+  \item oldPixel - исходное значение пикселя,
+  \item max\_value - пиксель с самой высоким значением интенсивности в изображении
+  \item min\_value - пиксель с самой низким значением интенсивности в изображении
+  \item max\_range - верхняя граница интенсивности, в данном случае 255,
+  \item min\_range - нижняя граница интенсивности, в данном случае 0.
+\end{itemize}
+\newpage
+
+\section{Описание схемы распараллеливания}
+Схема распараллеливания состоит в одном - разделить изображение по частям на нулевом процессе и передавать каждому другому процессору свою часть, чтобы он её обработал и вернул обратно на нулевой процесс. Но подходов к этой схеме несколько - один из них не делить количество элементов для обработки на количество процессов, а выдать каждому процессу своеобразную локальную часть в цикле с шагом world.size(). Тогда не будет такой ситуации, когда количество элементов не делится нацело на количество процессов,  и поэтому какому-то процессу нужно обрабатывать что-то сверх нормы. При подходе, реализованном в этой работе, у каждого процесса будет одинаковое количество обрабатываемых элементов с максимальной разницей в 1 элемент.
+\newpage
+
+\section{Результаты экспериментов}
+Для оценки производительности последовательной и параллельной версий алгоритма использовалась следующая тестовая система:
+\begin{itemize}
+    \item Операционная система: Windows 11
+    \item Процессор: AMD Ryzen 5 5600H with Radeon Graphics
+    \item Оперативная память: 16 ГБ.
+\end{itemize}
+На основе выполнения тестов для последовательной и параллельной (на 2,3,4 процессах) версиях была создана следующая таблица:\\[0,5cm]
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    Число процессов & Вид теста      & Время выполнения (с) & Ускорение \\ \hline
+    1               & pipeline\_run & 0.697                & 1.00      \\ \hline
+    1               & task\_run     & 0.635                & 1.00      \\ \hline
+    2               & pipeline\_run & 1.086                & 0.64      \\ \hline
+    2               & task\_run     & 1.213                & 0.52      \\ \hline
+    3               & pipeline\_run & 1.106                & 0.63      \\ \hline
+    3               & task\_run     & 1.178                & 0.54      \\ \hline
+    4               & pipeline\_run & 1.078                & 0.65      \\ \hline
+    4               & task\_run     & 1.183                & 0.54      \\ \hline
+\end{tabular}
+\newpage
+
+\section{Заключение}
+На основе результатов экспериментов можно сделать вывод, что данная задача не подходит для распараллеливания, так как очень сильно повышаются накладные расходы и очень слабо эффективность. В разы выгоднее эту задачу решать через seq-версию программы.
+\newpage
+
+\section{Приложение}
+
+
+
+\subsection{ops\_seq.hpp}
+\begin{lstlisting}[language=C++]
+namespace tsatsyn_a_increasing_contrast_by_histogram_seq {
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_data;
+  std::vector<int> res;
+};
+
+}  // namespace tsatsyn_a_increasing_contrast_by_histogram_seq
+\end{lstlisting}
+
+
+\subsection{ops\_seq.cpp}
+\begin{lstlisting}[language=C++]
+bool tsatsyn_a_increasing_contrast_by_histogram_seq::TestTaskSequential::validation() {
+  internal_order_test();
+  return (taskData->outputs_count[0] > 0 && taskData->inputs_count[0] > 0);
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_seq::TestTaskSequential::pre_processing() {
+  internal_order_test();
+  input_data.resize(taskData->inputs_count[0]);
+  auto* tempPtr = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(tempPtr, tempPtr + taskData->inputs_count[0], input_data.begin());
+
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_seq::TestTaskSequential::run() {
+  internal_order_test();
+  int min_val = *std::min_element(input_data.begin(), input_data.end());
+  int max_val = *std::max_element(input_data.begin(), input_data.end());
+  if (max_val - min_val == 0) {
+    max_val++;
+  }
+  res.resize(input_data.size());
+  int input_sz = static_cast<int>(input_data.size());
+  for (int i = 0; i < input_sz; i++) {
+    res[i] = (input_data[i] - min_val) * (255 - 0) / (max_val - min_val) + 0;
+  }
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_seq::TestTaskSequential::post_processing() {
+  internal_order_test();
+
+  auto* outputPtr = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res.begin(), res.end(), outputPtr);
+
+  return true;
+}
+\end{lstlisting}
+
+
+\subsection{ops\_mpi.hpp}
+\begin{lstlisting}[language=C++]
+namespace tsatsyn_a_increasing_contrast_by_histogram_mpi {
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_data;
+  std::vector<int> res;
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_data;
+  std::vector<int> res;
+  boost::mpi::communicator world;
+};
+
+}  // namespace tsatsyn_a_increasing_contrast_by_histogram_mpi
+\end{lstlisting}
+\subsection{ops\_mpi.cpp}
+\begin{lstlisting}[language=C++]
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+  return (taskData->outputs_count[0] > 0 && taskData->inputs_count[0] > 0);
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  input_data.resize(taskData->inputs_count[0]);
+  auto* tempPtr = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(tempPtr, tempPtr + taskData->inputs_count[0], input_data.begin());
+
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+  int min_val = *std::min_element(input_data.begin(), input_data.end());
+  int max_val = *std::max_element(input_data.begin(), input_data.end());
+  if (max_val - min_val == 0) {
+    max_val++;
+  }
+  res.resize(input_data.size());
+  int input_sz = static_cast<int>(input_data.size());
+  for (int i = 0; i < input_sz; i++) {
+    res[i] = (input_data[i] - min_val) * (255 - 0) / (max_val - min_val) + 0;
+  }
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  auto* outputPtr = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res.begin(), res.end(), outputPtr);
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    return (taskData->outputs_count[0] > 0 && taskData->inputs_count[0] > 0);
+  }
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    input_data.resize(taskData->inputs_count[0]);
+    auto* tempPtr = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(tempPtr, tempPtr + taskData->inputs_count[0], input_data.begin());
+  }
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+  std::vector<int> local_data;
+  int min_val;
+  int max_val;
+  int input_sz;
+  input_sz = static_cast<int>(input_data.size());
+  if (world.rank() == 0) {
+    min_val = *std::min_element(input_data.begin(), input_data.end());
+    max_val = *std::max_element(input_data.begin(), input_data.end());
+    if (max_val - min_val == 0) {
+      max_val++;
+    }
+    for (int proc = 1; proc < world.size(); proc++) {
+      for (int i = proc; i < input_sz; i += world.size()) {
+        local_data.emplace_back(input_data[i]);
+      }
+      world.send(proc, 0, local_data);
+      local_data.clear();
+    }
+    for (int i = 0; i < input_sz; i += world.size()) {
+      local_data.emplace_back(input_data[i]);
+    }
+  } else {
+    world.recv(0, 0, local_data);
+  }
+  boost::mpi::broadcast(world, max_val, 0);
+  boost::mpi::broadcast(world, min_val, 0);
+
+  for (int i = 0; i < static_cast<int>(local_data.size()); i++) {
+    local_data[i] = ((local_data[i] - min_val) * (255 - 0) / (max_val - min_val)) + 0;
+  }
+  if (world.rank() == 0) {
+    std::vector<int> expected(1, 0);
+    expected.resize(taskData->inputs_count[0]);
+    for (int i = 0; i < static_cast<int>(local_data.size()); i++) {
+      expected[i * world.size()] = local_data[i];
+    }
+    for (int proc = 1; proc < world.size(); proc++) {
+      world.recv(proc, 0, local_data);
+      for (int i = 0; i < static_cast<int>(local_data.size()); i++) {
+        expected[i * world.size() + proc] = local_data[i];
+      }
+    }
+    res = expected;
+  } else {
+    world.send(0, 0, local_data);
+  }
+
+  return true;
+}
+bool tsatsyn_a_increasing_contrast_by_histogram_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* outputPtr = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res.begin(), res.end(), outputPtr);
+  }
+  return true;
+}
+\end{lstlisting}
+
+
+
+
+
+\end{document}
