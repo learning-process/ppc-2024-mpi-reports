@@ -367,10 +367,7 @@ dist = [0, 10, 5, 8, 17]
    Флаг \(\text{local\_changed}\) указывает, были ли изменения в локальных расстояниях.
 
 4. \textbf{Синхронизация изменений между процессами:}
-   После выполнения локальных вычислений происходит синхронизация изменений среди всех процессов с помощью \texttt{boost::mpi::all\_reduce}:
-   \[
-   \text{boost::mpi::all\_reduce(world, local\_distances.data(), vertices\_, distances\_.data(), [](int a, int b) { if (a == INT\_MAX) return b; if (b == INT\_MAX) return a; return std::min(a, b); })}
-   \]
+   После выполнения локальных вычислений происходит синхронизация изменений среди всех процессов с помощью \texttt{boost::mpi::all\_reduce}.
    Эта операция собирает минимальные значения для каждой вершины среди всех процессов.
    
 5. \textbf{Проверка на прекращение вычислений:}
@@ -420,8 +417,8 @@ MPI-реализация алгоритма Беллмана-Форда позв
     \item Выигрыш по времени выполнения MPI-реализации относительно последовательной версии был заметным. 
     Для тестирования был взят граф с 5000 вершинами:
     \begin{itemize}
-        \item Последовательная версия: \texttt{task\_run: 0.2064924000} (\texttt{vavilov\_v\_bellman\_ford\_seq.test\_task\_run}, 248~ms).
-        \item MPI-версия: \texttt{task\_run: 0.0011056997} (\texttt{vavilov\_v\_bellman\_ford\_mpi.test\_task\_run}, 218~ms).
+        \item Последовательная версия: \texttt{task\_run: 0.2064924000}\\ (\texttt{vavilov\_v\_bellman\_ford\_seq.test\_task\_run}, 248~ms).
+        \item MPI-версия: \texttt{task\_run: 0.0011056997}\\ (\texttt{vavilov\_v\_bellman\_ford\_mpi.test\_task\_run}, 218~ms).
     \end{itemize}
     \item Увеличение числа потоков приводило к незначительному улучшению производительности. Вероятной причиной такого поведения является небольшая степень параллелизма в задаче, связанная с линейной структурой графа.
 \end{itemize}
@@ -432,8 +429,8 @@ MPI-реализация алгоритма Беллмана-Форда позв
 \begin{itemize}
     \item MPI-реализация превосходила последовательную версию в несколько раз, причем увеличение числа потоков в данном случае гораздо сильнее повлияло на конечный результат. Тесты проводились с 5000 вершинами и 2000 ребрами:
     \begin{itemize}
-        \item MPI-версия 4 потока: \texttt{task\_run: 0.09643567000} (\texttt{vavilov\_v\_bellman\_ford\_seq.test\_task\_run}, 924~ms).
-        \item MPI-версия 2 потока: \texttt{task\_run: 0.08004732500} (\texttt{vavilov\_v\_bellman\_ford\_mpi.test\_task\_run}, 1053~ms).
+        \item MPI-версия 4 потока: \texttt{task\_run: 0.09643567000}\\ (\texttt{vavilov\_v\_bellman\_ford\_seq.test\_task\_run}, 924~ms).
+        \item MPI-версия 2 потока: \texttt{task\_run: 0.08004732500}\\ (\texttt{vavilov\_v\_bellman\_ford\_mpi.test\_task\_run}, 1053~ms).
     \end{itemize}
     
 \end{itemize}
@@ -457,7 +454,7 @@ MPI-реализация алгоритма Беллмана-Форда позв
 
 \section{Фрагменты кода программы}
 
-\begin{lstlisting}[language=C++, caption={Последовательная реализация алгоритма Беллмана–Форда}]
+\begin{lstlisting}[language=C++, caption={Последовательная реализация алгоритма Беллмана–Форда}, breaklines=true]
 bool vavilov_v_bellman_ford_seq::TestTaskSequential::run() {
   internal_order_test();
 
@@ -488,7 +485,7 @@ bool vavilov_v_bellman_ford_seq::TestTaskSequential::run() {
 
 \end{lstlisting}
 
-\begin{lstlisting}[language=C++, caption={Параллельная MPI-реализация алгоритма Беллмана–Форда}]
+\begin{lstlisting}[language=C++, caption={Параллельная MPI-реализация алгоритма Беллмана–Форда}, breaklines=true]
 bool vavilov_v_bellman_ford_mpi::TestMPITaskParallel::run() {
   internal_order_test();
 
@@ -547,6 +544,5 @@ bool vavilov_v_bellman_ford_mpi::TestMPITaskParallel::run() {
 }
 \end{lstlisting}
 
+
 \end{document}
-
-
