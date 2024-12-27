@@ -1,0 +1,808 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{multirow}
+
+
+
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{cppstyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=cppstyle}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+\vspace*{\fill}
+{\Huge \textbf{Отчет по лабораторной работе №3}}
+
+\vspace{0.5cm}
+{\Huge \textbf{Реализация поразрядной сортировки для вещественных чисел \\ с четно-нечетным слиянием Бэтчера}}
+
+\vspace{0.5cm}
+{\Large \textbf{Выполнил:} Сорочкин Д.О., ПР1} 
+
+\vspace{0.5cm}
+{\Large \textbf{Преподаватель:} Сысоев А.В., доцент кафедры ВВСП} 
+
+\vspace*{\fill}
+
+{\large Нижний Новгород\\ 2024}
+\end{titlepage}
+
+\newpage
+\section*{Введение}
+
+В данной работе исследуется параллельная реализация алгоритма поразрядной сортировки для вещественных чисел с использованием четно-нечетного слияния Бэтчера. Реализация выполнена на языке C++ с использованием MPI. Задачей является оценка корректности алгоритма и эффективности параллельной версии по сравнению с последовательной.
+
+\newpage
+\section*{Постановка задачи}
+Поразрядная сортировка является эффективным алгоритмом для упорядочивания данных, особенно в задачах обработки чисел. Однако ее применение к вещественным числам типа \texttt{double} сопряжено с определенными трудностями, такими как необходимость обработки чисел с плавающей запятой и обеспечением корректности при переходе между разрядами.
+
+Целью данной лабораторной работы является исследование возможностей распараллеливания алгоритма поразрядной сортировки с использованием четно-нечетного слияния Бэтчера, а также изучение его производительности. Для достижения этой цели требуется решить следующие задачи:
+\begin{itemize}
+    \item Реализовать алгоритм поразрядной сортировки для вещественных чисел, обеспечивающий корректность обработки чисел вне зависимости от их знака и величины.
+    \item Разработать схему распараллеливания алгоритма с использованием MPI (Message Passing Interface), включающую разделение массива на части, выполнение локальной сортировки и объединение данных с помощью четно-нечетного слияния.
+    \item Оценить производительность параллельной версии алгоритма по сравнению с последовательной реализацией.
+    \item Проверить корректность реализации алгоритма на различных тестовых данных, включая случаи с разным числом элементов и сложной структурой данных.
+\end{itemize}
+
+Параллельная реализация должна учитывать следующие аспекты:
+\begin{enumerate}
+    \item \textbf{Корректность:} Алгоритм должен выдавать одинаковые результаты как для последовательной, так и для параллельной версии.
+    \item \textbf{Эффективность:} Параллельная версия должна демонстрировать ускорение на больших массивах данных за счет разделения вычислений между процессами.
+    \item \textbf{Масштабируемость:} Решение должно быть способным эффективно работать при увеличении числа процессов и объема данных.
+    \item \textbf{Синхронизация:} Синхронизация между процессами должна быть минимальной для снижения накладных расходов на коммуникацию.
+\end{enumerate}
+
+\newpage
+\section*{Описание алгоритма}
+
+Поразрядная сортировка выполняется побайтово, начиная с младших байтов чисел. Для корректного функционирования алгоритм использует битовую манипуляцию, позволяющую корректно обрабатывать вещественные числа. 
+
+Четно-нечетное слияние Бэтчера выполняет обмен данными между процессами для обеспечения порядка в каждом блоке.
+
+\newpage
+\section*{Описание схемы распараллеливания}
+
+Распараллеливание алгоритма поразрядной сортировки осуществляется с использованием модели передачи сообщений (MPI). Основная цель распараллеливания — равномерно распределить вычисления между процессами, минимизируя затраты на коммуникацию. Для этого применяется следующая схема.
+
+\subsection*{Основные этапы распараллеливания}
+\begin{enumerate}
+    \item \textbf{Разделение данных:} 
+    \begin{itemize}
+        \item Главный процесс (процесс с рангом 0) получает исходный массив данных и разбивает его на равные блоки.
+        \item Если количество элементов массива не кратно числу процессов, последний блок получает остаток данных.
+        \item Разделенные блоки данных передаются остальным процессам с использованием функции \texttt{MPI\_Scatterv}, которая позволяет отправлять блоки переменной длины.
+    \end{itemize}
+
+    \item \textbf{Локальная обработка:} 
+    Каждый процесс выполняет поразрядную сортировку своего блока данных:
+    \begin{itemize}
+        \item Обработка данных в локальной памяти снижает накладные расходы на коммуникацию.
+        \item Сортировка осуществляется побайтово, начиная с младших байтов и заканчивая старшими, что гарантирует корректность порядка внутри блока.
+    \end{itemize}
+
+    \item \textbf{Четно-нечетное слияние:} 
+    После локальной сортировки выполняется слияние данных между процессами:
+    \begin{itemize}
+        \item Процессы обмениваются данными с соседними процессами (например, процесс 0 с процессом 1, процесс 1 с процессом 2 и так далее).
+        \item Для каждой пары процессов (i, j), где $i < j$, выполняется сравнение и обмен элементов между соответствующими блоками данных.
+        \item В четных итерациях обмениваются данные между процессами с четными и нечетными рангами, в нечетных — между процессами с нечетными и четными рангами.
+        \item Этот процесс повторяется до тех пор, пока элементы массива полностью не упорядочатся.
+    \end{itemize}
+
+    \item \textbf{Сборка результата:} 
+    После завершения слияния отсортированные блоки собираются в единый массив:
+    \begin{itemize}
+        \item Процессы отправляют свои блоки главному процессу с использованием функции \texttt{MPI\_Gatherv}.
+        \item Главный процесс объединяет блоки в единый массив, представляя итоговый результат сортировки.
+    \end{itemize}
+\end{enumerate}
+\newpage
+\section*{Описание программной реализации}
+
+В реализации используются следующие этапы:
+\begin{itemize}
+    \item \texttt{pre\_processing()} – подготовка данных, разбиение массива.
+    \item \texttt{validation()} — проверяет корректность входных данных, включая их размер, структуру и допустимость для выполнения алгоритма.
+    \item \texttt{run()} – выполнение поразрядной сортировки и обмен данными.
+    \item \texttt{post\_processing()} – сбор данных и валидация результатов.
+\end{itemize}
+
+Код программы приведен в Приложении.
+
+\newpage
+\section*{Результаты экспериментов}
+
+Эксперименты проводились на массивах размера от $10^4$ до $10^6$ элементов. Время выполнения приведено в таблице:
+
+\begin{table}[H]
+\begin{tabular}{|l|l|ll|l|}
+\hline
+\multirow{2}{*}{N}      & \multirow{2}{*}{Seq}       & \multicolumn{2}{l|}{MPI}          & \multirow{2}{*}{$\frac{\text{MPI}}{\text{Seq}}$} \\ \cline{3-4}
+                        &                            & \multicolumn{1}{l|}{n} & time     &                           \\ \hline
+\multirow{2}{*}{$10^4$} & \multirow{2}{*}{0.004876}  & \multicolumn{1}{l|}{2} & 0.004121 & 0.845159                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.003978 & 0.815832                  \\ \hline
+\multirow{2}{*}{$10^5$} & \multirow{2}{*}{0.0545482}  & \multicolumn{1}{l|}{2} & 0.046164 & 0.8462974                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.045587 & 0.835719                  \\ \hline
+\multirow{2}{*}{$10^6$} & \multirow{2}{*}{0.59782}  & \multicolumn{1}{l|}{2} & 0.498254 & 0.8334515                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.487122 & 0.8148305                  \\ \hline
+\end{tabular}
+\end{table}
+
+\newpage
+\section*{Выводы}
+
+Результаты экспериментов показали, что параллельная версия алгоритма демонстрирует хоть и небольшое, но все-таки имеющееся ускорение по сравнению с последовательной, особенно на больших массивах.
+
+\newpage
+\section*{Литература}
+
+\begin{enumerate}
+    \item Принцип работы: \url{https://www.youtube.com/watch?v=BwHIu38PCCo}.
+    \item Материалы лекций.
+\end{enumerate}
+
+\newpage
+\section*{Приложение}
+
+\begin{lstlisting}[language=C++, caption={Код алгоритма}]
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi/communicator.hpp>
+#include <random>
+#include <vector>
+
+#include "../include/ops_mpi.hpp"
+
+static void rsbmd_test(std::vector<double> &&in) {
+  boost::mpi::communicator world;
+
+  // Create data
+  std::vector<double> out;
+
+  // Create TaskData
+  auto taskDataSeq = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    out.resize(in.size());
+    // in
+    taskDataSeq->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+    taskDataSeq->inputs_count = {static_cast<uint32_t>(in.size())};
+    // out
+    taskDataSeq->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+    taskDataSeq->outputs_count = {static_cast<uint32_t>(out.size())};
+  }
+
+  // Create Task
+  sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel testTaskParallel(taskDataSeq);
+  ASSERT_EQ(testTaskParallel.validation(), true);
+  testTaskParallel.pre_processing();
+  testTaskParallel.run();
+  testTaskParallel.post_processing();
+
+  if (world.rank() == 0) {
+    std::sort(in.begin(), in.end());
+    ASSERT_EQ(out, in);
+  }
+}
+
+static void rsbmd_random_test(size_t sz) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(sz);
+  for (size_t i = 0; i < sz; i++) {
+    vec[i] = -50 + (gen() / 10.);
+  }
+
+  rsbmd_test(std::move(vec));
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_0) { rsbmd_test({}); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_2) { rsbmd_random_test(2); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_4) { rsbmd_random_test(4); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_8) { rsbmd_random_test(8); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_16) { rsbmd_random_test(16); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_32) { rsbmd_random_test(32); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_64) { rsbmd_random_test(64); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_128) { rsbmd_random_test(128); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_256) { rsbmd_random_test(256); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_512) { rsbmd_random_test(512); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi, Test_1024) { rsbmd_random_test(1024); }
+
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace sorochkin_d_radix_sort_batcher_merge_double_mpi {
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> input_, res_;
+  boost::mpi::communicator world;
+};
+
+}  // namespace sorochkin_d_radix_sort_batcher_merge_double_mpi
+
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/timer.hpp>
+#include <random>
+#include <vector>
+
+#include "../include/ops_mpi.hpp"
+#include "boost/mpi/communicator.hpp"
+#include "core/perf/include/perf.hpp"
+
+static std::vector<double> randv(size_t sz) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(sz);
+  for (size_t i = 0; i < sz; i++) {
+    vec[i] = -50 + (gen() / 10.);
+  }
+  return vec;
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi_perf_test, test_pipeline_run) {
+  boost::mpi::communicator world;
+
+  // Create data
+  std::vector<double> in;
+  std::vector<double> out;
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    in = randv(128'000);
+    out.resize(in.size());
+    // in
+    taskDataPar->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+    taskDataPar->inputs_count = {static_cast<uint32_t>(in.size())};
+    // out
+    taskDataPar->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+    taskDataPar->outputs_count = {static_cast<uint32_t>(out.size())};
+  }
+
+  // Create Task
+  auto testTaskParallel =
+      std::make_shared<sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel>(taskDataPar);
+
+  // Create Perf attributes
+auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const boost::mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskParallel);
+  perfAnalyzer->pipeline_run(perfAttr, perfResults);
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_mpi_perf_test, test_task_run) {
+  boost::mpi::communicator world;
+
+  // Create data
+  std::vector<double> in;
+  std::vector<double> out;
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    in = randv(128'000);
+    out.resize(in.size());
+    // in
+    taskDataPar->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+    taskDataPar->inputs_count = {static_cast<uint32_t>(in.size())};
+    // out
+    taskDataPar->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+    taskDataPar->outputs_count = {static_cast<uint32_t>(out.size())};
+  }
+
+  // Create Task
+  auto testTaskParallel =
+      std::make_shared<sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel>(taskDataPar);
+
+  // Create Perf attributes
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const boost::mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskParallel);
+  perfAnalyzer->task_run(perfAttr, perfResults);
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+#include "../include/ops_mpi.hpp"
+
+#include <boost/mpi/collectives/scatterv.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cmath>
+#include <functional>
+#include <type_traits>
+#include <vector>
+
+template <typename T>
+static constexpr size_t bytes() {
+  return sizeof(T);
+}
+template <typename T>
+static constexpr size_t bits() {
+  return bytes<T>() * CHAR_BIT;
+}
+class bitutil {
+ private:
+  union du64 {
+    double d;
+    uint64_t u;
+    static constexpr uint64_t MASK = 1ull << ((sizeof(uint64_t) * CHAR_BIT) - 1);
+  };
+
+ public:
+  static constexpr uint64_t as_uint64(double x) {
+    const du64 r{.d = x};
+    return ((r.u & du64::MASK) != 0u) ? ~r.u : r.u | du64::MASK;
+  }
+
+  template <typename T>
+    requires std::is_floating_point_v<T> or std::is_integral_v<T>
+  static constexpr uint8_t byte_at(const T& val, uint8_t idx) {
+    return (val >> (idx * 8)) & 0xFF;
+  }
+};
+
+template <class Compare>
+void radix_sort(std::span<double> input, Compare cmp) {
+  constexpr size_t base = 1 << CHAR_BIT;
+
+  std::vector<double> aux_(input.size());
+  std::span<double> aux{aux_};
+  std::vector<size_t> count(base, 0);
+
+  for (size_t ib = 0; ib < bytes<double>(); ++ib) {
+    std::fill(count.begin(), count.end(), 0);
+    std::for_each(input.begin(), input.end(),
+                  [&](double el) { ++count[bitutil::byte_at(bitutil::as_uint64(el), ib)]; });
+
+    if constexpr (cmp(0, 1)) {
+      for (size_t i = 1; i < base; ++i) {
+        count[i] += count[i - 1];
+      }
+    } else {
+      for (size_t i = base - 1; i > 0; --i) {
+        count[i - 1] += count[i];
+      }
+    }
+
+    std::for_each(input.rbegin(), input.rend(),
+                  [&](double el) { aux[--count[bitutil::byte_at(bitutil::as_uint64(el), ib)]] = el; });
+    std::swap(input, aux);
+  }
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    const auto* src = reinterpret_cast<double*>(taskData->inputs[0]);
+    input_.assign(src, src + taskData->inputs_count[0]);
+
+    // the algorithms requires the array to be bitonic-bipartitioned
+    const auto mid = input_.size() / 2;
+    radix_sort(std::span{input_}.subspan(0, mid), std::less<>());
+    radix_sort(std::span{input_}.subspan(mid), std::greater<>());
+  }
+
+  return true;
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() != 0) {
+    return true;
+  }
+
+  const auto n = taskData->inputs_count[0];
+  return (n & (n - 1)) == 0 && n == taskData->inputs_count[0];
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  size_t amount = input_.size();
+  boost::mpi::broadcast(world, amount, 0);
+
+  const auto mp2 = std::pow(2, std::floor(std::sqrt(world.size())));
+  if (world.rank() >= mp2 || static_cast<size_t>(world.rank()) >= amount) {
+    world.split(1);
+    return true;
+  }
+  auto group = world.split(0);
+
+  const int remainder = amount % group.size();
+  std::vector<int> sizes(group.size(), amount / group.size());
+  for (int i = 0; i < remainder; i++) {
+    ++sizes[i];
+  }
+
+  const size_t local_size = sizes[group.rank()];
+  std::vector<double> local_input(local_size);
+  std::vector<double> aux(local_size);
+
+  boost::mpi::scatterv(group, input_, sizes, local_input.data(), 0);
+
+  const auto ws = group.size();
+  std::vector<bool> active_workers(ws);  // vector<bool> is implemented as a bitset actually
+
+  for (int i = ws / 2; i > 0; i /= 2) {
+    std::fill(active_workers.begin(), active_workers.end(), false);
+
+    for (int rank = 0; rank < ws; rank++) {
+      if (rank - i < 0 || (rank + i < ws && !active_workers[rank - i])) {
+        active_workers[rank] = true;
+      }
+    }
+
+    if (active_workers[group.rank()]) {
+      group.send(group.rank() + i, 0, local_input);
+      group.recv(group.rank() + i, 1, local_input);
+    } else {
+      group.recv(group.rank() - i, 0, aux);
+
+      for (size_t j = 0; j < local_input.size(); ++j) {
+        if (aux[j] > local_input[j]) {
+          std::swap(aux[j], local_input[j]);
+        }
+      }
+
+      group.send(group.rank() - i, 1, aux);
+    }
+  }
+
+  radix_sort(local_input, std::less<>());
+
+  if (group.rank() == 0) {
+    res_.resize(input_.size());
+  }
+  boost::mpi::gatherv(group, local_input, res_.data(), sizes, 0);
+
+  return true;
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    std::copy(res_.begin(), res_.end(), reinterpret_cast<double*>(taskData->outputs[0]));
+  }
+  return true;
+}
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <random>
+#include <vector>
+
+#include "../include/ops_seq.hpp"
+
+static void rsbmd_test(std::vector<double> &&in) {
+  // Create data
+  std::vector<double> out(in.size(), 0.);
+
+  // Create TaskData
+  auto taskDataSeq = std::make_shared<ppc::core::TaskData>();
+  // in
+  taskDataSeq->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+  taskDataSeq->inputs_count = {static_cast<uint32_t>(in.size())};
+  // out
+  taskDataSeq->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+  taskDataSeq->outputs_count = {static_cast<uint32_t>(out.size())};
+
+  // Create Task
+  sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential testTaskSequential(taskDataSeq);
+  ASSERT_EQ(testTaskSequential.validation(), true);
+  testTaskSequential.pre_processing();
+  testTaskSequential.run();
+  testTaskSequential.post_processing();
+
+  std::sort(in.begin(), in.end());
+  ASSERT_EQ(out, in);
+}
+
+static void rsbmd_random_test(size_t sz) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(sz);
+  for (size_t i = 0; i < sz; i++) {
+    vec[i] = -50 + (gen() / 10.);
+  }
+
+  rsbmd_test(std::move(vec));
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_Determined_0) { rsbmd_test({}); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_Determined_Diff) { rsbmd_test({4e5 + 8, 2e-4 - 4, 1e-10}); }
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_1) { rsbmd_random_test(1); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_2) { rsbmd_random_test(2); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_3) { rsbmd_random_test(3); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_4) { rsbmd_random_test(4); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_5) { rsbmd_random_test(5); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_6) { rsbmd_random_test(6); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_7) { rsbmd_random_test(7); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_8) { rsbmd_random_test(8); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_9) { rsbmd_random_test(9); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_10) { rsbmd_random_test(10); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_13) { rsbmd_random_test(13); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_17) { rsbmd_random_test(17); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_23) { rsbmd_random_test(23); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_31) { rsbmd_random_test(31); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_63) { rsbmd_random_test(63); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_64) { rsbmd_random_test(64); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_65) { rsbmd_random_test(65); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_127) { rsbmd_random_test(127); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_128) { rsbmd_random_test(128); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_129) { rsbmd_random_test(129); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_255) { rsbmd_random_test(255); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_256) { rsbmd_random_test(256); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_257) { rsbmd_random_test(256); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_1000) { rsbmd_random_test(1000); }
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq, Test_1001) { rsbmd_random_test(1001); }
+
+#pragma once
+
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace sorochkin_d_radix_sort_batcher_merge_double_seq {
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> input_, res_;
+};
+
+}  // namespace sorochkin_d_radix_sort_batcher_merge_double_seq
+
+#include <gtest/gtest.h>
+
+#include <random>
+#include <vector>
+
+#include "../include/ops_seq.hpp"
+#include "core/perf/include/perf.hpp"
+
+static std::vector<double> randv(size_t sz) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  std::vector<double> vec(sz);
+  for (size_t i = 0; i < sz; i++) {
+    vec[i] = -50 + (gen() / 10.);
+  }
+  return vec;
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq_perf_test, test_pipeline_run) {
+  // Create data
+  std::vector<double> in = randv(128'000);
+  std::vector<double> out(in.size(), 0.);
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+  // in
+  taskDataSeq->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+  taskDataSeq->inputs_count = {static_cast<uint32_t>(in.size())};
+  // out
+  taskDataSeq->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+  taskDataSeq->outputs_count = {static_cast<uint32_t>(out.size())};
+
+  // Create Task
+  auto testTaskSequential =
+      std::make_shared<sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential>(taskDataSeq);
+
+  // Create Perf attributes
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const auto t0 = std::chrono::high_resolution_clock::now();
+  perfAttr->current_timer = [&] {
+    auto current_time_point = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time_point - t0).count();
+    return static_cast<double>(duration) * 1e-9;
+  };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskSequential);
+  perfAnalyzer->pipeline_run(perfAttr, perfResults);
+  ppc::core::Perf::print_perf_statistic(perfResults);
+}
+
+TEST(sorochkin_d_radix_sort_batcher_merge_double_seq_perf_test, test_task_run) {
+  // Create data
+  std::vector<double> in = randv(128'000);
+  std::vector<double> out(in.size(), 0.);
+
+  // Create TaskData
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+  // in
+  taskDataSeq->inputs = {reinterpret_cast<uint8_t *>(in.data())};
+  taskDataSeq->inputs_count = {static_cast<uint32_t>(in.size())};
+  // out
+  taskDataSeq->outputs = {reinterpret_cast<uint8_t *>(out.data())};
+  taskDataSeq->outputs_count = {static_cast<uint32_t>(out.size())};
+
+  // Create Task
+  auto testTaskSequential =
+      std::make_shared<sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential>(taskDataSeq);
+
+  // Create Perf attributes
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const auto t0 = std::chrono::high_resolution_clock::now();
+  perfAttr->current_timer = [&] {
+    auto current_time_point = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(current_time_point - t0).count();
+    return static_cast<double>(duration) * 1e-9;
+  };
+
+  // Create and init perf results
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  // Create Perf analyzer
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskSequential);
+  perfAnalyzer->task_run(perfAttr, perfResults);
+  ppc::core::Perf::print_perf_statistic(perfResults);
+}
+
+#include "../include/ops_seq.hpp"
+
+#include <algorithm>
+#include <climits>
+#include <cmath>
+#include <cstdint>
+
+template <typename T>
+static constexpr size_t bytes() {
+  return sizeof(T);
+}
+template <typename T>
+static constexpr size_t bits() {
+  return bytes<T>() * CHAR_BIT;
+}
+class bitutil {
+ private:
+  union du64 {
+    double d;
+    uint64_t u;
+    static constexpr uint64_t MASK = 1ull << ((sizeof(uint64_t) * CHAR_BIT) - 1);
+  };
+
+ public:
+  static constexpr uint64_t as_uint64(double x) {
+    const du64 r{.d = x};
+    return ((r.u & du64::MASK) != 0u) ? ~r.u : r.u | du64::MASK;
+  }
+
+  template <typename T>
+    requires std::is_floating_point_v<T> or std::is_integral_v<T>
+  static constexpr uint8_t byte_at(const T& val, uint8_t idx) {
+    return (val >> (idx * 8)) & 0xFF;
+  }
+};
+
+bool sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential::pre_processing() {
+  internal_order_test();
+
+  const auto* src = reinterpret_cast<double*>(taskData->inputs[0]);
+  input_.assign(src, src + taskData->inputs_count[0]);
+
+  return true;
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential::validation() {
+  internal_order_test();
+  return taskData->outputs_count[0] == taskData->inputs_count[0];
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential::run() {
+  internal_order_test();
+
+  constexpr size_t base = 1 << CHAR_BIT;
+
+  res_ = input_;
+  decltype(res_) aux(input_.size());
+  std::vector<size_t> count(base, 0);
+
+  for (size_t ib = 0; ib < bytes<double>(); ++ib) {
+    std::fill(count.begin(), count.end(), 0);
+    std::for_each(res_.begin(), res_.end(), [&](double el) { ++count[bitutil::byte_at(bitutil::as_uint64(el), ib)]; });
+    for (size_t i = 1; i < base; ++i) {
+      count[i] += count[i - 1];
+    }
+    std::for_each(res_.rbegin(), res_.rend(),
+                  [&](double el) { aux[--count[bitutil::byte_at(bitutil::as_uint64(el), ib)]] = el; });
+    std::swap(res_, aux);
+  }
+
+  return true;
+}
+
+bool sorochkin_d_radix_sort_batcher_merge_double_seq::TestTaskSequential::post_processing() {
+  internal_order_test();
+  std::copy(res_.begin(), res_.end(), reinterpret_cast<double*>(taskData->outputs[0]));
+  return true;
+}
+\end{lstlisting}
+
+\end{document}
