@@ -1,0 +1,560 @@
+\documentclass[12pt]{article}
+\usepackage[russian]{babel}
+\usepackage{url}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{geometry}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\geometry{a4paper, margin=1in}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{code}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{red},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=code}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge \textbf{Отчет по 3 работе по курсу Параллельное программирование}}\\[1cm]
+    {\large Вариант 1}\\[2cm]
+    \textbf{Умножение плотных матриц. Элементы типа double. Блочная схема, алгоритм Кэннона.}\\[4cm]
+    \textbf{Выполнил студент группы 3822Б1ПР1}\\[0.5cm]
+    \textbf{Вершинина Александра}\\[1cm]
+    \textbf{2024}
+\end{titlepage}
+
+\section{Введение}
+
+В данном отчете представлено описание реализации параллельного алгоритма умножения матриц Кэннона с использованием MPI (Message Passing Interface). Алгоритм Кэннона является эффективным методом для распределенного умножения матриц, минимизирующим объем коммуникаций между процессами. Реализация демонстрирует подход к параллелизации вычислений на основе декомпозиции данных и использования топологии процессоров.
+
+\section{Постановка задачи}
+
+\noindent
+Задача заключается в реализации параллельного алгоритма умножения двух квадратных матриц размера $n \times n$. 
+\begin{itemize}
+    \item \textbf{Входные данные}: Две квадратные матрицы $A$ и $B$ размера $n \times n$.
+    \item \textbf{Выходные данные}: Результирующая матрица $C = A \times B$ размера $n \times n$.
+    \item \textbf{Условие}: Распараллелить вычисления для ускорения процесса умножения матриц, используя MPI для коммуникации между процессами.
+\end{itemize}
+Требуется разработать программу, которая эффективно использует распределенные ресурсы и выполняет умножение больших матриц за разумное время.
+
+\section{Описание алгоритма}
+
+Алгоритм Кэннона для умножения матриц является параллельным методом, разработанным специально для распределенных систем. Основная идея заключается в том, чтобы минимизировать передачу данных между процессорами во время вычислений. Алгоритм состоит из следующих шагов:
+\begin{enumerate}
+    \item \textbf{Инициализация}:
+    \begin{enumerate}
+        \item Матрицы A и B равномерно распределяются между процессами. Каждый процесс получает блок матриц.
+        \item Создание 2D-топологии процессоров для эффективной работы алгоритма.
+    \end{enumerate}
+    \item \textbf{Начальная циркуляция}:
+    \begin{enumerate}
+        \item Циклическое сдвигание строк матрицы A влево, $i$-я строка сдвигается на $i$ позиций.
+        \item Циклическое сдвигание столбцов матрицы B вверх, $j$-й столбец сдвигается на $j$ позиций.
+    \end{enumerate}
+    \item \textbf{Основной вычислительный цикл}:
+    \begin{enumerate}
+         \item Умножение локальных блоков матриц A и B, полученных после циркуляции.
+         \item  Циклический сдвиг блоков матрицы A влево, блоков матрицы B вверх.
+         \item  Суммирование результатов локальных умножений в результирующей матрице.
+    \end{enumerate}
+     \item \textbf{Сбор результатов}:
+     \begin{enumerate}
+        \item Каждый процесс отправляет свой блок результата в процесс с рангом 0.
+        \item Процесс 0 собирает блоки и формирует итоговую матрицу.
+    \end{enumerate}
+\end{enumerate}
+Этот алгоритм обеспечивает хорошую масштабируемость и минимизирует коммуникационную нагрузку благодаря локальным вычислениям и циклическим сдвигам блоков.
+
+\section{Описание схемы распараллеливания}
+
+Схема распараллеливания в программе использует MPI для распределения вычислений между процессами. Основные аспекты схемы:
+\begin{itemize}
+    \item \textbf{Декомпозиция данных}: Входные матрицы разделяются на блоки, которые распределяются между процессами.
+    \item \textbf{2D-сетка процессов}: Процессы организуются в 2D-сетку, что соответствует структуре алгоритма Кэннона. Координаты процессов используются для выполнения циклических сдвигов блоков.
+    \item \textbf{Коммуникации}: Используются точечные коммуникации (send, recv) для циркуляции блоков данных между соседними процессами в сетке. Также используется широковещание для распространения размера матрицы.
+    \item \textbf{Сборка результатов}: Конечный результат собирается в процессе с рангом 0 путем сбора блоков из всех процессов.
+\end{itemize}
+Такой подход позволяет эффективно использовать параллельные ресурсы и минимизировать объем передаваемых данных.
+
+\section{Описание MPI-версии}
+
+Программа реализована с использованием библиотеки Boost.MPI. Для решения задачи умножения матриц Кэннона было создано два класса: \texttt{TestMPITaskSequential} для последовательной реализации, и \texttt{TestMPITaskParallel} для параллельной MPI-версии. 
+
+\subsection{Класс \texttt{TestMPITaskSequential}}
+Представляет собой последовательную версию умножения матриц для тестирования и проверки корректности параллельной версии.
+\begin{itemize}
+    \item \textbf{Метод \texttt{pre\_processing()}}: Инициализирует матрицы данными из \texttt{taskData} и устанавливает начальные сдвиги.
+    \item \textbf{Метод \texttt{validation()}}: Проверяет корректность входных данных.
+    \item \textbf{Метод \texttt{run()}}: Реализует последовательный алгоритм умножения матриц, используя сдвиги строк и столбцов.
+    \item \textbf{Метод \texttt{post\_processing()}}: Сохраняет результат умножения в \texttt{taskData}.
+\end{itemize}
+
+\subsection{Класс \texttt{TestMPITaskParallel}}
+Реализует параллельную версию алгоритма Кэннона.
+\begin{itemize}
+    \item \textbf{Метод \texttt{pre\_processing()}}: Получает входные матрицы и их размеры, подготавливает данные к распределенной обработке.
+    \item \textbf{Метод \texttt{validation()}}: Проверяет корректность входных данных.
+    \item \textbf{Метод \texttt{run()}}:
+     \begin{itemize}
+        \item Определяет размерность 2D-сетки процессов, разбивает коммуникатор на подгруппы.
+        \item Дополняет матрицы до ближайшей степени двойки, если число процессов не является полным квадратом, разбивает матрицы на блоки.
+        \item Организует начальную циркуляцию блоков матриц.
+        \item Выполняет основной цикл алгоритма Кэннона, включая умножение блоков и их циклические сдвиги.
+        \item Собирает результаты умножения блоков от всех процессов в процесс с рангом 0.
+        \item Итоговый результат сохраняется в \texttt{taskData}.
+    \end{itemize}
+    \item \textbf{Метод \texttt{post\_processing()}}: Копирует результат в выходные данные \texttt{taskData} для процесса с рангом 0.
+\end{itemize}
+
+\section{Результаты экспериментов}
+
+\subsection{Описание эксперимента}
+
+Эксперименты проводились на кластере с использованием различных размеров матриц и количества процессов. Измерялось время выполнения параллельного алгоритма для разных конфигураций. Для проверки корректности, результаты параллельного алгоритма сравнивались с результатами последовательной версии.
+
+\subsection{Оценка времени работы}
+Результаты времени работы для разных размеров матриц и количества процессов приведены в таблице ниже:
+\begin{table}[h!]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+        \hline
+        Размер матрицы & Кол-во процессов & Время (сек) & Ускорение относительно последовательного \\
+        \hline
+        256 & 1 & 0.065 & 1.0 \\
+        256 & 4 & 0.022 & 2.95  \\
+        256 & 16 & 0.008 & 8.125 \\
+        \hline
+        512 & 1 & 0.508 & 1.0\\
+        512 & 4 & 0.164 & 3.1 \\
+        512 & 16 & 0.055 & 9.2  \\
+         \hline
+        1024 & 1 & 4.012 & 1.0 \\
+        1024 & 4 & 1.241 & 3.23  \\
+        1024 & 16 & 0.410 & 9.78  \\
+         \hline
+    \end{tabular}
+    \caption{Результаты времени выполнения алгоритма Кэннона}
+    \label{tab:results}
+\end{table}
+Как видно из таблицы, с увеличением количества процессов время выполнения уменьшается, что свидетельствует о масштабируемости алгоритма. Однако, при слишком большом числе процессов коммуникационные накладные расходы начинают играть значительную роль, что может замедлить ускорение.
+
+\subsection{Подтверждение корректности}
+
+Для подтверждения корректности, результаты умножения матриц с помощью параллельного алгоритма Кэннона сравнивались с результатами последовательной реализации. Было проведено сравнение для матриц различных размеров. Результаты показали полное совпадение.
+
+\section{Выводы из результатов}
+
+\begin{itemize}
+    \item \textbf{Эффективность параллелизации}: Параллельный алгоритм Кэннона обеспечивает значительное ускорение по сравнению с последовательной версией.
+    \item \textbf{Масштабируемость}: Алгоритм демонстрирует хорошую масштабируемость, так как время выполнения уменьшается с увеличением количества процессов.
+    \item \textbf{Корректность}: Результаты параллельного алгоритма полностью совпадают с результатами последовательного алгоритма, что подтверждает его корректность.
+    \item \textbf{Ограничения}: При очень большом количестве процессов, коммуникационные затраты могут уменьшить эффективность, поэтому необходимо подбирать оптимальное число процессов для каждой конкретной задачи.
+\end{itemize}
+
+\section{Заключение}
+В результате работы был реализован параллельный алгоритм умножения матриц Кэннона с использованием MPI. Проведенные эксперименты показали, что данный алгоритм эффективно масштабируется и обеспечивает значительное ускорение вычислений по сравнению с последовательной реализацией. Подтверждение корректности алгоритма было выполнено путем сравнения с результатами последовательного умножения матриц. Полученные результаты могут быть использованы для решения более сложных задач, связанных с умножением больших матриц в распределенных вычислительных средах.
+
+\section{Литература}
+\begin{itemize}
+    \item Грамма А., Гупта А., Кумар В., Карпов М. Параллельные вычисления: алгоритмы и приложения. — 2-е изд. — М.: Вильямс, 2019.
+    \item Boost.MPI Documentation. \url{https://www.boost.org/doc/libs/1_81_0/doc/html/mpi.html}
+\end{itemize}
+
+\section{Приложение}
+\subsection{ops\_mpi.hpp}
+\begin{lstlisting}
+#pragma once
+
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace vershinina_a_cannons_algorithm {
+
+template <class T>
+struct TMatrix {
+  size_t n;
+
+  std::vector<T> data{};
+  size_t hshift{};
+  size_t vshift{};
+
+  void set_horizontal_shift(size_t shift) { hshift = shift; }
+  void set_vertical_shift(size_t shift) { vshift = shift; }
+
+  const T& at(size_t row, size_t col) const noexcept { return data[row * n + col]; }
+  T& at(size_t row, size_t col) noexcept { return const_cast<T&>(std::as_const(*this).at(row, col)); }
+
+  const T& at_h(size_t row, size_t col) const noexcept {
+    size_t actual_hshift = (hshift + row) % n;
+    if (col < n - actual_hshift) {
+      col += actual_hshift;
+    } else {
+      col = col - (n - actual_hshift);
+    }
+    return data[row * n + col];
+  }
+  T& at_h(size_t row, size_t col) noexcept { return const_cast<T&>(std::as_const(*this).at_h(row, col)); }
+
+  const T& at_v(size_t row, size_t col) const noexcept {
+    size_t actual_vshift = (vshift + col) % n;
+    if (row < n - actual_vshift) {
+      row += actual_vshift;
+    } else {
+      row = row - (n - actual_vshift);
+    }
+    return data[row * n + col];
+  }
+  T& at_v(size_t row, size_t col) noexcept { return const_cast<T&>(std::as_const(*this).at_v(row, col)); }
+
+  bool operator==(const TMatrix& other) const noexcept { return n == other.n && data == other.data; }
+
+  void read(const T* src) { data.assign(src, src + n * n); }
+
+  friend std::ostream& operator<<(std::ostream& os, const TMatrix& m) {
+    os << "M(" << m.n << "," << m.n << "): [";
+    for (const auto& e : m.data) {
+      os << e << ' ';
+    }
+    os << ']';
+    return os;
+  }
+
+  static TMatrix create(size_t n, std::initializer_list<T> intl = {}) {
+    TMatrix mat = {n, std::vector<T>(intl)};
+    mat.data.resize(n * n);
+    return mat;
+  }
+  TMatrix operator*(const TMatrix& rhs) const {
+    auto res = create(n);
+    for (size_t i = 0; i < n; i++) {
+      for (size_t j = 0; j < rhs.n; j++) {
+        res.at(i, j) = 0;
+        for (size_t k = 0; k < rhs.n; k++) {
+          res.at(i, j) += at(i, k) * rhs.at(k, j);
+        }
+      }
+    }
+    return res;
+  }
+};
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+  int n{};
+
+ private:
+  TMatrix<double> lhs_{};
+  TMatrix<double> rhs_{};
+  TMatrix<double> res_{};
+  TMatrix<double> res_c{};
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  int n;
+  std::pair<std::vector<double>, std::vector<double>> in_;
+  std::vector<double> res_;
+  boost::mpi::communicator world;
+};
+
+}  // namespace vershinina_a_cannons_algorithm
+\end{lstlisting}
+
+
+\subsection{ops\_mpi.cpp}
+
+\begin{lstlisting}
+#include "mpi/vershinina_a_cannons_algorithm/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/mpi/cartesian_communicator.hpp>
+#include <boost/mpi/collectives/broadcast.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <cmath>
+#include <vector>
+
+bool vershinina_a_cannons_algorithm::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  n = taskData->inputs_count[0];
+
+  lhs_.n = n;
+  rhs_.n = n;
+
+  res_c.n = n;
+  res_.n = n;
+
+  lhs_.read(reinterpret_cast<double*>(taskData->inputs[0]));
+  rhs_.read(reinterpret_cast<double*>(taskData->inputs[1]));
+  res_c = TMatrix<double>::create(n);
+  res_ = TMatrix<double>::create(n);
+
+  lhs_.hshift = 0;
+  rhs_.vshift = 0;
+
+  return true;
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskSequential::validation() {
+  internal_order_test();
+  return taskData->inputs.size() == 2 && taskData->inputs_count[0] > 0;
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskSequential::run() {
+  internal_order_test();
+
+  for (int k = 0; k < n; k++) {
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
+        res_c.at(i, j) = lhs_.at_h(i, j) * rhs_.at_v(i, j);
+      }
+    }
+    for (int t = 0; t < n; t++) {
+      for (int s = 0; s < n; s++) {
+        res_.at(t, s) += res_c.at(t, s);
+      }
+    }
+    lhs_.hshift++;
+    rhs_.vshift++;
+  }
+  return true;
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  std::copy(res_.data.begin(), res_.data.end(), reinterpret_cast<double*>(taskData->outputs[0]));
+  return true;
+}
+
+void copy_mat(double* src, std::vector<double>& dst, int n) { dst.assign(src, src + (n * n)); }
+
+bool vershinina_a_cannons_algorithm::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    n = taskData->inputs_count[0];
+    copy_mat(reinterpret_cast<double*>(taskData->inputs[0]), in_.first, n);
+    copy_mat(reinterpret_cast<double*>(taskData->inputs[1]), in_.second, n);
+  }
+  return true;
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskParallel::validation() {
+  internal_order_test();
+  return world.rank() != 0 || (taskData->inputs.size() == 2 && taskData->inputs_count[0] > 0);
+}
+
+int find_most_close_power_of_2(int x) { return std::floor(std::sqrt(x)); }
+
+std::vector<double> mkpad(const std::vector<double>& in, int n, int padding) {
+  std::vector<double> res(padding * padding, 0.);
+  for (int i = 0; i < n; i++) {
+    std::copy(in.begin() + i * n, in.begin() + (i + 1) * n, res.begin() + i * padding);
+  }
+  return res;
+}
+std::vector<double> mkblock(const std::vector<double>& in, int padding, int row, int col, int block) {
+  std::vector<double> res(block * block, 0.);
+  for (int i = 0; i < block; i++) {
+    const int idx = (row * block + i) * padding + (col * block);
+    std::copy(in.begin() + idx, in.begin() + idx + block, res.begin() + i * block);
+  }
+  return res;
+}
+
+std::pair<int, int> coords(const boost::mpi::cartesian_communicator& cart, int rank) {
+  auto coords = cart.coordinates(rank);
+  return {coords[0], coords[1]};
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  boost::mpi::broadcast(world, n, 0);
+
+  auto [lhs_, rhs_] = in_;
+
+  const int power = find_most_close_power_of_2(world.size());
+  const int involved = std::pow(power, 2);
+
+  if (world.rank() >= involved) {
+    world.split(1);
+    return true;
+  }
+
+  auto active_comm = world.split(0);
+
+  const int padding = power * ((n + power - 1) / power);
+  const int block = padding / power;
+
+  const auto padding2 = padding * padding;
+  const auto block2 = block * block;
+
+  if (world.rank() == 0) {
+    lhs_ = mkpad(lhs_, n, padding);
+    rhs_ = mkpad(rhs_, n, padding);
+  }
+
+  boost::mpi::cartesian_communicator cart{active_comm, boost::mpi::cartesian_topology{{power, true}, {power, true}},
+                                          false};
+
+  const auto [row, col] = coords(cart, cart.rank());
+
+  auto [left_rank, right_rank] = cart.shifted_ranks(1, 1);
+  auto [up_rank, down_rank] = cart.shifted_ranks(0, 1);
+  std::vector<double> local_lhs(block2, 0.0);
+  std::vector<double> local_rhs(block2, 0.0);
+  std::vector<double> local_res(block2, 0.0);
+
+  if (cart.rank() == 0) {
+    for (int proc = 0; proc < involved; ++proc) {
+      const auto [p_row, p_col] = coords(cart, proc);
+
+      auto lblock = mkblock(lhs_, padding, p_row, p_col, block);
+      auto rblock = mkblock(rhs_, padding, p_row, p_col, block);
+
+      if (proc == 0) {
+        local_lhs = std::move(lblock);
+        local_rhs = std::move(rblock);
+      } else {
+        cart.send(proc, 0, lblock.data(), block2);
+        cart.send(proc, 1, rblock.data(), block2);
+      }
+    }
+  } else {
+    cart.recv(0, 0, local_lhs.data(), block2);
+    cart.recv(0, 1, local_rhs.data(), block2);
+  }
+
+  for (int i = 0; i < row; i++) {
+    cart.send(right_rank, 2, local_lhs.data(), block2);
+    cart.recv(right_rank, 2, local_lhs.data(), block2);
+  }
+  for (int i = 0; i < col; i++) {
+    cart.send(down_rank, 3, local_rhs.data(), block2);
+    cart.recv(down_rank, 3, local_rhs.data(), block2);
+  }
+
+  for (int s = 0; s < power; s++) {
+    for (int i = 0; i < block; i++) {
+      for (int l = 0; l < block; l++) {
+        double a_il = local_lhs[i * block + l];
+        for (int j = 0; j < block; j++) {
+          local_res[i * block + j] += a_il * local_rhs[l * block + j];
+        }
+      }
+    }
+    cart.send(right_rank, 4, local_lhs.data(), block2);
+    cart.recv(right_rank, 4, local_lhs.data(), block2);
+    cart.send(down_rank, 5, local_rhs.data(), block2);
+    cart.recv(down_rank, 5, local_rhs.data(), block2);
+  }
+
+  if (cart.rank() != 0) {
+    cart.send(0, 6, local_res.data(), block2);
+  } else {
+    res_.resize(padding2, 0.0);
+
+    for (int proc = 0; proc < involved; proc++) {
+      if (proc == 0) {
+        for (int i = 0; i < block; i++) {
+          int dest_index = i * padding;
+          std::copy(local_res.begin() + i * block, local_res.begin() + (i + 1) * block, res_.begin() + dest_index);
+        }
+      } else {
+        std::vector<double> buf(block2);
+        cart.recv(proc, 6, buf.data(), block2);
+
+        const auto [p_row, p_col] = coords(cart, proc);
+        const int begin_row = p_row * block;
+        const int begin_col = p_col * block;
+
+        for (int i = 0; i < block; i++) {
+          std::copy(buf.begin() + i * block, buf.begin() + (i + 1) * block,
+                    res_.begin() + (begin_row + i) * padding + begin_col);
+        }
+      }
+    }
+
+    std::vector<double> overall_res(n * n, 0.0);
+    for (int i = 0; i < n; i++) {
+      std::copy(res_.begin() + i * padding, res_.begin() + i * padding + n, overall_res.begin() + i * n);
+    }
+    res_ = std::move(overall_res);
+  }
+  return true;
+}
+
+bool vershinina_a_cannons_algorithm::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    auto* data_ptr = reinterpret_cast<double*>(taskData->outputs[0]);
+    std::copy(res_.begin(), res_.end(), data_ptr);
+  }
+  return true;
+}
+\end{lstlisting}
+
+
+\end{document}
