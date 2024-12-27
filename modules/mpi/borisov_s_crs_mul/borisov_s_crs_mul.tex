@@ -1,0 +1,738 @@
+\documentclass[12pt]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  tabsize=2,
+  language=C++,
+  numbers=left,
+  numberstyle=\tiny
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \large 
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+        \vspace{4cm}
+        \textbf{\Large Отчёт по выполнению задания}\\
+        \textbf{\large «Умножение разреженных матриц в формате CRS с использованием MPI»}\\[3cm]
+
+        \vspace{3cm}
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПМоп3 \\
+        \textit{Борисов Сергей Михайлович}\\[1cm]
+
+        \textbf{Преподаватель:}\\
+        \textit{Сысоев Александр Владимирович, доцент}\\[2cm]
+
+        \vfill
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+В данном отчёте рассматривается задача умножения разреженных матриц, элементы которых имеют тип \texttt{double}, с использованием модели параллельных вычислений MPI). 
+Основная цель работы - реализовать эффективный алгоритм умножения двух разреженных матриц в формате CRS (Compressed Row Storage) и исследовать его производительность по сравнению с последовательным вариантом.
+
+\section{Постановка задачи}
+В рамках данной работы необходимо:
+\begin{enumerate}
+    \item Разработать алгоритм умножения двух разреженных матриц $A$ и $B$ (размером $m\times n$ и $n\times k$ соответственно), хранящихся в формате CRS.
+    \item Выполнить распараллеливание алгоритма с помощью MPI: распределить строки первой матрицы между несколькими процессами.
+    \item Провести валидацию корректности результата (сравнение с последовательной реализацией).
+    \item Проанализировать и сравнить производительность:
+        \begin{itemize}
+            \item последовательного варианта;
+            \item параллельных вариантов (2, 4 и более процессов).
+        \end{itemize}
+\end{enumerate}
+
+\section{Описание алгоритма умножения}
+
+Формат CRS (Compressed Row Storage) предполагает хранение в трёх массивах:
+\begin{itemize}
+    \item \texttt{values}: значения ненулевых элементов;
+    \item \texttt{col\_index}: индексы столбцов соответствующих ненулевых элементов;
+    \item \texttt{row\_ptr}: префиксные суммы (указывают, где в \texttt{values} и \texttt{col\_index} начинается строка).
+\end{itemize}
+
+Для умножения матриц \(A\) (размер \(m \times n\)) и \(B\) (размер \(n \times k\)) в формате CRS (Compressed Row Storage) реализуется следующий общий план:
+
+\begin{enumerate}
+    \item \textbf{Чтение и подготовка данных.}\\
+    \(\texttt{A\_values}, \texttt{A\_col\_index}, \texttt{A\_row\_ptr}\) описывают ненулевые элементы и структуру строк матрицы \(A\). Аналогичные три вектора заданы для \(B\). Размеры \(A\) и \(B\) (число строк и столбцов) вычисляются по \(\texttt{row\_ptr}\) и \(\max(\texttt{col\_index}) + 1\). Для результирующей матрицы \(C\) (размер \(m \times k\)) инициализируются пустые вектора \(\texttt{C\_values}\), \(\texttt{C\_col\_index}\) и массив \(\texttt{C\_row\_ptr}\) длиной \(m+1\).
+
+    \item \textbf{Основной цикл по строкам \(A\).}\\
+    Для каждой строки \(i \in [0..m-1]\):
+    \begin{enumerate}
+        \item Выделяется временный буфер \(\texttt{temp}\) и обнуляется.
+        \item Считывается диапазон индексов \([\texttt{A\_row\_ptr}[i], \texttt{A\_row\_ptr}[i+1]])\) ненулевых элементов строки \(i\).
+        \item Для каждого ненулевого элемента \(A[i,a\_col]\):
+        \begin{itemize}
+            \item Определяется диапазон ненулевых элементов строки \(a\_col\) в \(B\): \([\texttt{B\_row\_ptr}[a\_col], \texttt{B\_row\_ptr}[a\_col + 1]])\).
+            \item Для каждого \(\texttt{b\_col}\) из этого диапазона обновляется 
+            \[
+            \texttt{temp}[b\_col] \;{+}{=}\; A[i,a\_col] \times B[a\_col,b\_col].
+            \]
+        \end{itemize}
+        \item Собираются все ненулевые значения из \(\texttt{temp}\) и добавляются в \(\texttt{C\_values}\) и \(\texttt{C\_col\_index}\) (индекс столбца и значение).
+        \item Текущее положение в \(\texttt{C\_values}\) фиксируется в \(\texttt{C\_row\_ptr}[i]\).
+    \end{enumerate}
+
+    \item \textbf{Завершение формирования \(C\).}\\
+    Элемент \(\texttt{C\_row\_ptr}[m]\) указывает на итоговое число ненулевых элементов в \(C\). Таким образом, результирующая матрица \(C\) хранится в CRS-формате через векторы \(\texttt{C\_values}\), \(\texttt{C\_col\_index}\) и \(\texttt{C\_row\_ptr}\).
+\end{enumerate}
+
+В итоге мы получаем матрицу 
+\[
+C = A \times B,
+\]
+где работа идёт только по ненулевым элементам матриц \(A\) и \(B\), что существенно экономит время при умножении разреженных структур.
+
+\section{Схема распараллеливания}
+
+В моей реализации для умножения матриц \(A\) и \(B\) в формате CRS используется общий подход к параллелизации:
+
+\begin{enumerate}
+    \item \textbf{Распределение данных}. 
+    Нулевой (корневой) процесс инициализирует данные о матрицах и передаёт их всем остальным процессам.
+
+    \item \textbf{Разделение строк матрицы \(A\)}. 
+    Все строки \(A\) равномерно (по возможности) распределяются между процессами. Каждый процесс получает свой поддиапазон строк, который ему предстоит обработать.
+
+    \item \textbf{Локальное умножение}. 
+    На каждом процессе выполняется умножение «своих» строк \(A\) на общую матрицу \(B\). Результат аккумулируется в локальные структуры, соответствующие части результирующей матрицы \(C\).
+
+    \item \textbf{Сбор результатов}. 
+    По завершении умножения на каждом процессе фрагменты итоговой матрицы \(C\) отправляются корневому процессу, где все локальные результаты объединяются в итоговую матрицу \(C\) в формате CRS.
+\end{enumerate}
+
+Таким образом, основная идея - \textbf{разделить строки \(A\) между процессами} и передать каждому полную информацию о матрице \(B\). Затем все частичные результаты собираются в финальную разреженную матрицу \(C\). 
+
+
+\section{Описание MPI-реализации}
+
+В данном проекте для параллельного умножения разреженных матриц в формате CRS используется класс 
+\texttt{CrsMatrixMulTaskMPI}.
+
+\subsection{Основная структура класса}
+
+Файл \texttt{ops\_mpi.hpp} содержит объявление класса 
+\texttt{CrsMatrixMulTaskMPI : public ppc::core::Task}, где хранятся следующие ключевые поля:
+\begin{itemize}
+    \item \texttt{A\_values\_}, \texttt{A\_col\_index\_}, \texttt{A\_row\_ptr\_} - разреженное описание матрицы \(A\).
+    \item \texttt{B\_values\_}, \texttt{B\_col\_index\_}, \texttt{B\_row\_ptr\_} - аналогичные вектора для матрицы \(B\).
+    \item \texttt{C\_values\_}, \texttt{C\_col\_index\_}, \texttt{C\_row\_ptr\_} - вектора для будущей результирующей матрицы \(C\).
+    \item \texttt{A\_nrows\_}, \texttt{A\_ncols\_}, \texttt{B\_nrows\_}, \texttt{B\_ncols\_}, \texttt{C\_nrows\_}, \texttt{C\_ncols\_} - размеры матриц.
+    \item \texttt{world} - \texttt{boost::mpi::communicator}, позволяющий взаимодействовать с остальными процессами.
+\end{itemize}
+
+Класс \texttt{CrsMatrixMulTaskMPI} переопределяет виртуальные методы:
+\begin{itemize}
+    \item \texttt{validation()},
+    \item \texttt{pre\_processing()},
+    \item \texttt{run()},
+    \item \texttt{post\_processing()}.
+\end{itemize}
+Каждый из этих методов отвечает за определённый этап работы параллельного умножения.
+
+\subsection{Этапы выполнения в \texttt{ops\_mpi.cpp}}
+
+\subsubsection{\texttt{validation()}}
+Здесь проверяется корректность входных данных:
+\begin{itemize}
+    \item Убеждаемся, что в \texttt{taskData} есть шесть входных векторов (три для матрицы \(A\) и три для \(B\)) и три выходных (для \(C\)).
+    \item Проверяем совпадение размеров: число столбцов \(A\) (рассчитанное через \(\max(\texttt{A\_col\_index}) + 1\)) должно совпадать с числом строк \(B\).
+\end{itemize}
+Если данные не согласованы, метод возвращает \texttt{false}, и задача не выполняется.
+
+\subsubsection{\texttt{pre\_processing()}}
+Здесь нулевой процесс (\texttt{rank = 0}) считывает всю информацию о матрицах \(A\) и \(B\) из \texttt{taskData->inputs}, чтобы впоследствии передать её остальным процессам. В частности:
+\begin{itemize}
+    \item \(\texttt{A\_values\_}\), \(\texttt{A\_col\_index\_}\), \(\texttt{A\_row\_ptr\_}\) извлекаются из \texttt{inputs[0..2]}.
+    \item Аналогичные три вектора для \(B\) - из \texttt{inputs[3..5]}.
+    \item Определяются \(A\_nrows\_, A\_ncols\_, B\_nrows\_, B\_ncols\_\).
+    \item Для будущей матрицы \(C\) задаются \(C\_nrows\_ = A\_nrows\_\) и \(C\_ncols\_ = B\_ncols\_\), а также инициализируется \(\texttt{C\_row\_ptr\_}\) нулями.
+\end{itemize}
+На этом этапе данные ещё не рассылаются - это произойдёт внутри \texttt{run()}.
+
+\subsubsection{\texttt{run()}}
+Это ключевой метод, где осуществляется сама параллелизация. Логика следующая:
+\begin{enumerate}
+    \item \textbf{Рассылка} (\texttt{broadcast}):
+    \begin{itemize}
+        \item Все вектора \(\texttt{A\_values\_}\), \(\texttt{A\_col\_index\_}\), \(\texttt{A\_row\_ptr\_}\) и аналогичные для \(B\), а также \(C\_nrows\_\) и \(C\_ncols\_\) рассылаются от корневого процесса (rank = 0) всем остальным с помощью \texttt{boost::mpi::broadcast}.
+    \end{itemize}
+    \item \textbf{Разделение строк матрицы \(A\)}:
+    \begin{itemize}
+        \item Вычисляется, сколько строк приходится на процесс: 
+        \[
+          \texttt{rows\_per\_process} = \lfloor \frac{C\_nrows\_}{\texttt{world.size()}} \rfloor.
+        \]
+        \item Для текущего процесса \(\texttt{rank}\) назначается диапазон \([\texttt{start\_row}, \texttt{end\_row})\). 
+        \item Исключением является последний процесс, который может взять «остаток» строк (если \(C\_nrows\_\) не делится на \(\texttt{world.size()}\)).
+    \end{itemize}
+    \item \textbf{Локальное умножение}:
+    \begin{itemize}
+        \item Каждый процесс инициализирует временный буфер \(\texttt{temp}\) размера \(\texttt{C\_ncols\_}\) = \(B\_ncols\_\).
+        \item Проходит по «своим» строкам \(A\) (с индексами \([\texttt{start\_row}, \texttt{end\_row})\)) и умножает их на все ненулевые элементы соответствующих строк \(B\).
+        \item Ненулевые результаты складываются в \(\texttt{local\_values}\) и \(\texttt{local\_col\_index}\), а \(\texttt{local\_row\_ptr}\) хранит, где начинается строка \(i\) в локальном буфере.
+    \end{itemize}
+    \item \textbf{Сбор результатов} (\texttt{gather}):
+    \begin{itemize}
+        \item На нулевой процесс (\texttt{rank = 0}) собираются все локальные куски \(\texttt{local\_values}\), \(\texttt{local\_col\_index}\) и \(\texttt{local\_row\_ptr}\).
+        \item Затем происходит «сшивание» этих кусков в единые вектора \(\texttt{C\_values\_}\), \(\texttt{C\_col\_index\_}\) и \(\texttt{C\_row\_ptr\_}\). 
+          При этом сдвигаются индексы, чтобы сохранить целостность структуры \(\texttt{C\_row\_ptr\_}\) (для второго, третьего и т. д. процесса).
+    \end{itemize}
+\end{enumerate}
+
+Таким образом, \textbf{run()} одновременно:
+\begin{itemize}
+    \item Рассылает всю необходимую информацию о \(A\) и \(B\) всем процессам,
+    \item Выполняет локальное умножение на каждом процессе,
+    \item Собирательно формирует результирующую матрицу \(C\) на корневом процессе.
+\end{itemize}
+
+\subsubsection{\texttt{post\_processing()}}
+Наконец, если текущий процесс - корневой (rank = 0), результаты умножения (вектора \texttt{C\_values\_}, \texttt{C\_col\_index\_}, \texttt{C\_row\_ptr\_}) укладываются обратно в \(\texttt{taskData->outputs}\). Так в итоговом формате CRS матрицу \(C\) можно использовать дальше (либо сравнить с последовательным результатом).
+
+\subsection{Итоговый процесс параллелизации}
+
+В итоге, реализация \texttt{CrsMatrixMulTaskMPI} позволяет:
+\begin{itemize}
+    \item \textbf{Разделить строки} матрицы \(A\) между всеми процессами,
+    \item \textbf{Хранить матрицу \(B\) полностью} на каждом процессе (после \texttt{broadcast}),
+    \item \textbf{Собрать части результата} в структуру \(\texttt{C\_values\_}, \texttt{C\_col\_index\_}, \texttt{C\_row\_ptr\_}\) лишь на корневом процессе,
+    \item \textbf{Минимизировать расходы на передачу данных}, так как параллельно передаются лишь исходные векторы (один раз) и локальные части результата (на этапе \texttt{gather}).
+\end{itemize}
+
+Код, описывающий данную логику, расположен в:
+\begin{itemize}
+    \item \texttt{ops\_mpi.hpp} - заголовок с описанием класса \texttt{CrsMatrixMulTaskMPI} и его полей,
+    \item \texttt{ops\_mpi.cpp} - реализация методов \texttt{validation()}, \texttt{pre\_processing()}, \texttt{run()} и \texttt{post\_processing()}.
+\end{itemize}
+
+Таким образом, при запуске на \(p\) процессах мы распараллеливаем вычислительную нагрузку по строкам \(A\) и в завершении аккуратно сливаем все локальные результаты в итоговую разреженную матрицу \(C\). 
+
+
+\section{Результаты экспериментов}
+
+\subsection{Условия проведения экспериментов}
+
+\begin{itemize}
+    \item \textbf{Аппаратная конфигурация}: 
+    \begin{itemize}
+        \item CPU: Intel Core i5
+        \item RAM: 32 GB
+        \item ОС: Windows 11
+    \end{itemize}
+    \item \textbf{Тестовые размеры}: 
+    \begin{itemize}
+        \item Основные тесты: 5000$\times$5000 (плотность 5\%).
+        \item Проверочные тесты: 3$\times$3, 1000$\times$1000 и т.д.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Пример замера времени}
+Для сравнения взяты:
+\begin{itemize}
+    \item \textbf{Последовательная (seq) версия}
+    \item \textbf{MPI-версия}: 2 процесса
+    \item \textbf{MPI-версия}: 4 процесса
+\end{itemize}
+
+Ниже приведены выдержки из протокола тестов:
+
+\begin{itemize}
+    \item \textbf{SEQ (последовательная версия)}: 
+    \begin{verbatim}
+    [ RUN      ] borisov_s_crs_seq_test.Test_Pipeline_Run
+    pc-2024-autumn\tasks\seq\borisov_s_crs_mul:pipeline:0.8324172000
+    [       OK ] ... (1255 ms)
+    ...
+    [ RUN      ] borisov_s_crs_seq_test.Test_Task_Run
+    pc-2024-autumn\tasks\seq\borisov_s_crs_mul:task_run:1.2700391000
+    [       OK ] ... (1754 ms)
+    Итого: ~3011 ms
+    \end{verbatim}
+
+    \item \textbf{MPI, 2 процесса}:
+    \begin{verbatim}
+    [ RUN      ] borisov_s_crs_mpi_test.Test_Pipeline_Run
+    pc-2024-autumn\tasks\mpi\borisov_s_crs_mul:pipeline:1.2260979000
+    [       OK ] ... (1707 ms)
+    ...
+    [ RUN      ] borisov_s_crs_mpi_test.Test_Task_Run
+    pc-2024-autumn\tasks\mpi\borisov_s_crs_mul:task_run:1.4502339000
+    [       OK ] ... (2065 ms)
+    Итого: ~3773 ms
+    \end{verbatim}
+
+    \item \textbf{MPI, 4 процесса}:
+    \begin{verbatim}
+    [ RUN      ] borisov_s_crs_mpi_test.Test_Pipeline_Run
+    pc-2024-autumn\tasks\mpi\borisov_s_crs_mul:pipeline:0.8284928000
+    [       OK ] ... (1213 ms)
+    ...
+    [ RUN      ] borisov_s_crs_mpi_test.Test_Task_Run
+    pc-2024-autumn\tasks\mpi\borisov_s_crs_mul:task_run:1.2442223000
+    [       OK ] ... (1848 ms)
+    Итого: ~3261 ms
+    \end{verbatim}
+\end{itemize}
+
+\subsection{Вывод по результатам}
+\begin{enumerate}
+    \item При размере 5000$\times$5000 (плотность $\approx 5\%$) на данном оборудовании параллельная реализация всё ещё уступает или почти не выигрывает у последовательной из-за накладных расходов.
+    \item На 2 процессах суммарное время оказалось ~3773 ms, на 4 процессах ~3261 ms, тогда как последовательная версия показала ~3011 ms.
+    \item Возможная причина: при относительно «небольших» матрицах (с учётом их плотности) коммуникационные затраты превышают выигрыш от распараллеливания.
+    \item На более крупных задачах или с оптимизацией обмена данных MPI-вариант может показать лучшую масштабируемость.
+\end{enumerate}
+
+\section{Выводы}
+В ходе работы:
+\begin{itemize}
+    \item Реализовано умножение разреженных матриц (double) в формате CRS.
+    \item Осуществлены последовательная и MPI-версии, прошедшие функциональное тестирование (корректность).
+    \item Изучена производительность (2 и 4 процесса). На тестовом примере (5000$\times$5000, плотность 5\%) не получено достаточное ускорения относительно последовательной реализации.
+\end{itemize}
+
+Основные направления улучшения:
+\begin{itemize}
+    \item Оптимизировать порядок коммуникации и передачу данных.
+    \item Использовать другие схемы разбиения (например, блочную для обоих измерений).
+    \item Пробовать другие форматы разреженных матриц (например, ELLPACK, CSR5) или гибридные подходы.
+\end{itemize}
+
+\section{Список литературы}
+\begin{enumerate}
+    \item Документация по Boost.MPI: \url{https://www.boost.org/doc/libs/master/doc/html/mpi/tutorial.html}
+    \item Интуит. Лекция "Введение в параллельные вычисления": \url{https://intuit.ru/studies/courses/1156/190/lecture/4954?page=5}
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+
+Для полноты приводятся тексты файлов с реализацией последовательной и MPI-версий умножения разреженных матриц.
+
+\subsection*{Файл \texttt{ops\_seq.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace borisov_s_crs_mul {
+
+class CrsMatrixMulTask : public ppc::core::Task {
+ public:
+  explicit CrsMatrixMulTask(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+  void initialize(const std::vector<double>& A_values, const std::vector<int>& A_col_index,
+                  const std::vector<int>& A_row_ptr, const std::vector<double>& B_values,
+                  const std::vector<int>& B_col_index, const std::vector<int>& B_row_ptr, int A_nrows, int A_ncols,
+                  int B_nrows, int B_ncols) {
+    A_values_ = A_values;
+    A_col_index_ = A_col_index;
+    A_row_ptr_ = A_row_ptr;
+
+    B_values_ = B_values;
+    B_col_index_ = B_col_index;
+    B_row_ptr_ = B_row_ptr;
+
+    A_nrows_ = A_nrows;
+    A_ncols_ = A_ncols;
+    B_nrows_ = B_nrows;
+    B_ncols_ = B_ncols;
+
+    C_nrows_ = A_nrows;
+    C_ncols_ = B_ncols;
+  }
+
+ private:
+  std::vector<double> A_values_;
+  std::vector<int> A_col_index_;
+  std::vector<int> A_row_ptr_;
+
+  std::vector<double> B_values_;
+  std::vector<int> B_col_index_;
+  std::vector<int> B_row_ptr_;
+
+  std::vector<double> C_values_;
+  std::vector<int> C_col_index_;
+  std::vector<int> C_row_ptr_;
+
+  int A_nrows_, A_ncols_, A_nnz_;
+  int B_nrows_, B_ncols_, B_nnz_;
+  int C_nrows_, C_ncols_;
+  int C_nnz_;
+};
+
+}  // namespace borisov_s_crs_mul
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_seq.cpp}}
+
+\begin{lstlisting}
+#include "seq/borisov_s_crs_mul/include/ops_seq.hpp"
+
+#include <algorithm>
+
+using namespace std::chrono_literals;
+
+namespace borisov_s_crs_mul {
+
+bool CrsMatrixMulTask::validation() {
+  internal_order_test();
+
+  if (taskData->inputs.size() != 6 || taskData->outputs.size() != 3) {
+    return false;
+  }
+
+  if (taskData->inputs_count.size() < 6 || taskData->outputs_count.size() < 3) {
+    return false;
+  }
+
+  int A_nrows = static_cast<int>(taskData->inputs_count[2] - 1);
+  int B_nrows = static_cast<int>(taskData->inputs_count[5] - 1);
+
+  return A_nrows > 0 && B_nrows > 0;
+}
+
+bool CrsMatrixMulTask::pre_processing() {
+  internal_order_test();
+
+  A_nnz_ = static_cast<int>(taskData->inputs_count[0]);
+  A_values_.assign(reinterpret_cast<const double*>(taskData->inputs[0]),
+                   reinterpret_cast<const double*>(taskData->inputs[0]) + A_nnz_);
+  A_col_index_.assign(reinterpret_cast<const int*>(taskData->inputs[1]),
+                      reinterpret_cast<const int*>(taskData->inputs[1]) + A_nnz_);
+  A_row_ptr_.assign(reinterpret_cast<const int*>(taskData->inputs[2]),
+                    reinterpret_cast<const int*>(taskData->inputs[2]) + taskData->inputs_count[2]);
+  A_nrows_ = static_cast<int>(taskData->inputs_count[2] - 1);
+  A_ncols_ = *std::max_element(A_col_index_.begin(), A_col_index_.end()) + 1;
+
+  B_nnz_ = static_cast<int>(taskData->inputs_count[3]);
+  B_values_.assign(reinterpret_cast<const double*>(taskData->inputs[3]),
+                   reinterpret_cast<const double*>(taskData->inputs[3]) + B_nnz_);
+  B_col_index_.assign(reinterpret_cast<const int*>(taskData->inputs[4]),
+                      reinterpret_cast<const int*>(taskData->inputs[4]) + B_nnz_);
+  B_row_ptr_.assign(reinterpret_cast<const int*>(taskData->inputs[5]),
+                    reinterpret_cast<const int*>(taskData->inputs[5]) + taskData->inputs_count[5]);
+  B_nrows_ = static_cast<int>(taskData->inputs_count[5] - 1);
+  B_ncols_ = *std::max_element(B_col_index_.begin(), B_col_index_.end()) + 1;
+
+  C_nrows_ = A_nrows_;
+  C_ncols_ = B_ncols_;
+  C_row_ptr_.assign(C_nrows_ + 1, 0);
+  C_values_.clear();
+  C_col_index_.clear();
+
+  return true;
+}
+
+bool CrsMatrixMulTask::run() {
+  internal_order_test();
+
+  std::vector<double> temp(C_ncols_, 0.0);
+
+  for (int i = 0; i < C_nrows_; ++i) {
+    std::fill(temp.begin(), temp.end(), 0.0);
+
+    int startA = A_row_ptr_[i];
+    int endA = A_row_ptr_[i + 1];
+
+    for (int posA = startA; posA < endA; ++posA) {
+      double a_val = A_values_[posA];
+      int a_col = A_col_index_[posA];
+
+      int startB = B_row_ptr_[a_col];
+      int endB = B_row_ptr_[a_col + 1];
+
+      for (int posB = startB; posB < endB; ++posB) {
+        int b_col = B_col_index_[posB];
+        double b_val = B_values_[posB];
+        temp[b_col] += a_val * b_val;
+      }
+    }
+
+    C_row_ptr_[i] = static_cast<int>(C_values_.size());
+    for (int col = 0; col < C_ncols_; ++col) {
+      if (temp[col] != 0.0) {
+        C_values_.push_back(temp[col]);
+        C_col_index_.push_back(col);
+      }
+    }
+  }
+
+  C_row_ptr_[C_nrows_] = static_cast<int>(C_values_.size());
+  C_nnz_ = static_cast<int>(C_values_.size());
+
+  return true;
+}
+
+bool CrsMatrixMulTask::post_processing() {
+  internal_order_test();
+
+  taskData->outputs_count[0] = static_cast<unsigned int>(C_values_.size());
+  taskData->outputs_count[1] = static_cast<unsigned int>(C_col_index_.size());
+  taskData->outputs_count[2] = static_cast<unsigned int>(C_row_ptr_.size());
+
+  taskData->outputs[0] = reinterpret_cast<uint8_t*>(C_values_.data());
+  taskData->outputs[1] = reinterpret_cast<uint8_t*>(C_col_index_.data());
+  taskData->outputs[2] = reinterpret_cast<uint8_t*>(C_row_ptr_.data());
+
+  return true;
+}
+
+}  // namespace borisov_s_crs_mul
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace borisov_s_crs_mul_mpi {
+
+class CrsMatrixMulTaskMPI : public ppc::core::Task {
+ public:
+  explicit CrsMatrixMulTaskMPI(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> A_values_;
+  std::vector<int> A_col_index_;
+  std::vector<int> A_row_ptr_;
+
+  std::vector<double> B_values_;
+  std::vector<int> B_col_index_;
+  std::vector<int> B_row_ptr_;
+
+  std::vector<double> C_values_;
+  std::vector<int> C_col_index_;
+  std::vector<int> C_row_ptr_;
+
+  int A_nrows_, A_ncols_;
+  int B_nrows_, B_ncols_;
+  int C_nrows_, C_ncols_;
+
+  boost::mpi::communicator world;
+};
+
+}  // namespace borisov_s_crs_mul_mpi
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.cpp}}
+
+\begin{lstlisting}
+#include "mpi/borisov_s_crs_mul/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/vector.hpp>
+#include <functional>
+#include <vector>
+
+using namespace std::chrono_literals;
+
+namespace borisov_s_crs_mul_mpi {
+
+bool CrsMatrixMulTaskMPI::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    A_values_.assign(reinterpret_cast<const double*>(taskData->inputs[0]),
+                     reinterpret_cast<const double*>(taskData->inputs[0]) + taskData->inputs_count[0]);
+    A_col_index_.assign(reinterpret_cast<const int*>(taskData->inputs[1]),
+                        reinterpret_cast<const int*>(taskData->inputs[1]) + taskData->inputs_count[1]);
+    A_row_ptr_.assign(reinterpret_cast<const int*>(taskData->inputs[2]),
+                      reinterpret_cast<const int*>(taskData->inputs[2]) + taskData->inputs_count[2]);
+
+    B_values_.assign(reinterpret_cast<const double*>(taskData->inputs[3]),
+                     reinterpret_cast<const double*>(taskData->inputs[3]) + taskData->inputs_count[3]);
+    B_col_index_.assign(reinterpret_cast<const int*>(taskData->inputs[4]),
+                        reinterpret_cast<const int*>(taskData->inputs[4]) + taskData->inputs_count[4]);
+    B_row_ptr_.assign(reinterpret_cast<const int*>(taskData->inputs[5]),
+                      reinterpret_cast<const int*>(taskData->inputs[5]) + taskData->inputs_count[5]);
+
+    A_nrows_ = static_cast<int>(taskData->inputs_count[2] - 1);
+    B_nrows_ = static_cast<int>(taskData->inputs_count[5] - 1);
+    A_ncols_ = *std::max_element(A_col_index_.begin(), A_col_index_.end()) + 1;
+    B_ncols_ = *std::max_element(B_col_index_.begin(), B_col_index_.end()) + 1;
+
+    C_nrows_ = A_nrows_;
+    C_ncols_ = B_ncols_;
+    C_values_.clear();
+    C_col_index_.clear();
+    C_row_ptr_.assign(C_nrows_ + 1, 0);
+  }
+
+  return true;
+}
+
+bool CrsMatrixMulTaskMPI::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    if (taskData->inputs.size() != 6 || taskData->outputs.size() != 3) {
+      return false;
+    }
+
+    if (taskData->inputs_count.size() < 6 || taskData->outputs_count.size() < 3) {
+      return false;
+    }
+
+    int A_ncols = *std::max_element(reinterpret_cast<const int*>(taskData->inputs[1]),
+                                    reinterpret_cast<const int*>(taskData->inputs[1]) + taskData->inputs_count[1]) +
+                  1;
+
+    int B_nrows = static_cast<int>(taskData->inputs_count[5] - 1);
+
+    if (A_ncols != B_nrows) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool CrsMatrixMulTaskMPI::run() {
+  internal_order_test();
+
+  boost::mpi::broadcast(world, A_values_, 0);
+  boost::mpi::broadcast(world, A_col_index_, 0);
+  boost::mpi::broadcast(world, A_row_ptr_, 0);
+  boost::mpi::broadcast(world, B_values_, 0);
+  boost::mpi::broadcast(world, B_col_index_, 0);
+  boost::mpi::broadcast(world, B_row_ptr_, 0);
+  boost::mpi::broadcast(world, C_nrows_, 0);
+  boost::mpi::broadcast(world, C_ncols_, 0);
+
+  int rows_per_process = C_nrows_ / world.size();
+  int start_row = world.rank() * rows_per_process;
+  int end_row = (world.rank() == world.size() - 1) ? C_nrows_ : start_row + rows_per_process;
+
+  std::vector<double> temp(C_ncols_, 0.0);
+  std::vector<double> local_values;
+  std::vector<int> local_col_index;
+  std::vector<int> local_row_ptr(end_row - start_row + 1, 0);
+
+  int local_nnz_count = 0;
+
+  for (int i = start_row; i < end_row; ++i) {
+    std::fill(temp.begin(), temp.end(), 0.0);
+
+    for (int posA = A_row_ptr_[i]; posA < A_row_ptr_[i + 1]; ++posA) {
+      double a_val = A_values_[posA];
+      int a_col = A_col_index_[posA];
+      for (int posB = B_row_ptr_[a_col]; posB < B_row_ptr_[a_col + 1]; ++posB) {
+        int b_col = B_col_index_[posB];
+        double b_val = B_values_[posB];
+        temp[b_col] += a_val * b_val;
+      }
+    }
+
+    local_row_ptr[i - start_row] = local_nnz_count;
+    for (int col = 0; col < C_ncols_; ++col) {
+      if (temp[col] != 0.0) {
+        local_values.push_back(temp[col]);
+        local_col_index.push_back(col);
+        ++local_nnz_count;
+      }
+    }
+  }
+
+  local_row_ptr[end_row - start_row] = local_nnz_count;
+
+  if (world.rank() == 0) {
+    std::vector<std::vector<double>> all_values(world.size());
+    std::vector<std::vector<int>> all_col_indices(world.size());
+    std::vector<std::vector<int>> all_row_ptrs(world.size());
+
+    boost::mpi::gather(world, local_values, all_values, 0);
+    boost::mpi::gather(world, local_col_index, all_col_indices, 0);
+    boost::mpi::gather(world, local_row_ptr, all_row_ptrs, 0);
+
+    for (int i = 0; i < world.size(); ++i) {
+      C_values_.insert(C_values_.end(), all_values[i].begin(), all_values[i].end());
+      C_col_index_.insert(C_col_index_.end(), all_col_indices[i].begin(), all_col_indices[i].end());
+
+      if (i == 0) {
+        C_row_ptr_ = all_row_ptrs[i];
+      } else {
+        int offset = C_row_ptr_.back();
+        for (size_t j = 1; j < all_row_ptrs[i].size(); ++j) {
+          C_row_ptr_.push_back(all_row_ptrs[i][j] + offset);
+        }
+      }
+    }
+  } else {
+    boost::mpi::gather(world, local_values, 0);
+    boost::mpi::gather(world, local_col_index, 0);
+    boost::mpi::gather(world, local_row_ptr, 0);
+  }
+
+  return true;
+}
+
+bool CrsMatrixMulTaskMPI::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    taskData->outputs_count[0] = C_values_.size();
+    taskData->outputs_count[1] = C_col_index_.size();
+    taskData->outputs_count[2] = C_row_ptr_.size();
+
+    taskData->outputs[0] = reinterpret_cast<uint8_t*>(C_values_.data());
+    taskData->outputs[1] = reinterpret_cast<uint8_t*>(C_col_index_.data());
+    taskData->outputs[2] = reinterpret_cast<uint8_t*>(C_row_ptr_.data());
+  }
+
+  return true;
+}
+
+}  // namespace borisov_s_crs_mul_mpi
+\end{lstlisting}
+
+\end{document}
