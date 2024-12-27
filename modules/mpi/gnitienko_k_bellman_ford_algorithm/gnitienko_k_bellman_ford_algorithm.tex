@@ -1,0 +1,510 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{hyperref} 
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{cppstyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=cppstyle}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+
+\title{}
+\author{}
+\date{}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+\vspace*{\fill}
+{\Huge \textbf{Отчет по лабораторной работе № 3}}
+
+\vspace{0.5cm}
+{\Huge \textbf{Поиск кратчайших путей из одной вершины (алгоритм Беллмана-Форда). С CRS графов.}}
+
+\vspace{0.5cm}
+{\Huge \textbf{Вариант 23}}
+
+\vspace{1.5cm}
+{\Large \textbf{Выполнил:} Гнитиенко Кирилл ПР1} 
+
+\vspace{0.5cm}
+{\Large \textbf{Преподаватель:} Сысоев А.В., доцент кафедры ВВСП} 
+
+\vspace*{\fill}
+
+{\large Нижний Новгород\\ 2024}
+\end{titlepage}
+
+\newpage
+\section*{Введение}
+
+В данной работе рассматривается реализация алгоритма Беллмана-Форда для поиска кратчайших путей в графе. Алгоритм Беллмана-Форда является одним из классических алгоритмов в теории графов, способных находить кратчайшие пути от одной вершины (источника) до всех остальных вершин в графе, даже если в графе присутствуют рёбра с отрицательным весом. В рамках данной лабораторной работы была разработана последовательная и параллельная версии алгоритма, использующие представление графа в формате CRS (Compressed Row Storage). Целью работы является исследование эффективности параллельной реализации алгоритма, а также оценка корректности результатов.
+
+\newpage
+\section*{Постановка задачи}
+
+Задача состоит в разработке и реализации алгоритма Беллмана-Форда для поиска кратчайших путей в графе. Исходный граф представлен в виде матрицы смежности, которая конвертируется в формат CRS. Необходимо реализовать как последовательную, так и параллельную версии алгоритма с использованием MPI. Основные требования включают корректность вычислений, возможность обработки графов с отрицательными весами ребер (при этом должна быть осуществлена проверка на наличие отрицательных циклов), а также оценка производительности параллельной версии относительно последовательной.
+
+\newpage
+\section*{Описание алгоритма}
+
+Алгоритм Беллмана-Форда используется для нахождения кратчайших путей от одной вершины до всех остальных в графе. В отличие от алгоритма Дейкстры, он поддерживает графы с рёбрами отрицательного веса, но не работает в случае наличия отрицательных циклов.
+
+\subsection{Шаги работы алгоритма} \begin{enumerate}
+
+\item \textbf{Инициализация:}
+   Все расстояния до вершин, кроме начальной, устанавливаются в $\infty$. Расстояние до начальной вершины равно 0.
+
+\item \textbf{Итерация:}
+   В цикле выполняется поиск кратчайших путей. На каждой итерации для каждого ребра $(u, v)$ с весом $w(u, v)$ проверяется, можно ли сократить расстояние до вершины $v$, используя вершину $u$. Если расстояние через вершину $u$ меньше, чем текущее расстояние до вершины $v$, то оно обновляется.
+
+\item \textbf{Повторение итераций:}
+   Алгоритм повторяет итерации $V - 1$ раз (где $V$ — количество вершин в графе). Это гарантирует, что все кратчайшие пути без отрицательных циклов будут найдены, так как в графе с $V$ вершинами нет путей длиннее $V - 1$ рёбер.
+
+\item \textbf{Проверка на отрицательные циклы:}
+   После завершения $V - 1$ итераций проверяется, можно ли улучшить расстояние хотя бы для одного рёбра. Если это возможно, то в графе существует отрицательный цикл.
+   \end{enumerate}
+
+\subsection{Время работы}
+Время работы алгоритма — $O(V \cdot E)$, где $V$ — количество вершин, а $E$ — количество рёбер. Это связано с тем, что для каждой из $V - 1$ итераций алгоритм проверяет все рёбра графа.
+
+
+\newpage
+\section*{Описание схемы распараллеливания}
+
+Для распараллеливания алгоритма Беллмана-Форда используется модель передачи сообщений (MPI). Основной подход заключается в распределении рёбер графа между процессами. Каждый процесс: \begin{itemize}
+    \item Получает свою часть рёбер, которые он обрабатывает локально.
+На каждой итерации обновляет значения кратчайших расстояний для вершин, связанных с этими рёбрами.
+    \item Выполняет синхронизацию с другими процессами, обмениваясь информацией о минимальных расстояниях.
+\end{itemize}
+Процессы выполняют итерации параллельно, а синхронизация данных происходит через операцию \texttt{reduce}. Эта схема обеспечивает согласованность результатов на каждом шаге, но добавляет накладные расходы на передачу данных.
+
+Основные аспекты реализации распараллеливания: \begin{itemize}
+
+ \item Разделение рёбер: Все рёбра графа распределяются между процессами.
+ \item Синхронизация данных: На каждой итерации массив минимальных расстояний обновляется всеми процессами через глобальный обмен.
+ \item Сходимость: Алгоритм завершается, если на очередной итерации не происходит обновлений расстояний.
+ \end{itemize}
+Данная схема позволяет увеличить производительность на больших графах, но накладные расходы становятся значительными при увеличении числа процессов или малых размерах графа.
+
+
+
+\newpage
+\section*{MPI-версия - описание программной реализации}
+
+В MPI-версии алгоритма используется библиотека \texttt{boost::mpi}. Код разбит на следующие части:
+\begin{itemize}
+    \item \texttt{BellmanFordAlgMPI::pre\_processing()} : Получает входные данные, преобразует матрицу смежности в формат CRS (только на процессе 0).
+    \item \texttt{BellmanFordAlgMPI::validation()} : Проверяет корректность входных данных (только на процессе 0).
+    \item \texttt{BellmanFordAlgMPI::run()} : Основная логика алгоритма. Инициализирует расстояния, проводит итерации релаксации и проверку на отрицательные циклы.
+    \item \texttt{BellmanFordAlgMPI::post\_processing()} : Процесс 0 передает результаты.
+    \item \texttt{BellmanFordAlgMPI::Iteration()} : Логика итерации поиска кратчайших путей. Распределяет вершины между процессами, проводит поиск кратчайщих путей и выполняет редукцию расстояний.
+\end{itemize}
+
+\newpage
+\section*{Результаты экспериментов}
+
+Эксперименты проводились на графе размером в 10 000 вершин, с различным количеством процессоров. Результаты времени работы представлены в таблице ниже.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    Размер графа & Последовательное время (с) & \multicolumn{3}{c|}{Параллельное время (с)} \\
+    \cline{3-5}
+     &  & 2 процесса & 4 процесса & 8 процессов \\
+    \hline
+    10000 & 1.52 & 2.4 & 4.0 & 7.7 \\
+    \hline
+    \end{tabular}
+    \caption{Сравнение времени работы последовательной и параллельной версий алгоритма Беллмана-Форда}
+    \label{tab:time_results}
+\end{table}
+
+
+Корректность работы алгоритма проверялась путем сравнения результатов последовательной и параллельной версий на одних и тех же графах. Ошибок обнаружено не было.
+
+\newpage
+\section*{Выводы из результатов}
+
+Результаты экспериментов, представленные в таблице, показывают, что параллельная версия алгоритма Беллмана-Форда не даёт ожидаемого улучшения производительности при увеличении числа процессов. Наоборот, время выполнения параллельных версий увеличивается по мере добавления процессов:
+
+Это поведение может указывать на следующие причины:
+\begin{itemize}
+    \item \textbf{Накладные расходы на синхронизацию:} При увеличении числа процессов возрастает накладка на синхронизацию данных между процессами. В случае малого размера графа эти накладные расходы могут существенно превышать выигрыш от параллельной обработки.
+    \item \textbf{Недостаточно эффективный код:} В текущей реализации алгоритма могут быть недостаточно эффективно использованы ресурсы параллельных вычислений. Например, операции обновления минимальных расстояний и синхронизации данных могут быть выполнены не в оптимальном порядке, что приводит к дополнительным задержкам. Возможным улучшением является более эффективное распределение данных и минимизация количества синхронизаций между процессами.
+\end{itemize}
+
+
+Таким образом, экспериментальные данные показывают, что параллельная версия алгоритма в данном случае не даёт преимуществ по времени.
+
+\newpage
+\section*{Заключение}
+
+На основе полученных результатов можно сделать вывод, что параллельная реализация алгоритма Беллмана-Форда не приводит к значительному ускорению вычислений для графов размером порядка 10000 вершин. Эксперименты показали, что при увеличении числа процессов время выполнения параллельных версий увеличивается, что может быть связано с накладными расходами на синхронизацию данных между процессами, которые становятся более заметными на малых графах. Кроме того, недостаточная оптимизация текущей реализации алгоритма, возможно, приводит к неэффективному использованию параллельных вычислений, что также влияет на производительность.
+
+Для более крупных графов, где количество рёбер и вершин значительно увеличивается, параллельная версия может продемонстрировать значительное улучшение производительности. Важно отметить, что эффективность параллельных вычислений зависит от размера задачи и архитектуры вычислительных систем. При решении более масштабных задач с большим числом рёбер и вершин параллельная версия алгоритма, вероятно, будет работать быстрее, так как накладные расходы на синхронизацию станут менее значимыми.
+
+В ходе работы была проверена корректность обеих версий алгоритма, и ошибки не были обнаружены. Это подтверждает, что как последовательная, так и параллельная версии алгоритма работают корректно. Однако для повышения производительности параллельной реализации требуется дальнейшая оптимизация.
+
+\newpage
+\section*{Литература}
+
+\begin{enumerate}
+    \item \href{https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%91%D0%B5%D0%BB%D0%BB%D0%BC%D0%B0%D0%BD%D0%B0_%E2%80%94_%D0%A4%D0%BE%D1%80%D0%B4%D0%B0}{Wiki - Алгоритм Белллмана-Форда}
+    
+    \item \href{https://habr.com/ru/articles/548266/}{Habr - MPI}
+    
+    \item Антонов А.С. Параллельное программирование с использованием технологии MPI: Учебное пособие
+\end{enumerate}
+
+\newpage
+\section*{Приложение}
+
+\begin{lstlisting}[language=C++, caption={Код алгоритма Беллмана-Форда}]
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace gnitienko_k_bellman_ford_algorithm_mpi {
+
+class BellmanFordAlgSeq : public ppc::core::Task {
+ public:
+  explicit BellmanFordAlgSeq(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  size_t V{};
+  std::vector<int> values;
+  std::vector<int> columns;
+  std::vector<int> row_ptr;
+  std::vector<int> shortest_paths;
+  const int INF = std::numeric_limits<int>::max();
+
+  bool Iteration(std::vector<int>& paths);
+  bool check_negative_cycle();
+  void toCRS(const int* input_matrix);
+};
+
+class BellmanFordAlgMPI : public ppc::core::Task {
+ public:
+  explicit BellmanFordAlgMPI(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  size_t V{};
+  size_t values_size{};
+  size_t columns_size{};
+  size_t row_ptr_size{};
+  std::vector<int> values;
+  std::vector<int> columns;
+  std::vector<int> row_ptr;
+  std::vector<int> shortest_paths;
+  boost::mpi::communicator world;
+  const int INF = std::numeric_limits<int>::max();
+
+  bool Iteration(std::vector<int>& paths);
+  bool check_negative_cycle();
+  void toCRS(const int* input_matrix);
+};
+
+}  // namespace gnitienko_k_bellman_ford_algorithm_mpi
+
+#include "mpi/gnitienko_k_bellman-ford-algorithm/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/vector.hpp>
+#include <functional>
+#include <random>
+#include <string>
+#include <thread>
+#include <vector>
+
+void gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::toCRS(const int* input_matrix) {
+  row_ptr.push_back(0);
+  for (size_t i = 0; i < V; ++i) {
+    for (size_t j = 0; j < V; ++j) {
+      if (input_matrix[i * V + j] != 0) {
+        values.push_back(input_matrix[i * V + j]);
+        columns.push_back(j);
+      }
+    }
+    row_ptr.push_back(values.size());
+  }
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::pre_processing() {
+  internal_order_test();
+  auto* input_matrix = reinterpret_cast<int*>(taskData->inputs[0]);
+
+  toCRS(input_matrix);
+
+  shortest_paths.resize(V, INF);
+  shortest_paths[0] = 0;
+  return true;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::validation() {
+  internal_order_test();
+  auto* input_matrix = reinterpret_cast<int*>(taskData->inputs[0]);
+  V = taskData->inputs_count[0];
+  size_t j = 0;
+  for (size_t i = 0; i < V; i++) {
+    if (input_matrix[i * V + j] != 0) return false;
+    j++;
+  }
+  return taskData->inputs_count[0] == taskData->outputs_count[0] && taskData->inputs_count[0] != 0;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::Iteration(std::vector<int>& paths) {
+  bool changed = false;
+  for (size_t i = 0; i < V; i++) {
+    for (int j = row_ptr[i]; j < row_ptr[i + 1]; j++) {
+      int v = columns[j];
+      int weight = values[j];
+      if (paths[i] != INF && paths[i] + weight < paths[v]) {
+        paths[v] = paths[i] + weight;
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::check_negative_cycle() {
+  for (size_t i = 0; i < V; ++i) {
+    for (int j = row_ptr[i]; j < row_ptr[i + 1]; ++j) {
+      int v = columns[j];
+      int weight = values[j];
+      if (shortest_paths[i] != INF && shortest_paths[i] + weight < shortest_paths[v]) {
+        std::cerr << "Negative cycle detected in seq!" << std::endl;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::run() {
+  internal_order_test();
+
+  bool changed = false;
+  for (size_t i = 0; i < V - 1; i++) {
+    changed = Iteration(shortest_paths);
+    if (!changed) break;
+  }
+
+  for (size_t i = 0; i < V; i++) {
+    if (shortest_paths[i] == INF) shortest_paths[i] = 0;
+  }
+
+  return !check_negative_cycle();
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgSeq::post_processing() {
+  internal_order_test();
+  for (size_t i = 0; i < V; i++) {
+    reinterpret_cast<int*>(taskData->outputs[0])[i] = shortest_paths[i];
+  }
+  return true;
+}
+
+// PARALLEL
+//----------------------------------------------------------------------------
+
+void gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::toCRS(const int* input_matrix) {
+  row_ptr.push_back(0);
+  for (size_t i = 0; i < V; ++i) {
+    for (size_t j = 0; j < V; ++j) {
+      if (input_matrix[i * V + j] != 0) {
+        values.push_back(input_matrix[i * V + j]);
+        columns.push_back(j);
+      }
+    }
+    row_ptr.push_back(values.size());
+  }
+
+  values_size = values.size();
+  columns_size = columns.size();
+  row_ptr_size = row_ptr.size();
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::check_negative_cycle() {
+  for (size_t i = 0; i < V; ++i) {
+    for (int j = row_ptr[i]; j < row_ptr[i + 1]; ++j) {
+      int v = columns[j];
+      int weight = values[j];
+      if (shortest_paths[i] != INF && shortest_paths[i] + weight < shortest_paths[v]) {
+        std::cerr << "Negative cycle detected in mpi!" << std::endl;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::Iteration(std::vector<int>& paths) {
+  bool changed = false;
+  std::vector<int> start_paths = paths;
+  int rank = world.rank();
+  int size = world.size();
+
+  int local_size = V / size;
+  int remainder = V % size;
+  int start = rank * local_size + std::min(rank, remainder);
+  int end = start + local_size + (rank < remainder ? 1 : 0);
+
+  for (int i = start; i < end; i++) {
+    for (int j = row_ptr[i]; j < row_ptr[i + 1]; j++) {
+      int v = columns[j];
+      int weight = values[j];
+      if (start_paths[i] != INF && start_paths[i] + weight < start_paths[v]) {
+        start_paths[v] = start_paths[i] + weight;
+      }
+    }
+  }
+
+  std::vector<int> reduced_paths(V, INF);
+  boost::mpi::reduce(world, start_paths.data(), V, reduced_paths.data(), boost::mpi::minimum<int>(), 0);
+
+  if (world.rank() == 0) {
+    for (size_t i = 0; i < V; i++) {
+      if (paths[i] != reduced_paths[i]) {
+        changed = true;
+        break;
+      }
+    }
+    paths = reduced_paths;
+  }
+
+  boost::mpi::broadcast(world, paths.data(), paths.size(), 0);
+  boost::mpi::broadcast(world, changed, 0);
+
+  return changed;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* input_matrix = reinterpret_cast<int*>(taskData->inputs[0]);
+
+    toCRS(input_matrix);
+  }
+  return true;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* input_matrix = reinterpret_cast<int*>(taskData->inputs[0]);
+    V = taskData->inputs_count[0];
+    size_t j = 0;
+    for (size_t i = 0; i < V; i++) {
+      if (input_matrix[i * V + j] != 0) return false;
+      j++;
+    }
+    return taskData->inputs_count[0] == taskData->outputs_count[0] && taskData->inputs_count[0] != 0;
+  }
+  return true;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::run() {
+  internal_order_test();
+  boost::mpi::broadcast(world, V, 0);
+  boost::mpi::broadcast(world, values_size, 0);
+  boost::mpi::broadcast(world, columns_size, 0);
+  boost::mpi::broadcast(world, row_ptr_size, 0);
+  values.resize(values_size);
+  columns.resize(columns_size);
+  row_ptr.resize(row_ptr_size);
+  boost::mpi::broadcast(world, values.data(), values.size(), 0);
+  boost::mpi::broadcast(world, columns.data(), columns.size(), 0);
+  boost::mpi::broadcast(world, row_ptr.data(), row_ptr.size(), 0);
+
+  shortest_paths.resize(V, INF);
+  shortest_paths[0] = 0;
+
+  bool changed = false;
+  for (size_t i = 0; i < V - 1; ++i) {
+    changed = Iteration(shortest_paths);
+    if (!changed) break;
+  }
+
+  if (world.rank() == 0) {
+    for (size_t i = 0; i < V; ++i) {
+      if (shortest_paths[i] == INF) shortest_paths[i] = 0;
+    }
+  }
+
+  if (world.rank() == 0) {
+    return !check_negative_cycle();
+  }
+
+  return true;
+}
+
+bool gnitienko_k_bellman_ford_algorithm_mpi::BellmanFordAlgMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    for (size_t i = 0; i < V; ++i) {
+      reinterpret_cast<int*>(taskData->outputs[0])[i] = shortest_paths[i];
+    }
+  }
+  return true;
+}
+
+\end{lstlisting}
+
+\end{document}
