@@ -1,44 +1,639 @@
-\input{preamble/preamble.tex}
+\documentclass[a4paper, 14pt]{extarticle}
+
+% Поддержка языков
+\usepackage[english, russian]{babel} 
+
+% Настройка кодировок
+%\usepackage[utf8]{inputenc}
+%\usepackage[T2A]{fontenc}
+
+% Настройка шрифтов
+\usepackage{fontspec}
+\setmainfont[Ligatures=TeX]{Times New Roman} % Шрифт для основного текста документа
+\setsansfont[Ligatures=TeX]{Arial}
+%\setmonofont{Consolas} % Шрифт для кода
+
+% Настройка отступов от краев страницы
+\usepackage[left=3cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}
+
+\usepackage{titleps} % Колонтитулы
+\usepackage{subfig} % Для подписей к рисункам и таблицам
+\usepackage{graphicx} % для вставки картинок
+\graphicspath{{./img/}} % Путь до папки с изображениями
+% Пакет для отрисовки графиков
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning,shadows}
+\usepackage{stmaryrd} % Стрелки в формулах
+\usepackage{indentfirst} % Красная строка после заголовка
+\usepackage{hhline} % Улучшенные горизонтальные линии в таблицах
+\usepackage{multirow} % Ячейки в несколько строчек в таблицах
+\usepackage{longtable} % Многостраничные таблицы
+\usepackage{paralist,array} % Список внутри таблицы
+\usepackage[normalem]{ulem}  % Зачеркнутый текст
+\usepackage{upgreek, tipa} % Красивые греческие буквы
+\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools} % ams пакеты для математики, табуляции
+\usepackage{nicematrix} % Особые матрицы pNiceArray
+
+\linespread{1.5} % Межстрочный интервал
+\setlength{\parindent}{1.25cm} % Табуляция
+\setlength{\parskip}{0cm}
+
+% Пакет для красивого выделения кода
+\usepackage{minted}
+\setminted{fontsize=\footnotesize}
+
+% Добавляем гипертекстовое оглавление в PDF
+\usepackage[
+bookmarks=true, colorlinks=true, unicode=true,
+urlcolor=black,linkcolor=black, anchorcolor=black,
+citecolor=black, menucolor=black, filecolor=black,
+]{hyperref}
+
+% Убрать переносы слов
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+\newpagestyle{main}{
+	% Верхний колонтитул
+	\setheadrule{0cm} % Размер линии отделяющей колонтитул от страницы
+	\sethead{}{}{} % Содержание {слева}{по центру}{справа}
+	% Нижний колонтитул
+	\setfootrule{0cm} % Размер линии отделяющей колонтитул от страницы
+	\setfoot{}{}{\thepage} % Содержание {слева}{по центру}{справа}
+}
+\pagestyle{main}
+
+% Выделение кода
+\usepackage{listings}
+\usepackage{xcolor} % для цветовой подсветки синтаксиса (не обязательно)
+\lstset{
+    language=C++, % язык программирования
+    basicstyle=\ttfamily\small, % шрифт и размер текста
+    keywordstyle=\color{blue}, % стиль для ключевых слов
+    commentstyle=\color{green}, % стиль для комментариев
+    stringstyle=\color{red}, % стиль для строк
+    breaklines=true, % перенос строк
+    numbers=left, % нумерация строк
+    numberstyle=\tiny\color{gray}, % стиль для номеров строк
+    frame=single, % рамка вокруг кода
+    captionpos=b, % подпись снизу
+    inputencoding=utf8, % кодировка ввода
+}
+
 
 \begin{document}
-    \input{preamble/title}
+    {\fontsize{11.5pt}{10pt}\selectfont
+\newcommand{\Cafedra}{Кафедра математического обеспечения и суперкомпьютерных технологий}
+
+\newcommand{\TeacherPosition}{доцент кафедры ВВСП, к.т.н.}
+\newcommand{\TeacherName}{Сысоев А.В.}
+
+\newcommand{\LabNumber}{3}
+\newcommand{\LabName}{Умножение плотных матриц. Алгоритм Штрассена.}
+\newcommand{\LabCourse}{Параллельное программирование для кластерных систем}
+ 
+\newcommand{\StudentGroup}{3822Б1ФИ1}
+\newcommand{\StudentName}{Савченко М.П.}
+
+
+%%% Title page
+
+\pagenumbering{gobble} % Remove number from title page
+
+\setlength{\parindent}{0cm} % First line margin
+
+\begin{center}
+	МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ \\
+	
+	Федеральное государственное автономное образовательное учреждение высшего \mbox{образования} \\
+	\vspace{10pt}
+	«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского» (ННГУ)
+	
+\end{center}\par
+
+\begin{center}
+	\vspace{12pt}
+	\Cafedra
+\end{center}\par
+
+\vspace{54pt}
+
+ОТЧЕТ \\
+ЗАЩИЩЕН С ОЦЕНКОЙ \\ \par
+\vspace{11pt}
+ПРЕПОДАВАТЕЛИ 
+
+\begin{table}[H] \centering
+	\begin{tabular}{p{2.05in}p{0.0in}p{1.76in}p{-0.01in}p{1.89in}}
+		
+		% row no:1
+		\multicolumn{1}{p{2.05in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\TeacherPosition}}} &
+		\multicolumn{1}{p{0.0in}}{} &
+		\multicolumn{1}{p{1.76in}}{} &
+		\multicolumn{1}{p{-0.01in}}{} &
+		\multicolumn{1}{p{1.89in}}{\centering {\fontsize{12pt}{1.5pt}\selectfont{\TeacherName}}} \\[1pt]
+		\hhline{-~-~-}
+		% row no:2
+		\multicolumn{1}{p{2.05in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{уч. степень, должность, звание}}} & 
+		\multicolumn{1}{p{0.0in}}{} & 
+		\multicolumn{1}{p{1.76in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{подпись, дата}}} & 
+		\multicolumn{1}{p{-0.01in}}{} & 
+		\multicolumn{1}{p{1.89in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont{фамилия, инициалы}}} \\[1pt]
+		\hhline{~~~~~}
+		
+	\end{tabular}
+\end{table}
+
+
+\vspace{20pt}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{p{6.49in}}
+		%row no:1
+		\multicolumn{1}{c}{\fontsize{14pt}{1.5pt}\selectfont {\centering{\textbf{ОТЧЕТ ПО ЛАБОРАТОРНОЙ РАБОТЕ №\LabNumber}}}}\\[10pt]
+		\hhline{~}
+		%row no:2
+		
+		\multicolumn{1}{p{6.49in}}{ \centering{\textbf{«\LabName»}}} \\[50pt]
+		\hhline{~}
+		%row no:3
+		\multicolumn{1}{p{6.49in}}{\centering {по курсу: \MakeUppercase{\LabCourse}}
+		} \\
+		\hhline{~}
+		%row no:4
+		\multicolumn{1}{p{6.49in}}{} \\
+		
+		\hhline{~}
+		
+	\end{tabular}
+\end{table}
+
+\vspace{4pt}
+
+РАБОТУ ВЫПОЛНИЛИ\par
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{p{1.3in}p{1.0in}p{-0.04in}p{1.63in}p{-0.04in}p{1.63in}}
+		% row no:1
+		\multicolumn{1}{p{1.3in}}{\fontsize{11pt}{1.5pt}\selectfont {СТУДЕНТЫ ГР. №}} & 
+		\multicolumn{1}{p{1.0in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\StudentGroup}}} & 
+		\multicolumn{1}{p{-0.04in}}{} & 
+		\multicolumn{1}{p{1.63in}}{} & 
+		\multicolumn{1}{p{-0.04in}}{} & 
+		\multicolumn{1}{p{1.63in}}{\centering {\fontsize{11pt}{1.5pt}\selectfont{\StudentName}}} \\
+		\hhline{~-~-~-}
+		% row no:2
+		\multicolumn{1}{p{1.3in}}{} & 
+		\multicolumn{1}{p{1.0in}}{\centering{\fontsize{10pt}{1.5pt}\selectfont  {№ группы}}} & 
+		\multicolumn{1}{p{-0.04in}}{} & 
+		\multicolumn{1}{p{1.63in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont  {подпись, дата}}} & 
+		\multicolumn{1}{p{-0.04in}}{} & 
+		\multicolumn{1}{p{1.63in}} {\centering{\fontsize{10pt}{1.5pt}\selectfont  {фамилия, инициалы}}} \\
+		\hhline{~~~~~~}
+		
+	\end{tabular}
+\end{table}
+
+\vspace*{\fill}
+
+\begin{center}
+	Нижний Новгород \the\year{}
+\end{center}\par
+
+\newpage
+
+\setlength{\parindent}{1.25cm} % Restore first line margin
+\pagenumbering{arabic} % Restore page numbering
+}
 
     \tableofcontents
 
     \newpage
     \section{Введение}
-    \input{body/Introduction}
+Цель данной лабораторной работы заключается в изучении и реализации алгоритма Штрассена для умножения плотных матриц, а также исследовании его производительности в двух версиях: последовательной и параллельной. 
+
+Алгоритм Штрассена представляет собой улучшенный подход к умножению матриц, который снижает вычислительную сложность по сравнению с классическим методом. Это достигается за счет уменьшения количества скалярных умножений за счет рекурсивного разложения матриц. 
+
+Важной частью работы является создание параллельной версии алгоритма с использованием технологии MPI (Message Passing Interface), которая позволяет эффективно распределять вычисления между несколькими процессами. Это особенно актуально при работе с большими матрицами, где последовательные алгоритмы становятся узким местом.
+
+В ходе лабораторной работы:
+\begin{itemize}
+    \item Реализованы последовательная и параллельная версии алгоритма.
+    \item Проведено тестирование обеих реализаций для оценки их производительности.
+    \item Проанализирована эффективность параллельной реализации.
+\end{itemize}
+
+Далее будет представлена теоретическая основа алгоритма Штрассена, особенности его реализации и результаты экспериментов.
 
     \newpage
     \section{Теоретическая часть}
-    \input{body/Theoretical_part}
+\subsection{Описание алгоритма Штрассена}
+
+Алгоритм Штрассена является одной из самых известных техник ускорения умножения квадратных матриц. В отличие от классического метода с вычислительной сложностью \(O(n^3)\), алгоритм Штрассена уменьшает сложность до порядка \(O(n^{\log_2 7}) \approx O(n^{2.81})\). Это достигается за счет сокращения количества скалярных умножений через рекурсивное разложение.
+
+Алгоритм делит исходные матрицы \(A\) и \(B\) размером \(n \times n\) на подматрицы размером \(n/2 \times n/2\):
+\[
+A = \begin{bmatrix}
+A_{11} & A_{12} \\
+A_{21} & A_{22}
+\end{bmatrix}, \quad
+B = \begin{bmatrix}
+B_{11} & B_{12} \\
+B_{21} & B_{22}
+\end{bmatrix}.
+\]
+
+Для вычисления произведения \(C = A \cdot B\) требуется вычислить семь матриц \(M_1, M_2, \dots, M_7\) вместо восьми в классическом методе:
+\[
+\begin{aligned}
+M_1 &= (A_{11} + A_{22})(B_{11} + B_{22}), \\
+M_2 &= (A_{21} + A_{22})B_{11}, \\
+M_3 &= A_{11}(B_{12} - B_{22}), \\
+M_4 &= A_{22}(B_{21} - B_{11}), \\
+M_5 &= (A_{11} + A_{12})B_{22}, \\
+M_6 &= (A_{21} - A_{11})(B_{11} + B_{12}), \\
+M_7 &= (A_{12} - A_{22})(B_{21} + B_{22}).
+\end{aligned}
+\]
+
+Итоговая матрица \(C\) собирается следующим образом:
+\[
+\begin{aligned}
+C_{11} &= M_1 + M_4 - M_5 + M_7, \\
+C_{12} &= M_3 + M_5, \\
+C_{21} &= M_2 + M_4, \\
+C_{22} &= M_1 - M_2 + M_3 + M_6.
+\end{aligned}
+\]
+
+\subsection{Сравнение с классическим методом}
+Классический алгоритм умножения матриц требует \(n^3\) операций умножения, в то время как алгоритм Штрассена за счет уменьшения количества скалярных умножений позволяет снизить вычислительную сложность. Однако это достигается ценой увеличения числа операций сложения и вычитания, а также расхода памяти из-за рекурсивного разложения.
+
+\subsection{Особенности параллельной реализации}
+Алгоритм Штрассена хорошо подходит для параллелизации, так как вычисления \(M_1, M_2, \dots, M_7\) независимы друг от друга. В данной работе используется технология MPI, которая позволяет распределить эти вычисления между несколькими процессами.
+
+\textbf{Преимущества параллельной реализации:}
+\begin{itemize}
+    \item Снижение времени выполнения за счет распределения нагрузки.
+    \item Увеличение объема обрабатываемых данных за счет использования кластеров или многопроцессорных систем.
+\end{itemize}
+
+\textbf{Ограничения:}
+\begin{itemize}
+    \item Дополнительные затраты на передачу данных между процессами.
+    \item Необходимость синхронизации при сборе результатов.
+\end{itemize}
 
     \newpage
     \section{Реализация}
-    \input{body/Realization}
+\subsection{Последовательная реализация}
+В последовательной версии алгоритма Штрассена реализовано рекурсивное разложение входных матриц, их подматриц, а также вычисление семи промежуточных матриц \(M_1, M_2, \dots, M_7\). Если размер матрицы на текущем уровне рекурсии становится меньше или равен пороговому значению (\(4 \times 4\) в данной реализации), используется классический алгоритм умножения.
+
+Особенности реализации:
+\begin{itemize}
+    \item Функция проверяет, является ли размер матрицы степенью двойки. Если нет, то матрица заполняется нулями до ближайшего размера.
+    \item Матрицы разбиваются на подматрицы \(A_{11}, A_{12}, \dots, B_{22}\).
+    \item Рекурсивно вычисляются \(M_1, M_2, \dots, M_7\).
+    \item Итоговая матрица \(C\) собирается из блоков \(C_{11}, C_{12}, C_{21}, C_{22}\).
+\end{itemize}
+
+\subsection{Параллельная реализация}
+Для параллельной реализации используется библиотека MPI. Вычисления промежуточных матриц \(M_1, M_2, \dots, M_7\) распределяются между процессами.
+
+Особенности параллельной реализации:
+\begin{itemize}
+    \item Главный процесс (с рангом 0) выполняет разбиение матриц и отправляет данные другим процессам.
+    \item Вычисление каждой из матриц \(M_1\)–\(M_7\) выполняется параллельно.
+    \item Результаты собираются обратно в главный процесс с использованием MPI-функции \texttt{reduce}.
+\end{itemize}
+
 
     \newpage
     \section{Экспериментальная часть}
-    \input{body/Experimental_part}
+\subsection{Условия эксперимента}
+Для проверки эффективности последовательной и параллельной реализаций алгоритма Штрассена были проведены вычисления на случайных матрицах размером \(128 \times 128\), \(256 \times 256\), \(512 \times 512\) и \(1024 \times 1024\).  
+
+Эксперименты проводились с использованием разного числа процессов (\(1\), \(2\), \(4\), \(7\)). Для каждой комбинации числа процессов и размера матрицы программа запускалась \(5\) раз, а измеренное время усреднялось.  
+
+Важно отметить, что алгоритм эффективен для матриц, размерность которых является степенью двойки. Если размерность матрицы не соответствует этому условию, она автоматически дополняется до ближайшей степени двойки. Например, матрица размером \(600 \times 600\) дополняется нулями до размера \(1024 \times 1024\), что приводит к дополнительным накладным вычислениям.
+
+
+\subsection{Результаты экспериментов}
+Результаты экспериментов представлены в таблице (время указано в секундах):
+
+\begin{table}[H]
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Число процессов & 128 × 128 & 256 × 256 & 512 × 256 & 1024 × 1024 \\ \hline
+1               & 0.11      & 0.83      & 5.76      & 41.96       \\ \hline
+2               & 0.09      & 0.54      & 4.14      & 25.43       \\ \hline
+4               & 0.06      & 0.48      & 2.75      & 18.85       \\ \hline
+7               & 0.06      & 0.41      & 2.36      & 14.90       \\ \hline
+\end{tabular}
+\end{table}
+
+
+\subsection{Анализ результатов}
+\begin{enumerate}
+\item \textbf{Ускорение при увеличении числа процессов:} 
+   \begin{itemize}
+       \item На больших размерах матриц (\(512 \times 512\) и \(1024 \times 1024\)) наблюдается значительное сокращение времени вычислений при увеличении числа процессов. Например, для матриц размером \(1024 \times 1024\) переход с \(1\) процесса на \(7\) уменьшает время выполнения с \(41.96\) секунд до \(14.90\) секунд.
+       \item Для меньших матриц (\(128 \times 128\)) выигрыш во времени минимален, так как накладные расходы на синхронизацию и передачу данных перекрывают эффект параллелизации.
+   \end{itemize}
+
+\item\textbf{Эффективность при кратных степеням двойки матрицах:}  \\
+   Алгоритм показывает максимальную производительность для матриц, размерность которых кратна степени двойки. Это связано с особенностью разбиения матриц в методе Штрассена.  
+
+   Однако для некратных степеням двойки матриц происходит дополнение до ближайшей большей размерности, что увеличивает объем вычислений. Например, при умножении матриц размером \(600 \times 600\) они будут дополнены до \(1024 \times 1024\). Это приводит к значительному увеличению времени выполнения и требует дополнительных ресурсов.
+
+\item \textbf{Пределы эффективности:}\\
+   При увеличении числа процессов до \(4\) или \(7\) наблюдается уменьшение времени выполнения, но эффект не линейный. Это связано с:
+   \begin{itemize}
+       \item Накладными расходами на синхронизацию процессов.
+       \item Нехваткой достаточного количества задач для равномерного распределения между процессами при малых размерах матриц.
+   \end{itemize}
+\end{enumerate}
+
 
     \newpage
     \section{Выводы}
-    \input{body/Summary}
+\begin{enumerate}
+\item \textbf{Эффективность алгоритма Штрассена:}  \\
+   Реализованный алгоритм показал свою эффективность при умножении плотных матриц большого размера. Наиболее значительный прирост производительности наблюдается при увеличении числа процессов для матриц размером \(512 \times 512\) и \(1024 \times 1024\).
+
+\item \textbf{Влияние кратности размерности матриц:} \\ 
+   Алгоритм Штрассена оптимален для матриц, размерность которых кратна степени двойки. Некратные размерности приводят к необходимости дополнения матриц до ближайшего подходящего размера, что увеличивает объем вычислений. Например, умножение матриц \(600 \times 600\) фактически сводится к вычислениям для матриц \(1024 \times 1024\).
+
+\item \textbf{Параллелизация алгоритма:}  \\
+   Использование MPI для параллельной версии алгоритма позволило значительно сократить время выполнения программы, особенно для больших матриц.  
+   \begin{itemize}
+       \item При размере матрицы \(1024 \times 1024\) переход с \(1\) на \(7\) процессов уменьшил время вычислений почти в \(3\) раза.
+       \item Однако на малых матрицах (\(128 \times 128\)) выигрыш от параллелизации незначителен из-за накладных расходов на коммуникацию между процессами.
+   \end{itemize}
+
+\item \textbf{Ограничения параллельной версии:}  \\
+   При увеличении числа процессов эффективность роста производительности начинает снижаться. Это связано с:
+   \begin{itemize}
+       \item Ростом накладных расходов на синхронизацию данных.
+       \item Ограничениями алгоритма, которые не позволяют равномерно распределить задачи между всеми процессами при малых размерах матриц.
+   \end{itemize}
+\end{enumerate}
+
 
     \newpage
     \section{Предложения по оптимизации}
-    \input{body/Optimization_suggestions}
+\begin{enumerate}
+\item \textbf{Улучшение работы с некратными матрицами:}  \\
+   Для матриц, размерности которых не кратны степени двойки, можно использовать методы, минимизирующие влияние дополнений:
+   \begin{itemize}
+       \item Применять блочное разбиение матриц для вычислений только с реальными данными.
+       \item Уменьшать размер дополнений за счет использования гибридных методов умножения.
+   \end{itemize}
+
+\item \textbf{Оптимизация параллельной версии: } 
+   \begin{itemize}
+       \item Распределение задач между процессами с учетом их загрузки. Например, процессы с более высокой нагрузкой могут обрабатывать меньшие подзадачи.
+       \item Использование асинхронной передачи данных для снижения накладных расходов на синхронизацию.
+   \end{itemize}
+
+\item \textbf{Проведение дополнительных тестов:} 
+   \begin{itemize}
+       \item Проверка алгоритма на матрицах с некратными степеням двойки размерностями.
+       \item Анализ влияния изменения порогового значения для перехода к стандартному умножению (вместо рекурсии) на производительность.
+   \end{itemize}
+\end{enumerate}
+
+
 
     \newpage
     \section{Заключение}
-    \input{body/Conclusion}
+В ходе лабораторной работы были реализованы последовательная и параллельная версии алгоритма Штрассена для умножения плотных матриц. Проведенные эксперименты подтвердили эффективность алгоритма на матрицах больших размеров. Параллельная версия позволила значительно ускорить вычисления, особенно при увеличении числа процессов.  
+
+Однако при работе с матрицами некратных степеням двойки производительность снижается из-за необходимости дополнений. В дальнейшем возможно улучшение алгоритма за счет оптимизации работы с такими матрицами и применения гибридных подходов к параллелизации.
 
     \newpage
     \section{Литература}
-    \input{body/Literature}
+\begin{enumerate}
+    \item \href{https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%A8%D1%82%D1%80%D0%B0%D1%81%D1%81%D0%B5%D0%BD%D0%B0}{Алгоритм Штрассена. Wikipedia.org}
+    \item \href{https://en.wikipedia.org/wiki/Strassen_algorithm}{Strassen algorithm. Wikipedia.org}
+    \item \href{https://youtu.be/OSelhO6Qnlc?si=hPwljRSC7fxsv0gp}{Strassen algorithm for matrix multiplication (divide and conquer). YouTube.com}
+    \item \href{https://medium.com/swlh/strassens-matrix-multiplication-algorithm-936f42c2b344}{Strassen’s Matrix Multiplication Algorithm. Medium.com}
+    \item \href{https://www.boost.org/doc/libs/1_87_0/doc/html/mpi.html}{Boost.MPI Documentation}
+    \item \href{https://www.open-mpi.org/doc/}{OpenMPI Documentation}
+\end{enumerate}
 
     \newpage
     \section{Приложение}
-    \input{body/Application}
+\subsection{Последовательная реализация}
+\begin{lstlisting}
+std::vector<double> strassen(const std::vector<double>& A, const std::vector<double>& B, size_t _size) {
+  if (_size <= 4) {  // Border of recursion
+    return multiply_standard(A, B, _size);
+  }
+
+  size_t size = _size;
+  if (!is_power_of_two(_size)) {
+    size = 1;
+    while (size < _size) size *= 2;
+  }
+  size_t size_vector = size * size;
+
+  std::vector<double> local_A(size_vector, 0.0);
+  std::vector<double> local_B(size_vector, 0.0);
+
+  for (size_t i = 0; i < _size; i++) {
+    for (size_t j = 0; j < _size; j++) {
+      local_A[i * size + j] = A[i * _size + j];
+      local_B[i * size + j] = B[i * _size + j];
+    }
+  }
+
+  size_t size_half = size / 2;
+  size_t size_half_vector = size_half * size_half;
+
+  std::vector<double> A11(size_half_vector, 0.0);
+  std::vector<double> A12(size_half_vector, 0.0);
+  std::vector<double> A21(size_half_vector, 0.0);
+  std::vector<double> A22(size_half_vector, 0.0);
+
+  std::vector<double> B11(size_half_vector, 0.0);
+  std::vector<double> B12(size_half_vector, 0.0);
+  std::vector<double> B21(size_half_vector, 0.0);
+  std::vector<double> B22(size_half_vector, 0.0);
+
+  for (size_t i = 0; i < size_half; ++i) {
+    for (size_t j = 0; j < size_half; ++j) {
+      A11[i * size_half + j] = local_A[i * size + j];
+      A12[i * size_half + j] = local_A[i * size + j + size_half];
+      A21[i * size_half + j] = local_A[(i + size_half) * size + j];
+      A22[i * size_half + j] = local_A[(i + size_half) * size + j + size_half];
+
+      B11[i * size_half + j] = local_B[i * size + j];
+      B12[i * size_half + j] = local_B[i * size + j + size_half];
+      B21[i * size_half + j] = local_B[(i + size_half) * size + j];
+      B22[i * size_half + j] = local_B[(i + size_half) * size + j + size_half];
+    }
+  }
+
+  std::vector<std::vector<double>> M(7, std::vector<double>(size_half_vector, 0.0));
+
+  M[0] = strassen(add_matrices(A11, A22, size_half), add_matrices(B11, B22, size_half), size_half);
+  M[1] = strassen(add_matrices(A21, A22, size_half), B11, size_half);
+  M[2] = strassen(A11, sub_matrices(B12, B22, size_half), size_half);
+  M[3] = strassen(A22, sub_matrices(B21, B11, size_half), size_half);
+  M[4] = strassen(add_matrices(A11, A12, size_half), B22, size_half);
+  M[5] = strassen(sub_matrices(A21, A11, size_half), add_matrices(B11, B12, size_half), size_half);
+  M[6] = strassen(sub_matrices(A12, A22, size_half), add_matrices(B21, B22, size_half), size_half);
+
+  std::vector<double> local_C(size_vector, 0.0);
+
+  for (size_t i = 0; i < size_half; ++i) {
+    for (size_t j = 0; j < size_half; ++j) {
+      local_C[i * size + j] =
+          M[0][i * size_half + j] + M[3][i * size_half + j] - M[4][i * size_half + j] + M[6][i * size_half + j];
+
+      local_C[i * size + j + size_half] = M[2][i * size_half + j] + M[4][i * size_half + j];
+
+      local_C[(i + size_half) * size + j] = M[1][i * size_half + j] + M[3][i * size_half + j];
+
+      local_C[(i + size_half) * size + j + size_half] =
+          M[0][i * size_half + j] + M[2][i * size_half + j] - M[1][i * size_half + j] + M[5][i * size_half + j];
+    }
+  }
+
+  std::vector<double> C(_size * _size, 0.0);
+  for (size_t i = 0; i < _size; i++) {
+    for (size_t j = 0; j < _size; j++) {
+      C[i * _size + j] = local_C[i * size + j];
+    }
+  }
+
+  return C;
+}
+\end{lstlisting}
+
+
+\newpage
+\subsection{Параллельная реализация}
+\begin{lstlisting}
+std::vector<double> strassen_parallel(const std::vector<double>& A, const std::vector<double>& B, size_t _size) {
+  if (world.rank() > 6) {
+    world.split(1);
+    return {};
+  }
+  boost::mpi::communicator comm = world.split(0);
+  int world_rank = comm.rank();
+  int world_size = comm.size();
+  boost::mpi::broadcast(comm, _size, 0);
+
+  size_t size = _size;
+  if (!is_power_of_two(_size)) {
+    size = 1;
+    while (size < _size) size *= 2;
+  }
+  size_t size_vector = size * size;
+
+  std::vector<double> local_A(size_vector, 0.0);
+  std::vector<double> local_B(size_vector, 0.0);
+
+  if (world_rank == 0) {
+    for (size_t i = 0; i < _size; ++i) {
+      for (size_t j = 0; j < _size; ++j) {
+        local_A[i * size + j] = A[i * _size + j];
+        local_B[i * size + j] = B[i * _size + j];
+      }
+    }
+  }
+
+  boost::mpi::broadcast(comm, local_A, 0);
+  boost::mpi::broadcast(comm, local_B, 0);
+  boost::mpi::broadcast(comm, size, 0);
+
+  size_t size_half = size / 2;
+  size_t size_half_vector = size_half * size_half;
+
+  std::vector<double> A11(size_half_vector, 0.0);
+  std::vector<double> A12(size_half_vector, 0.0);
+  std::vector<double> A21(size_half_vector, 0.0);
+  std::vector<double> A22(size_half_vector, 0.0);
+
+  std::vector<double> B11(size_half_vector, 0.0);
+  std::vector<double> B12(size_half_vector, 0.0);
+  std::vector<double> B21(size_half_vector, 0.0);
+  std::vector<double> B22(size_half_vector, 0.0);
+
+  for (size_t i = 0; i < size_half; ++i) {
+    for (size_t j = 0; j < size_half; ++j) {
+      size_t ind = i * size + j;
+      A11[i * size_half + j] = local_A[ind];
+      A12[i * size_half + j] = local_A[ind + size_half];
+      A21[i * size_half + j] = local_A[ind + size_half * size];
+      A22[i * size_half + j] = local_A[ind + size_half * (size + 1)];
+
+      B11[i * size_half + j] = local_B[ind];
+      B12[i * size_half + j] = local_B[ind + size_half];
+      B21[i * size_half + j] = local_B[ind + size_half * size];
+      B22[i * size_half + j] = local_B[ind + size_half * (size + 1)];
+    }
+  }
+
+  std::vector<std::vector<double>> M(7, std::vector<double>(size_half_vector, 0.0));
+
+  for (int task = world_rank; task < 7; task += world_size) {
+    if (task == 0) {
+      M[0] = strassen(add_matrices(A11, A22, size_half), add_matrices(B11, B22, size_half), size_half);
+    } else if (task == 1) {
+      M[1] = strassen(add_matrices(A21, A22, size_half), B11, size_half);
+    } else if (task == 2) {
+      M[2] = strassen(A11, sub_matrices(B12, B22, size_half), size_half);
+    } else if (task == 3) {
+      M[3] = strassen(A22, sub_matrices(B21, B11, size_half), size_half);
+    } else if (task == 4) {
+      M[4] = strassen(add_matrices(A11, A12, size_half), B22, size_half);
+    } else if (task == 5) {
+      M[5] = strassen(sub_matrices(A21, A11, size_half), add_matrices(B11, B12, size_half), size_half);
+    } else if (task == 6) {
+      M[6] = strassen(sub_matrices(A12, A22, size_half), add_matrices(B21, B22, size_half), size_half);
+    }
+  }
+
+  std::vector<double> global_M(7 * size_half_vector, 0.0);
+  for (size_t i = 0; i < M.size(); ++i) {
+    boost::mpi::reduce(comm, M[i].data(), M[i].size(), global_M.data() + i * size_half_vector, std::plus(), 0);
+  }
+
+  if (world_rank == 0) {
+    std::vector<double> local_C(size_vector, 0.0);
+    for (size_t i = 0; i < size_half; ++i) {
+      for (size_t j = 0; j < size_half; ++j) {
+        local_C[i * size + j] = global_M[i * size_half + j] + global_M[3 * size_half_vector + i * size_half + j] -
+                                global_M[4 * size_half_vector + i * size_half + j] +
+                                global_M[6 * size_half_vector + i * size_half + j];
+        local_C[i * size + j + size_half] =
+            global_M[2 * size_half_vector + i * size_half + j] + global_M[4 * size_half_vector + i * size_half + j];
+        local_C[(i + size_half) * size + j] =
+            global_M[1 * size_half_vector + i * size_half + j] + global_M[3 * size_half_vector + i * size_half + j];
+        local_C[(i + size_half) * size + j + size_half] =
+            global_M[i * size_half + j] - global_M[1 * size_half_vector + i * size_half + j] +
+            global_M[2 * size_half_vector + i * size_half + j] + global_M[5 * size_half_vector + i * size_half + j];
+      }
+    }
+
+    std::vector<double> C(_size * _size);
+    for (size_t i = 0; i < _size; ++i) {
+      for (size_t j = 0; j < _size; ++j) {
+        C[i * _size + j] = local_C[i * size + j];
+      }
+    }
+    return C;
+  }
+  return {};
+}
+
+\end{lstlisting}
 	
 \end{document}
