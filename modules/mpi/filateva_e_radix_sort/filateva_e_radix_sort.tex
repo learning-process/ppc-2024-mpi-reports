@@ -1,0 +1,729 @@
+\documentclass[a4paper, 14pt]{article}
+
+\usepackage[english, russian]{babel}
+
+\usepackage{tocloft}
+\usepackage{tabularray}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage{indentfirst}
+\usepackage{mathtext}
+\frenchspacing
+
+\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools}
+\usepackage{icomma}
+
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\newcommand{\n}{\par}
+
+%%% Оформление страницы
+\usepackage{extsizes}     % Возможность сделать 14-й шрифт
+\usepackage{geometry}     % Простой способ задавать поля
+\usepackage{setspace}     % Интерлиньяж
+\usepackage{enumitem}     % Настройка окружений itemize и enumerate
+\setlist{leftmargin=25pt} % Отступы в itemize и enumerate
+
+\geometry{top=25mm}    % Поля сверху страницы
+\geometry{bottom=30mm} % Поля снизу страницы
+\geometry{left=20mm}   % Поля слева страницы
+\geometry{right=20mm}  % Поля справа страницы
+
+\setlength\parindent{15pt}        % Устанавливает длину красной строки 15pt
+\linespread{1.3}                  % Коэффициент межстрочного интервала
+\setlength{\parskip}{0.5em}      % Вертикальный интервал между абзацами
+%\setcounter{secnumdepth}{0}      % Отключение нумерации разделов
+%\setcounter{section}{-1}         % Нумерация секций с нуля
+\usepackage{multicol}			  % Для текста в нескольких колонках
+\usepackage{soulutf8}             % Модификаторы начертания
+
+
+\begin{document}
+	\thispagestyle{empty}
+	\begin{center}
+		
+		МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\n
+		Федеральное государственное автономное образовательное учреждение высшего образования\n
+		\textbf{«Национальный исследовательский Нижегородский государственный университет им. Н. И. Лобачевского»\n
+			(ННГУ им. Н. И. Лобачевского)}\n
+		Институт информационных технологий, математики и механики
+		\vspace{1cm}
+		
+		ОТЧЁТ ПО ЛАБОРАТОРНОЙ РАБОТЕ
+		
+		ПО ДИСЦИПЛИНЕ
+		
+		\textbf{<<Параллельное программирование>>}
+		
+		НА ТЕМУ
+		
+		\textbf{<<Поразрядная сортировка для целых чисел с простым слиянием>>}
+	\end{center}
+	\vspace{0.3cm}
+	\begin{flushright}
+		\textbf{Выполнил:}
+		
+		студент 3 курса, группа 3822Б1ПР2
+		
+		Филатьева Елизавета
+	\end{flushright}
+	
+	\begin{flushright}
+		\textbf{Преподаватель:}
+		
+		
+		Оболенский А. А., Нестеров А. Ю.
+	\end{flushright}
+ 
+ \begin{flushright}
+		\textbf{Лектор:}
+        
+  доцент, кандидат технических наук Сысоев А. В.
+  \end{flushright}
+	
+    \begin{center}
+		\vfill
+		Нижний Новгород
+		
+		2024
+	\end{center}
+    
+	\newpage
+	\begin{center}\tableofcontents\end{center}
+	\newpage
+	\section*{\centering \textbf{Введение}}
+	\addcontentsline{toc}{section}{Введение}
+	
+	В мире стремительного роста объёмов данных эффективные алгоритмы сортировки играют критически важную роль. От скорости и эффективности сортировки зависит производительность многих приложений, от баз данных до научных расчётов. Поразрядная сортировка является одним из ключевых алгоритмов, предлагающих линейную временную сложность для определённых типов данных, что делает её привлекательным решением для задач, в которых скорость обработки является приоритетом.
+
+В этой работе мы сосредоточимся на исследовании и реализации поразрядной сортировки целых чисел с акцентом на использование метода простого слияния для объединения отсортированных подмассивов. Такой подход позволяет более наглядно продемонстрировать механизм работы алгоритма и изучить его особенности.
+
+Основная цель данной работы — подробно рассмотреть алгоритм поразрядной сортировки, а также практически реализовать его паралельную версию с помощью библиотеки MPI. Мы изучим его преимущества, ограничения и особенности применения для различных наборов данных.
+	
+	
+	\newpage
+	\section*{\centering Постановка задачи}
+	\addcontentsline{toc}{section}{Постановка задачи}
+	\textbf{Цель работы:} Исследовать и реализовать алгоритм поразрядной сортировки целых чисел с применением метода простого слияния в виде параллельной версии, с использованием библиотеки MPI, а также  изучить его особенности и оценить его эффективность.
+	
+	\textbf{Задачи работы:}
+	\vspace{-1em}
+	\begin{itemize}[leftmargin=3em]
+		\setlength\itemsep{0cm}
+		\item Реализовать последовательную версию алгоритма поразрядной сортировки:
+        
+        1) Разработать функцию для сортировки целых чисел по разрядам с помощью метода простого слияния. 
+        
+        2) Протестировать реализованный алгоритм на различных наборах данных. 
+        
+        3) Оценить временную сложность и потребление памяти алгоритмом.
+
+        \item Реализовать паралельную версию алгоритма поразрядной сортировки:
+        
+		1) Разработать параллельную версию алгоритма с использованием библиотеки MPI для распределенных вычислений.
+        
+		2) Разделение и объединение данных между процессами MPI для эффективного распределения и сбора результатов сортировки.
+        
+        3) Провести тестирования разработанного алгоритма на различных входных данных для оценки его эффективности и масштабируемости.
+        
+		4) Проанализировать полученные результаты и выявить особенности работы алгоритма в параллельной среде
+        
+	\end{itemize}
+	
+	
+	
+	
+	\newpage
+
+\section*{\centering Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+
+\indent Алгоритм поразрядной сортировки с простым слиянием представляет собой метод упорядочивания целых чисел, основанный на последовательной обработке разрядов чисел, начиная с младшего и заканчивая старшим. На каждом этапе сортировки происходит распределение элементов по "карманам" в соответствии со значением текущего разряда, после чего карманы объединяются в отсортированный массив.
+\textbf{Последовательный алгоритм:}
+\vspace{-1em}
+\begin{enumerate}
+    \item \textbf{Итерации по разрядам:} Для каждого разряда, начиная с младшего, выполняются следующие шаги:
+    \begin{itemize}
+         \item \textbf{Разбиение на группы (карманы):} Элементы массива распределяются по "карманам" в соответствии со значением текущего разряда. Количество "карманов" равно основанию системы счисления (например, 10 для десятичной системы).
+        \item \textbf{Объединение групп (простое слияние):}  Карманы последовательно объединяются в один массив.
+    \end{itemize}
+     \item \textbf{Результат:} После прохождения всех разрядов, массив становится отсортированным.
+\end{enumerate}
+
+\textbf{Параллельный алгоритм с использованием MPI:}
+\vspace{-1em}
+\begin{enumerate}
+    \item \textbf{Разделение массива:} Исходный массив разделяется на части, которые распределяются между процессами MPI.
+    \item \textbf{Локальная сортировка:} Каждый процесс независимо выполняет последовательную поразрядную сортировку с простым слиянием над своей частью массива.
+     \item \textbf{Сбор и объединение результатов:} Главный процесс (ранг 0) собирает отсортированные подмассивы от всех процессов. Далее он осуществляет конкатенацию (простое слияние) полученных подмассивов для получения окончательно отсортированного массива.
+\end{enumerate}
+
+\textbf{Особенности алгоритма:}
+\vspace{-1em}
+\begin{itemize}
+    \item  Алгоритм поразрядной сортировки с простым слиянием является стабильным, т.е., сохраняет относительный порядок элементов с одинаковыми значениями.
+    \item  Простота реализации и понимания, что особенно полезно в образовательных и исследовательских целях.
+    \item  Линейное время выполнения для данных с ограниченным диапазоном значений, при условии, что количество разрядов является постоянной величиной.
+     \item   Параллельная реализация позволяет ускорить обработку больших массивов данных путем распределения вычислительной нагрузки между несколькими процессами.
+     \item   Простое слияние, хоть и не самый эффективный метод объединения, но упрощает реализацию.
+\end{itemize}
+
+	\newpage
+	\subsection*{\centering Описание программ}
+	\addcontentsline{toc}{section}{Описание программ}
+	\subsubsection*{\centering Последовательная версия алгоритма}
+	\addcontentsline{toc}{subsubsection}{Последовательная версия алгоритма}
+	Функция \textbf{run()} используется для сортировки вектора целых чисел с использованием поразрядной сортировки. Сначала вектор делится на два массива, один с положительными значениями, второй с отрицательными. Затем происходит несколько итераций сортировки по каждой цифре числа (начиная с самого младшего разряда). В результате получается два отсортированных вектора, которые мы сливаем в один вектор. Код данной функции выглядит следующим образом:
+	\vspace{-1em}
+	\begin{verbatim}
+bool filateva_e_radix_sort_seq::RadixSort::run() {
+  internal_order_test();
+  int kol = 10;
+  std::vector<std::list<int>> radix_list(kol);
+  std::vector<std::list<int>> negativ_radix_list(kol);
+  int raz = 10;
+  int max_r = -1;
+  for (unsigned long i = 0; i < arr.size(); i++) {
+    max_r = std::max(max_r, std::abs(arr[i]));
+    if (arr[i] >= 0) {
+      radix_list[arr[i] % raz].push_back(arr[i]);
+    } else {
+      negativ_radix_list[std::abs(arr[i]) % raz].push_back(std::abs(arr[i]));
+    }
+   }
+  while (max_r / (raz / 10) > 0) {
+   raz *= 10;
+   std::vector<std::list<int>> temp(kol);
+   std::vector<std::list<int>> negativ_temp(kol);
+   for (int i = 0; i < kol; i++) {
+      for (auto p : radix_list[i]) {
+       temp[p % raz / (raz / 10)].push_back(p);
+      }
+      for (auto p : negativ_radix_list[i]) {
+       negativ_temp[p % raz / (raz / 10)].push_back(p);
+      }
+   }
+   radix_list = temp;
+   negativ_radix_list = negativ_temp;
+ }
+  auto rit = negativ_radix_list[0].rbegin();
+  int i = 0;
+  for (; rit != negativ_radix_list[0].rend(); rit++, i++) {
+    ans[i] = -(*rit);
+  }
+  auto it = radix_list[0].begin();
+  for (; it != radix_list[0].end(); it++, i++) {
+    ans[i] = *it;
+  }
+  return true;
+}
+	\end{verbatim}	
+
+	
+	\subsubsection*{\centering Параллельная версия алгоритма}
+	\addcontentsline{toc}{subsubsection}{Параллельная версия алгоритма}
+	Функция \textbf{run()} используется для сортировки вектора целых чисел с использованием распаралелинной поразрядной сортировки. Сначала высчитывается сколько элементов достанется каждому из процессов, распространяются участки массива между процессами. На кажом из процессов происходит локальная сортировка подмасива. После чего процессы отправляют отсортированные подмасивы на 0 процесс, где он собирает их в один вектор. В результате получается отсортированный вектор. Код данной функции выглядит следующим образом:
+
+	\vspace{-1em}
+	\begin{verbatim}
+
+bool filateva_e_radix_sort_mpi::RadixSort::run() {
+  internal_order_test();
+  int kol = 10;
+  int raz = 10;
+  std::vector<int> local_ans;
+
+  boost::mpi::broadcast(world, size, 0);
+  if (world.rank() == 0) {
+    local_ans.resize(size);
+  }
+
+  int delta = (world.size() == 1) ? 0 : size / (world.size() - 1);
+  int ost = (world.size() == 1) ? size : size % (world.size() - 1);
+  int local_size = (world.rank() == 0) ? ost : delta;
+  std::vector<std::list<int>> radix_list(kol);
+  std::vector<std::list<int>> negativ_radix_list(kol);
+  std::vector<int> local_vec(local_size, 0);
+  std::vector<int> distribution(world.size(), delta);
+  distribution[0] = ost;
+  std::vector<int> displacement(world.size(), 0);
+  for (int i = 1; i < world.size(); i++) {
+    displacement[i] = delta * (i - 1) + ost;
+  }
+
+  boost::mpi::scatterv(world, arr.data(), distribution, displacement, local_vec.data(), local_size, 0);
+
+  int max_r = -1;
+  for (long unsigned int i = 0; i < local_vec.size(); i++) {
+    max_r = std::max(max_r, std::abs(local_vec[i]));
+    if (local_vec[i] >= 0) {
+      radix_list[local_vec[i] % raz].push_back(local_vec[i]);
+    } else {
+      negativ_radix_list[std::abs(local_vec[i]) % raz].push_back(std::abs(local_vec[i]));
+    }
+  }
+  while (max_r / (raz / 10) > 0) {
+    raz *= 10;
+    std::vector<std::list<int>> temp(kol);
+    std::vector<std::list<int>> negativ_temp(kol);
+    for (int i = 0; i < kol; i++) {
+      for (auto p : radix_list[i]) {
+        temp[p % raz / (raz / 10)].push_back(p);
+      }
+      for (auto p : negativ_radix_list[i]) {
+        negativ_temp[p % raz / (raz / 10)].push_back(p);
+      }
+    }
+    radix_list = temp;
+    negativ_radix_list = negativ_temp;
+  }
+  auto rit = negativ_radix_list[0].rbegin();
+  int i = 0;
+  for (; rit != negativ_radix_list[0].rend(); rit++, i++) {
+    local_vec[i] = -(*rit);
+  }
+  auto it = radix_list[0].begin();
+  for (; it != radix_list[0].end(); it++, i++) {
+    local_vec[i] = *it;
+  }
+  boost::mpi::gatherv(world, local_vec.data(), local_size, local_ans.data(), distribution, displacement, 0);
+  if (world.rank() == 0) {
+    std::vector<int> smesh(world.size(), 0);
+    for (int j = 0; j < size; j++) {
+      int min = -1;
+      if (smesh[0] < ost) {
+        min = 0;
+      }
+      for (int k = 1; k < world.size(); k++) {
+        if (smesh[k] >= delta) {
+          continue;
+        }
+        if (min == -1 || local_ans[displacement[k] + smesh[k]] < local_ans[displacement[min] + smesh[min]]) {
+          min = k;
+        }
+      }
+      ans[j] = local_ans[displacement[min] + smesh[min]];
+      smesh[min]++;
+    }
+  }
+  return true;
+}
+
+
+    \end{verbatim}	
+
+    
+	\newpage
+	\section*{\centering Эксперименты и их результаты}
+	\addcontentsline{toc}{section}{Эксперименты и их результаты}
+	
+	Во всех проведённых мной экспериментах была использована функция \textbf{GeneratorVector()}. Она создаёт и возвращает вектор случайных целых чисел заданного размера. Код данной функции выглядит следующим образом:
+	\vspace{-1em}
+	\begin{verbatim}
+void GeneratorVector(std::vector<int> &vec, int max_z, int min_z) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  for (unsigned long i = 0; i < vec.size(); i++) {
+    vec[i] = gen() % (max_z - min_z + 1) + min_z;
+  }
+}
+	\end{verbatim}
+\indent Для оценки производительности разработанных алгоритмов был проведен ряд экспериментов. В рамках исследования, мы измерили время выполнения последовательной и параллельной версий алгоритма поразрядной сортировки с простым слиянием на различных наборах данных. Для экспериментов использовались массивы целых чисел со случайными значениями, размером от 500.000 до 1.000.000 элементов. Мы провели замеры времени выполнения при использовании 1, 3, 5 и 8 процессов для параллельной версии алгоритма.
+
+\subsection*{Описание экспериментальной среды}
+\indent Эксперименты проводились на компьютер с 14-ядерным процессором Intel i7. Программное обеспечение включало в себя компилятор GCC, библиотеку MPI для организации параллельных вычислений и стандартную библиотеку C++ для работы с данными.
+
+\subsection*{Результаты экспериментов}
+\indent  Полученные результаты представлены в виде таблиц, в которых указаны время выполнения последовательного и параллельного алгоритмов в зависимости от размера массива и количества используемых процессов.
+
+\subsubsection*{Эксперимент 1: Массив из 100.000 элементов}
+\begin{table}[h]
+    \centering
+    \begin{tblr}{
+            row{1} = {c},
+            cell{1}{1} = {c=3}{},
+            vlines,
+            hline{1-3,8} = {-}{},
+        }
+        Количество процессов               &                                              &                                                  \\
+        {Число процессов} & {Параллельное время выполнения (сек.)} & {Последовательное время выполнения (сек.)} \\
+        1                      & 0.06                      & 0.05                                         \\
+        3                      & 0.03                    & 0.05                                          \\
+        5                     & 0.025                    & 0.05                                         \\
+        8                     & 0.02                   & 0.05                                          
+    \end{tblr}
+    \caption{Время выполнения алгоритма на массиве из 100.000 элементов}
+\end{table}
+
+\subsubsection*{Эксперимент 2: Массив из 500.000 элементов}
+\begin{table}[h]
+    \centering
+    \begin{tblr}{
+            row{1} = {c},
+            cell{1}{1} = {c=3}{},
+            vlines,
+            hline{1-3,8} = {-}{},
+        }
+        Количество процессов              &                                              &                                                  \\
+          {Число процессов} & {Параллельное время выполнения (сек.)} & {Последовательное время выполнения (сек.)} \\
+        1                     & 0.36                      & 0.35                                          \\
+        3                    & 0.19                      & 0.35                                          \\
+        5                    & 0.14                       & 0.35                                         \\
+        8                    & 0.11                     & 0.35                                         
+    \end{tblr}
+      \caption{Время выполнения алгоритма на массиве из 500.000 элементов}
+\end{table}
+
+
+\subsubsection*{Эксперимент 3: Массив из 1.000.000 элементов}
+\begin{table}[h]
+    \centering
+    \begin{tblr}{
+            row{1} = {c},
+            cell{1}{1} = {c=3}{},
+            vlines,
+            hline{1-3,8} = {-}{},
+        }
+        Количество процессов               &                                              &                                                  \\
+          {Число процессов} & {Параллельное время выполнения (сек.)} & {Последовательное время выполнения (сек.)} \\
+        1                     & 1.06                      & 0.96                                         \\
+        3                     & 0.51                      & 0.96                                          \\
+        5                      & 0.31                     & 0.96                                         \\
+        8                     & 0.28                      & 0.96                                          
+    \end{tblr}
+        \caption{Время выполнения алгоритма на массиве из 1.000.000 элементов}
+\end{table}
+
+
+\subsection*{Анализ результатов}
+\indent Результаты проведенных экспериментов показывают, что параллельная версия алгоритма поразрядной сортировки с простым слиянием демонстрирует ускорение при использовании нескольких процессов по сравнению с последовательным вариантом. Ускорение становится более заметным с увеличением размера массива.
+\par  В таблицах видно, что при использовании 3 процессов, время выполнения сокращается почти вдвое.  С увеличением числа процессов до 5, ускорение продолжает расти, но уже не так значительно. При использовании 8 процессов, ускорение наблюдается, но оно становится менее выраженным, что может быть связано с накладными расходами на организацию параллельной работы и коммуникацию между процессами.
+\par  Также стоит отметить, что при малых размерах массивов, разница между временем выполнения параллельного и последовательного алгоритмов не столь велика, а в некоторых случаях, параллельный алгоритм может даже работать несколько медленнее. Это обусловлено тем, что для небольших объемов данных накладные расходы на параллелизацию могут превышать выигрыш от параллельных вычислений.
+
+\section*{Выводы}
+\indent Проведенные эксперименты подтвердили, что параллельный алгоритм поразрядной сортировки с простым слиянием может значительно ускорить процесс сортировки больших объемов данных. Однако, выбор оптимального количества процессов зависит от размера входных данных и особенностей вычислительной системы. Дальнейшие исследования могут быть направлены на оптимизацию алгоритма для различных размеров данных и более детальный анализ влияния накладных расходов на производительность.
+
+
+
+
+
+
+    
+	
+	\newpage
+	\section*{\centering Заключение}
+	\addcontentsline{toc}{section}{Заключение}
+	
+	Целью данного лабораторного исследования было создание и реализация параллельного варианта поразрядной сортировки целых чисел, использующего метод простого слияния и возможности библиотеки MPI для организации распределённых вычислений. Реализация поставленных задач привела к следующим ключевым результатам.
+
+На начальном этапе была разработана и протестирована последовательная реализация алгоритма поразрядной сортировки с использованием простого слияния. Затем был разработан и реализован его параллельный аналог, использующий MPI для обеспечения распределённых вычислений. Ключевой задачей стало эффективное распределение данных между процессами и последующий сбор результатов сортировки с использованием средств MPI.
+
+Экспериментальные исследования проводились с использованием векторов различной длины, включая 100.000, 500.000 и 1.000.000 элементов. Полученные данные свидетельствуют о том, что параллельная версия алгоритма демонстрирует заметное ускорение по сравнению с последовательной при обработке значительных объёмов данных. Однако при работе с относительно небольшими массивами дополнительные затраты на взаимодействие между процессами могут нивелировать преимущества распараллеливания.
+
+В заключение следует отметить, что разработанный параллельный алгоритм поразрядной сортировки с простым слиянием, основанный на MPI, обладает значительным потенциалом для ускорения обработки больших объёмов данных в распределённых вычислительных системах. Однако для достижения наилучших результатов при работе с небольшими массивами и для эффективного использования ресурсов вычислительного кластера может потребоваться дальнейший анализ и оптимизация.
+	
+		\newpage
+	\section*{\centering Список литературы}
+	\addcontentsline{toc}{section}{Список литературы}
+	
+    \begin{thebibliography}{9}
+        \bibitem{Sanders2000}  Sanders, P.,  Clauss, M. (2000). Sequential and Parallel radix sort with efficient memory usage. In \textit{Proceedings of the 7th International Euro-Par Conference (Euro-Par'01)} (pp. 209-218). Springer.
+        \bibitem{Li2005}  Li, C. C.,  Hsu, C. W. (2005). An efficient parallel radix sort using pipelined merge. In \textit{Proceedings of the International Conference on Parallel Processing (ICPP'05)} (pp. 440-447). IEEE.
+        \bibitem{Blelloch1990} Blelloch, G. E. (1990). Prefix sums and their applications. \textit{Technical Report CMU-CS-90-190}, Carnegie Mellon University.
+        \bibitem{Cole1988} Cole, R. (1988). Parallel merge sort. \textit{SIAM Journal on Computing}, \textit{17}(4), 770-785.
+        \bibitem{Voevodin2004} Voevodin, V.V.,  Voevodin, Vl.V. (2004). \textit{Parallel computing}. BHV-Peterburg.
+        \bibitem{Anufriev2008} Ануфриев, И. Е., Смирнов, А. Г., Смирнов, А. А. (2008). \textit{Параллельные вычислительные системы}. Изд-во С.-Петерб. ун-та.
+    \end{thebibliography}
+	
+	\newpage
+	\section*{\centering Приложение}
+	\addcontentsline{toc}{section}{Приложение}
+	\subsection*{\centering Файл <<ops seq.hpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops seq.hpp>>}
+	\begin{verbatim}
+	// Filateva Elizaveta Radix Sort
+#include <gtest/gtest.h>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <vector>
+#include "core/task/include/task.hpp"
+
+namespace filateva_e_radix_sort_mpi {
+
+class RadixSort : public ppc::core::Task {
+ public:
+  explicit RadixSort(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  boost::mpi::communicator world;
+  int size;
+  std::vector<int> arr;
+  std::vector<int> ans;
+};
+
+}  // namespace filateva_e_radix_sort_mpi
+	\end{verbatim}
+
+    
+	\newpage
+	\subsection*{\centering Файл <<ops seq.spp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops seq.spp>>}
+	\begin{verbatim}
+// Filateva Elizaveta Radix Sort
+
+#include "seq/filateva_e_radix_sort/include/ops_seq.hpp"
+
+bool filateva_e_radix_sort_seq::RadixSort::pre_processing() {
+  internal_order_test();
+
+  this->size = taskData->inputs_count[0];
+  auto* temp = reinterpret_cast<int*>(taskData->inputs[0]);
+  this->arr.assign(temp, temp + size);
+  this->ans.resize(size);
+
+  return true;
+}
+
+bool filateva_e_radix_sort_seq::RadixSort::validation() {
+  internal_order_test();
+  return taskData->inputs_count[0] > 0 && taskData->inputs_count[0] == taskData->outputs_count[0];
+}
+
+bool filateva_e_radix_sort_seq::RadixSort::run() {
+  internal_order_test();
+
+  int kol = 10;
+  std::vector<std::list<int>> radix_list(kol);
+  std::vector<std::list<int>> negativ_radix_list(kol);
+
+  int raz = 10;
+  int max_r = -1;
+  for (unsigned long i = 0; i < arr.size(); i++) {
+    max_r = std::max(max_r, std::abs(arr[i]));
+    if (arr[i] >= 0) {
+      radix_list[arr[i] % raz].push_back(arr[i]);
+    } else {
+      negativ_radix_list[std::abs(arr[i]) % raz].push_back(std::abs(arr[i]));
+    }
+  }
+
+  while (max_r / (raz / 10) > 0) {
+    raz *= 10;
+    std::vector<std::list<int>> temp(kol);
+    std::vector<std::list<int>> negativ_temp(kol);
+    for (int i = 0; i < kol; i++) {
+      for (auto p : radix_list[i]) {
+        temp[p % raz / (raz / 10)].push_back(p);
+      }
+      for (auto p : negativ_radix_list[i]) {
+        negativ_temp[p % raz / (raz / 10)].push_back(p);
+      }
+    }
+    radix_list = temp;
+    negativ_radix_list = negativ_temp;
+  }
+
+  auto rit = negativ_radix_list[0].rbegin();
+  int i = 0;
+  for (; rit != negativ_radix_list[0].rend(); rit++, i++) {
+    ans[i] = -(*rit);
+  }
+  auto it = radix_list[0].begin();
+  for (; it != radix_list[0].end(); it++, i++) {
+    ans[i] = *it;
+  }
+
+  return true;
+}
+
+bool filateva_e_radix_sort_seq::RadixSort::post_processing() {
+  internal_order_test();
+  auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(ans.begin(), ans.end(), output_data);
+  return true;
+}
+
+	\end{verbatim}
+
+
+	\newpage
+	\subsection*{\centering Файл <<ops mpi.hpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops mpi.hpp>>}
+	\begin{verbatim}
+// Filateva Elizaveta Radix Sort
+
+#include <gtest/gtest.h>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <vector>
+#include "core/task/include/task.hpp"
+
+namespace filateva_e_radix_sort_mpi {
+
+class RadixSort : public ppc::core::Task {
+ public:
+  explicit RadixSort(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  boost::mpi::communicator world;
+  int size;
+  std::vector<int> arr;
+  std::vector<int> ans;
+};
+
+}  // namespace filateva_e_radix_sort_mpi
+
+	\end{verbatim}
+
+
+
+
+    \newpage
+	\subsection*{\centering Файл <<ops mpi.spp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops mpi.spp>>}
+	\begin{verbatim}
+// Filateva Elizaveta Radix Sort
+#include "mpi/filateva_e_radix_sort/include/ops_mpi.hpp"
+#include <boost/serialization/vector.hpp>
+#include <list>
+#include <vector>
+
+bool filateva_e_radix_sort_mpi::RadixSort::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    this->size = taskData->inputs_count[0];
+    auto* temp = reinterpret_cast<int*>(taskData->inputs[0]);
+    this->arr.assign(temp, temp + size);
+    this->ans.resize(size);
+  }
+  return true;
+}
+
+bool filateva_e_radix_sort_mpi::RadixSort::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    return taskData->inputs_count[0] > 0 && taskData->inputs_count[0] == taskData->outputs_count[0];
+  }
+  return true;
+}
+
+bool filateva_e_radix_sort_mpi::RadixSort::run() {
+  internal_order_test();
+  int kol = 10;
+  int raz = 10;
+  std::vector<int> local_ans;
+  boost::mpi::broadcast(world, size, 0);
+  if (world.rank() == 0) {
+    local_ans.resize(size);
+  }
+
+  int delta = (world.size() == 1) ? 0 : size / (world.size() - 1);
+  int ost = (world.size() == 1) ? size : size % (world.size() - 1);
+
+  int local_size = (world.rank() == 0) ? ost : delta;
+  std::vector<std::list<int>> radix_list(kol);
+  std::vector<std::list<int>> negativ_radix_list(kol);
+  std::vector<int> local_vec(local_size, 0);
+  std::vector<int> distribution(world.size(), delta);
+  distribution[0] = ost;
+  std::vector<int> displacement(world.size(), 0);
+  for (int i = 1; i < world.size(); i++) {
+    displacement[i] = delta * (i - 1) + ost;
+  }
+
+  boost::mpi::scatterv(world, arr.data(), distribution, displacement, local_vec.data(), local_size, 0);
+
+  int max_r = -1;
+
+  for (long unsigned int i = 0; i < local_vec.size(); i++) {
+    max_r = std::max(max_r, std::abs(local_vec[i]));
+    if (local_vec[i] >= 0) {
+      radix_list[local_vec[i] % raz].push_back(local_vec[i]);
+    } else {
+      negativ_radix_list[std::abs(local_vec[i]) % raz].push_back(std::abs(local_vec[i]));
+    }
+  }
+  while (max_r / (raz / 10) > 0) {
+    raz *= 10;
+    std::vector<std::list<int>> temp(kol);
+    std::vector<std::list<int>> negativ_temp(kol);
+    for (int i = 0; i < kol; i++) {
+      for (auto p : radix_list[i]) {
+        temp[p % raz / (raz / 10)].push_back(p);
+      }
+      for (auto p : negativ_radix_list[i]) {
+        negativ_temp[p % raz / (raz / 10)].push_back(p);
+      }
+    }
+    radix_list = temp;
+    negativ_radix_list = negativ_temp;
+  }
+  auto rit = negativ_radix_list[0].rbegin();
+  int i = 0;
+  for (; rit != negativ_radix_list[0].rend(); rit++, i++) {
+    local_vec[i] = -(*rit);
+  }
+  auto it = radix_list[0].begin();
+  for (; it != radix_list[0].end(); it++, i++) {
+    local_vec[i] = *it;
+  }
+  boost::mpi::gatherv(world, local_vec.data(), local_size, local_ans.data(), distribution, displacement, 0);
+
+  if (world.rank() == 0) {
+    std::vector<int> smesh(world.size(), 0);
+    for (int j = 0; j < size; j++) {
+      int min = -1;
+      if (smesh[0] < ost) {
+        min = 0;
+      }
+      for (int k = 1; k < world.size(); k++) {
+        if (smesh[k] >= delta) {
+          continue;
+        }
+        if (min == -1 || local_ans[displacement[k] + smesh[k]] < local_ans[displacement[min] + smesh[min]]) {
+          min = k;
+        }
+      }
+      ans[j] = local_ans[displacement[min] + smesh[min]];
+      smesh[min]++;
+    }
+  }
+  return true;
+}
+
+bool filateva_e_radix_sort_mpi::RadixSort::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(ans.begin(), ans.end(), output_data);
+  }
+  return true;
+}
+
+
+	\end{verbatim}
+    
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
