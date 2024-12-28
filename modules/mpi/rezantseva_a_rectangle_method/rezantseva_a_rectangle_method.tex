@@ -1,0 +1,488 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+
+\usepackage{xcolor}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\linespread{1.5}
+
+%C++ code 
+\usepackage{listings}
+\usepackage{color}
+% параметры стиля
+\lstdefinestyle{mystyle}{
+	basicstyle=\footnotesize,
+	breakatwhitespace=false, 
+	breaklines=true,
+	captionpos=b,
+	keepspaces=true, 
+	numbers=left,
+	numbersep=5pt,  % номера строк
+	showspaces=false, % не показывать пробелы
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+
+% применяем стиль
+\lstset{style=mystyle}
+% используем заданный нами моноширинный шрифт
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+
+\begin{document}
+\begin{titlepage}
+	\begin{center}
+		\large
+		{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ\\ РОССИЙСКОЙ ФЕДЕРАЦИИ}
+		
+		Федеральное государственное автономное образовательное учреждение высшего образования
+		\vspace{0.5cm}
+		
+		\textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+		(ННГУ)\\
+		\vspace{1cm}
+		\textbf{Институт информационных технологий, математики и механики}\\
+		\vspace{1cm}
+		
+		
+		\vfill
+		
+		\vfill
+		
+		\Large
+		\textbf{Отчёт по лабораторной работе на тему} \\
+		\textbf{<<Вычисление многомерных интегралов с использованием многошаговой схемы (метод прямоугольников).>>}
+		{\LARGE 
+		}
+		\bigskip
+		
+		
+	\end{center}
+	\vfill
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Выполнил:} 
+
+            студентка группы 3822Б1ФИ1
+
+            \underline{\hspace{3cm}} Резанцева А. А. \bigskip
+            
+	\end{minipage}%
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Проверил:}
+
+           доцент кафедры ВВСП, к.т.н.
+           
+           \underline{\hspace{3cm}} Сысоев А.В.\bigskip
+	\end{minipage}%
+	\vfill
+	
+	\begin{center}
+		Нижний Новгород\\
+		2024 г.
+	\end{center}
+\end{titlepage}
+\thispagestyle{empty} % убираем колонтитулы с этой страницы
+\tableofcontents
+
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+    Вычисление многомерных интегралов является важной задачей в различных областях науки и техники, включая физику, инженерию и т.д. Многомерные интегралы позволяют моделировать сложные системы и процессы, где необходимо учитывать взаимодействие нескольких переменных. Однако аналитическое решение таких интегралов часто оказывается крайне трудоемким или невозможным. В таких случаях на помощь приходят численные методы, которые позволяют получить приближенные значения интегралов с заданной точностью.
+	
+\vspace{1 cm}
+
+    Одним из простейших и наиболее распространенных численных методов для вычисления многомерных интегралов является метод прямоугольников, также известный как метод Римана. Этот метод основывается на разбиении области интегрирования на небольшие прямоугольники и оценке значения интеграла как суммы значений функции в этих точках, умноженных на объем соответствующих прямоугольников.
+
+\vspace{1 cm}
+
+    Метод прямоугольников обладает рядом преимуществ, включая простоту реализации и возможность применения к интегралам с произвольной сложностью. Однако его точность зависит от размера разбиения: чем меньше прямоугольники, тем более точным будет результат. В то же время, уменьшение размера прямоугольников приводит к увеличению вычислительных затрат, что требует оптимального выбора параметров разбиения.
+
+\vspace{1 cm}
+    Целью данной лабораторной работы является исследование метода прямоугольников для вычисления многомерных интегралов, а также разработка и реализация этого алгоритма в последовательной и параллельной версиях. В рамках работы будет проведено сравнение их эффективности.
+
+\newpage
+
+\section{Постановка задачи}
+Дано многомерное пространство $\mathbb{R}^n$ и функция $f: \mathbb{R}^n \to \mathbb{R}$, которую необходимо интегрировать по некоторому многомерному объему $V$. Объем $V$ определяется как прямоугольник, заданный границами по каждой из $n$ координат.
+
+Формально, задача может быть описана следующим образом:
+
+\vspace{0.5 cm}
+
+\textbf{Выходные данные}
+\begin{itemize}
+    \item $n$ — размерность пространства.
+    \item $f(x_1, x_2, \ldots, x_n)$ — функция, которую требуется интегрировать.
+    \item $V$ — многомерный прямоугольник, заданный границами:
+    \[
+    V = \{(x_1, x_2, \ldots, x_n) \in \mathbb{R}^n \mid a_i \leq x_i \leq b_i, \, i = 1, 2, \ldots, n\}
+    \]
+    где $a_i$ и $b_i$ — нижние и верхние границы интегрирования по координате $x_i$.
+\end{itemize}
+
+\vspace{0.5 cm}
+
+\textbf{Выходные данные} \\
+    Приближенное значение многомерного интеграла:
+\[
+I \approx \int_V f(x_1, x_2, \ldots, x_n) \, dV
+\]
+
+Для вычисления многомерного интеграла с использованием метода прямоугольников, объем $V$ разбивается на $N$ подпрямоугольников. Каждый подпрямоугольник имеет размеры $\Delta x_1, \Delta x_2, \ldots, \Delta x_n$, где:
+\[
+\Delta x_i = \frac{b_i - a_i}{N_i}, \quad i = 1, 2, \ldots, n
+\]
+где $N_i$ — количество разбиений по координате $x_i$.
+
+\newpage
+
+\section{Описание алгоритма}
+Алгоритм вычисления многомерных интегралов с использованием многошаговой схемы  заключается в делении многомерного пространства на подпрямоугольники и оценке интеграла путем суммирования значений функции в определенных точках. Каждый подпрямоугольник имеет объем, который учитывается при суммировании. Это позволяет значительно упростить вычисления, особенно для функций, которые сложно интегрировать аналитически.\\
+
+\subsection*{Алгоритм}
+\begin{enumerate}
+    \item  Определить количество разбиений $N$ по каждой координате.
+    \item  Вычислить размеры подпрямоугольников:
+    \[
+    \Delta x_i = \frac{b_i - a_i}{N_i}, \quad i = 1, 2, \ldots, n
+    \]
+    \item  Для каждого подпрямоугольника определить его центр (или другой подходящий выбор точки внутри):
+    \[
+    c_{i} = a_i + \left(j_i + 0.5\right) \Delta x_i, \quad j_i = 0, 1, \ldots, N_i - 1
+    \]
+    \item  Вычислить значение функции $f$ в выбранной точке для каждого подпрямоугольника:
+    \[
+    f(c_1, c_2, \ldots, c_n)
+    \]
+    \item  Вычислить объем каждого подпрямоугольника:
+    \[
+    V_j = \prod_{i=1}^{n} \Delta x_i
+    \]
+    \item Суммировать все значения функции, умноженные на объем подпрямоугольников:
+    \[
+    I \approx \sum_{j=1}^{N} f(c_1, c_2, \ldots, c_n) \cdot V_j
+    \]
+\end{enumerate}
+
+\subsection*{Сложность алгоритма}
+Сложность алгоритма зависит от числа разбиений $N_1$ ... $N_i$ и размерности $n$ пространства. В общем случае, если мы имеем $N$ разбиений по каждой из $n$ координат, то общее количество подпрямоугольников будет равно $N^n$. Таким образом, сложность алгоритма можно оценить как $O\left(\prod\limits_{i=1}^{n} N_i\right)$, что делает его неэффективным для больших значений $N$ и $n$. Однако в практических задачах часто применяются адаптивные методы и оптимизации, которые позволяют снизить вычислительные затраты, сохраняя при этом приемлемую точность.
+
+\section{Описание схемы распараллеливания}
+Образуем пространство точек (прямоугольников) с размером \( \prod\limits_{i=1}^{n} N_i \) и распределяем пространство точек(прямоугольников)  между процессами. Для каждого прямоугольника мы должны получить точку ($x_1,...,x_n$) - набор параметров.Эти параметры мы получаем из адреса (id)  в глобальном пространстве точек по принципу системы координат составленной из размеров разбиений. 
+
+После разбиения точек пространства по процессам и получения значения этих точек можно приступить к вычислению значения функции в этих точках. Параллелизм заключается в том, что каждый процесс вычисляет функцию только для своего набора точек. Значения функций, подсчитаные для каждой точки, суммируются на своих процессах, затем  отправляются на корневой, суммируясь с локальными суммами других наборов точек, вычисленных на остальных процессах.  В итоге формируется общая сумма значений функций во всех точках пространства. Это работает,  так как верно тождество: 
+    \[
+     \sum_{j=1}^{N}( f(c_1, c_2, \ldots, c_n) \cdot \prod_{i=1}^{n} \Delta x_i) = \prod_{i=1}^{n} \Delta x_i\sum_{j=1}^{N} f(c_1, c_2, \ldots, c_n)
+    \]
+
+Домнажение на все $\Delta x_i$ происходит только на корневом процесске, после вычисляения итоговой суммы функций.
+
+\section{Описание MPI-версии программной реализации}
+\subsection*{Подготовка и распределение данных}
+В методе \textbf{pre-processing()} на корневом процессе заполняются поля данными о количестве разбиений, пределами интегрирования, а также вычисляется размер пространства прямоугольников. Далее эти данные рассылаются с помощью \textbf{boost::mpi::broadcast()}, таким образом, каждый прооцесс знает пределы интегрирования и соответсвующие разбиения.
+
+\subsection*{Локальные вычисления}
+Каждый процесс вычисляет какой набор точек он должен обработать в зависимости от номера процесса и размера пространства прямоугольника. Дальше он вычисляет функцию от каждой точки  и суммирует с функциями от других точек из набора. 
+
+\subsection*{Сбор результатов с процессов}
+Далее, с помощью \textbf{  boost::mpi::reduce(<коммуникатор>, <локальная сумма>, <результирующая сумма>, std::plus<>(), 0)}  мы собиарем на корневом процессе с рангом 0 все локальные суммы других процессов, суммируя их.
+
+\subsection*{Вычисление итогово результата}
+Получив итоговую сумму функций, на корневом процессе домнажаем ее на длины отрезков наших пределов интегрирования для получения итогово результата. 
+\newpage
+
+\section{Эксперименты}
+Тестовая задача заключалась в вычислении трёхмерного интеграла для функции:\\
+\begin{center}
+$f(x,y,z) = x^2-2y+8z$ ,
+\end{center}
+ где $x \in [-6, 10]$, $y \in [5, 27]$, $z \in [15, 32]$. Точность интегрирования: $0.0001$.
+
+\subsection*{Результаты экспериментов}
+\begin{tabular}{|c|c|c|c|}
+    \hline
+    Число процессов & Размер разбиения      & Время выполнения (с) \\ \hline
+    1               & 100                   & 0,048                   \\ \hline
+    2               & 100                   & 0.032                  \\ \hline
+    3               & 100                   & 0.024                 \\ \hline
+    5               & 100                   & 0.019                   \\ \hline
+    16              & 100                   & 0.017                  \\ \hline
+    1               & 250                   & 0.631                    \\ \hline
+    2               & 250                   & 0.378                   \\ \hline
+    3               & 250                   & 0.305                  \\ \hline
+    5               & 250                   & 0.251                    \\ \hline
+    16              & 250                   & 0.209                    \\ \hline
+    1               & 250                   & 4.586                    \\ \hline
+    2               & 500                   & 2.882                    \\ \hline
+    3               & 500                   & 2.249                    \\ \hline
+    5               & 500                   & 1.950                   \\ \hline
+    16              & 500                   & 1.556                    \\ \hline
+\end{tabular}
+
+\subsection*{Анализ результатов}
+Время выполнения теста уменьшается с увеличением числа процессов, что подтверждает корректность параллельной реализации. Также при большем разбиении и при увеличении числа процессов ускорение
+больше.
+
+\newpage
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В данной работе был рассмотрен и реализован  метод вычисления многомерных интегралов с использованием многошаговой схемой методом прямоугольников. Реализация включает в себя  последовательный и параллельный варианты. Были проведены эксперименты, в ходе которых было выявлено, что использование параллельного программирование помогает ускорить выполнение задачи.
+
+\newpage
+\section*{Список литературы}
+\addcontentsline{toc}{section}{Список литературы}
+\begin{enumerate}
+    \item \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%9E%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D0%BB%D0%B0_%D0%A0%D0%B8%D0%BC%D0%B0%D0%BD%D0%B0,_%D0%BF%D1%80%D0%BE%D1%81%D1%82%D0%B5%D0%B9%D1%88%D0%B8%D0%B5_%D1%81%D0%B2%D0%BE%D0%B9%D1%81%D1%82%D0%B2%D0%B0}{ Интеграл Римена}.
+    \item \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%9E_%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%BD%D1%8B%D1%85_%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D0%BB%D0%B0%D1%85}{ Многомерные интегралы}.
+    \item \url{https://www.youtube.com/watch?v=JXh9AQkKmsw}{ Вычисление интегралов с помощью метода Римана}.
+\end{enumerate}
+\newpage
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\subsection*{opsMpiRezA.hpp}
+\addcontentsline{toc}{subsection}{opsMpiRezA.hpp}
+\begin{lstlisting}[language=C++]
+#pragma once
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/serialization/utility.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cmath>
+#include <functional>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+#define func double(const std::vector<double> &)
+
+namespace rezantseva_a_rectangle_method_mpi {
+
+bool check_integration_bounds(std::vector<std::pair<double, double>> *ib);
+
+template <class Archive, typename T1, typename T2>
+void serialize(Archive &ar, std::pair<T1, T2> &p, const unsigned int version) {
+  ar & p.first;
+  ar & p.second;
+}
+
+class RectangleMethodSequential : public ppc::core::Task {
+ public:
+  explicit RectangleMethodSequential(std::shared_ptr<ppc::core::TaskData> taskData_, std::function<func> f)
+      : Task(std::move(taskData_)), func_(std::move(f)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  double result_{};
+  std::vector<std::pair<double, double>> integration_bounds_;
+  std::vector<int> distribution_;
+  std::function<func> func_;
+};
+
+class RectangleMethodMPI : public ppc::core::Task {
+ public:
+  explicit RectangleMethodMPI(std::shared_ptr<ppc::core::TaskData> taskData_, std::function<func> f)
+      : Task(std::move(taskData_)), func_(std::move(f)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  boost::mpi::communicator world;
+  double result_{};
+  int num_processes_ = 0;
+  std::vector<std::pair<double, double>> integration_bounds_;
+  std::vector<int> distribution_;
+  std::function<func> func_;
+  int n_;
+  std::vector<double> widths_;
+  int total_points_{};
+};
+}  // namespace rezantseva_a_rectangle_method_mpi
+
+\end{lstlisting}
+\subsection*{opsMpiRezA.cpp}
+\addcontentsline{toc}{subsection}{opsMpiRezA.cpp}
+\begin{lstlisting}[language=C++]
+// mpi cpp rectangle method
+#include "mpi/rezantseva_a_rectangle_method/include/ops_mpi_rez_a.hpp"
+
+bool rezantseva_a_rectangle_method_mpi::check_integration_bounds(std::vector<std::pair<double, double>>* ib) {
+  if (ib == nullptr) {
+    std::cerr << "Error: bounds pointer is null." << std::endl;
+    return false;
+  }
+
+  bool result = std::ranges::all_of(*ib, [](const auto& bound) { return bound.first < bound.second; });
+
+  return result;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodSequential::validation() {
+  internal_order_test();
+  auto* bounds = reinterpret_cast<std::vector<std::pair<double, double>>*>(taskData->inputs[0]);
+  return (taskData->inputs.size() == 2 && taskData->outputs_count[0] == 1 &&
+          (taskData->inputs_count[0] == taskData->inputs_count[1]) && check_integration_bounds(bounds));
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodSequential::pre_processing() {
+  internal_order_test();
+
+  auto* bounds = reinterpret_cast<std::vector<std::pair<double, double>>*>(taskData->inputs[0]);
+  integration_bounds_.assign(bounds->begin(), bounds->end());
+
+  auto* distribution_ptr = reinterpret_cast<std::vector<int>*>(taskData->inputs[1]);
+  distribution_.assign(distribution_ptr->begin(), distribution_ptr->end());
+
+  result_ = 0.0;
+
+  return true;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodSequential::run() {
+  internal_order_test();
+  int dimension = distribution_.size();
+  std::vector<double> widths(dimension);
+  int64_t rectangles = 1;
+
+  for (int i = 0; i < dimension; i++) {
+    widths[i] = (integration_bounds_[i].second - integration_bounds_[i].first) / static_cast<double>(distribution_[i]);
+    rectangles *= distribution_[i];
+  }
+  std::vector<double> params(dimension);
+
+  for (int i = 0; i < rectangles; i++) {
+    int x = i;
+    for (int j = 0; j < dimension; j++) {
+      int idDimention = x % distribution_[j];
+      params[j] = integration_bounds_[j].first + idDimention * widths[j] + widths[j] / 2;
+      x /= distribution_[j];
+    }
+    result_ += func_(params);
+  }
+  for (int i = 0; i < dimension; i++) {
+    result_ *= widths[i];
+  }
+  return true;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodSequential::post_processing() {
+  internal_order_test();
+  reinterpret_cast<double*>(taskData->outputs[0])[0] = result_;
+  return true;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodMPI::validation() {
+  internal_order_test();
+  bool flag = true;
+
+  if (world.rank() == 0) {
+    auto* bounds = reinterpret_cast<std::vector<std::pair<double, double>>*>(taskData->inputs[0]);
+    flag = (taskData->inputs.size() == 2 && taskData->outputs_count[0] == 1 &&
+            (taskData->inputs_count[0] == taskData->inputs_count[1]) && check_integration_bounds(bounds));
+  }
+  return flag;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodMPI::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    auto* bounds = reinterpret_cast<std::vector<std::pair<double, double>>*>(taskData->inputs[0]);
+    integration_bounds_.assign(bounds->begin(), bounds->end());
+
+    auto* distribution_ptr = reinterpret_cast<std::vector<int>*>(taskData->inputs[1]);
+    distribution_.assign(distribution_ptr->begin(), distribution_ptr->end());
+
+    num_processes_ = world.size();
+    n_ = integration_bounds_.size();
+    total_points_ = 1;
+    widths_.assign(distribution_.size(), 0.0);
+    for (int i = 0; i < n_; i++) {
+      widths_[i] =
+          (integration_bounds_[i].second - integration_bounds_[i].first) / static_cast<double>(distribution_[i]);
+      if (i != n_ - 1) {
+        total_points_ *= distribution_[i];
+      }
+    }
+  }
+
+  boost::mpi::broadcast(world, n_, 0);
+  boost::mpi::broadcast(world, total_points_, 0);
+  boost::mpi::broadcast(world, num_processes_, 0);
+  boost::mpi::broadcast(world, distribution_, 0);
+  boost::mpi::broadcast(world, widths_, 0);
+  boost::mpi::broadcast(world, integration_bounds_, 0);
+
+  result_ = 0.0;
+
+  return true;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodMPI::run() {
+  internal_order_test();
+
+  int remainder = total_points_ % num_processes_;
+  int delta = total_points_ / num_processes_ + (world.rank() < remainder ? 1 : 0);
+
+  std::vector<std::vector<double>> params(delta);
+
+  int offset = 0;
+  if (world.rank() < remainder) {
+    offset = world.rank() * delta;
+  } else {
+    offset = remainder * (delta + 1) + (world.rank() - remainder) * delta;
+  }
+
+  for (int i = 0; i < delta; i++) {
+    int x = offset + i;
+    for (int j = 0; j < n_ - 1; j++) {
+      int idDimention = x % distribution_[j];
+      params[i].push_back(integration_bounds_[j].first + idDimention * widths_[j] + widths_[j] / 2);
+      x /= distribution_[j];
+    }
+  }
+
+  double local_sum = 0.0;
+  for (int i = 0; i < delta; i++) {
+    for (int j = 0; j < distribution_[n_ - 1]; j++) {
+      params[i].push_back(integration_bounds_[n_ - 1].first + j * widths_[n_ - 1] + widths_[n_ - 1] / 2);
+      local_sum += func_(params[i]);
+      params[i].pop_back();
+    }
+  }
+
+  boost::mpi::reduce(world, local_sum, result_, std::plus<>(), 0);
+  for (int i = 0; i < n_; i++) {
+    result_ *= widths_[i];
+  }
+
+  return true;
+}
+
+bool rezantseva_a_rectangle_method_mpi::RectangleMethodMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    reinterpret_cast<double*>(taskData->outputs[0])[0] = result_;
+  }
+  return true;
+}
+\end{lstlisting}
+
+\end{document}
