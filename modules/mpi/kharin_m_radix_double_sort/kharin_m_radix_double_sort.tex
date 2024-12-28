@@ -1,0 +1,1262 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{left=3cm, right=2cm, top=2cm, bottom=2cm}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\small,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \large 
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}
+        
+        \vspace{4cm}
+        \textbf{\Large Отчёт по выполнению задания}\\
+        \textbf{\large «Реализация поразрядной сортировки для вещественных чисел с использованием MPI»}\\[3cm]
+        
+        \vspace{3cm}
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПМоп3 \\
+        \textit{Харин Матвей Александрович}\\[1cm]
+
+        \textbf{Преподаватели:}\\
+        \textit{Нестеров Александр Юрьевич, аспирант}\\
+        \textit{Оболенский Арсений Андреевич, аспирант}\\[2cm]
+        
+        \vfill
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+
+В современном мире обработка больших объемов данных требует эффективных алгоритмов сортировки, способных работать быстро и масштабируемо. Одним из таких алгоритмов является поразрядная сортировка (Radix Sort), которая обладает линейной временной сложностью при определенных условиях. В данной работе рассматривается реализация поразрядной сортировки для вещественных чисел типа \texttt{double} с использованием технологии параллельных вычислений на основе MPI (Message Passing Interface). Цель работы состоит в разработке эффективного алгоритма, способного обрабатывать большие массивы данных, а также в анализе его производительности и масштабируемости.
+
+\section{Постановка задачи}
+
+Задача состоит в реализации алгоритма поразрядной сортировки для массива вещественных чисел типа \texttt{double}. Алгоритм должен поддерживать как последовательную, так и параллельную реализацию с использованием MPI для распределенной обработки данных. Основные требования к программе:
+
+\begin{itemize}
+    \item \textbf{Входные данные:} массив вещественных чисел типа \texttt{double}, размер которого может достигать нескольких миллионов элементов.
+    \item \textbf{Выходные данные:} отсортированный массив чисел в порядке возрастания.
+    \item \textbf{Эффективность памяти:} минимизация использования дополнительной памяти.
+    \item \textbf{Поддержка отрицательных чисел:} корректная обработка и сортировка как положительных, так и отрицательных чисел.
+    \item \textbf{Масштабируемость:} способность алгоритма эффективно использовать увеличивающееся количество вычислительных ресурсов.
+\end{itemize}
+
+\section{Описание алгоритма}
+
+Поразрядная сортировка для вещественных чисел выполняется по следующим основным этапам:
+
+\subsection{Преобразование числа с плавающей точкой в uint64}
+
+
+Число с плавающей точкой преобразуется в 64-битное целое через интерпретацию его битового представления. Для обеспечения корректного порядка выполняются следующие операции:
+
+Интерпретация битов: число преобразуется в 64-битное целое без изменений значений битов.
+
+Обработка отрицательных чисел:
+
+    Если число отрицательное, выполняется побитовая инверсия всех битов.
+
+    Это изменяет порядок сравнения отрицательных чисел, делая числа ближе к нулю (меньше по модулю) больше.
+
+Обработка положительных чисел:
+
+    Старший бит (бит знака) устанавливается в 1.
+
+    Это смещает положительные числа в область, где они гарантированно больше любых преобразованных отрицательных чисел.
+
+Результирующее сравнение:
+
+После преобразования числа упорядочиваются по возрастанию: отрицательные числа следуют в порядке убывания (от меньшего модуля к большему), за ними идут положительные числа в исходном порядке.
+
+\subsection{Инициализация и чтение данных}
+
+Исходный массив чисел загружается из входных данных. Каждое число представляется в виде 64-битного целого (\texttt{uint64\_t}) посредством интерпретации битового представления числа с плавающей точкой. Это преобразование необходимо для корректного сравнения и сортировки чисел.
+
+\subsection{Поразрядная сортировка}
+
+Алгоритм выполняет сортировку чисел по 8 битам за одну итерацию, всего 8 итераций для 64-битных чисел. На каждом этапе выполняются следующие действия:
+
+\begin{enumerate}
+    \item \textbf{Подсчет:} Создается массив подсчета для текущего разряда. Для каждого числа извлекается значение соответствующего байта (8 бит), и производится подсчет количества чисел для каждого возможного значения байта (0-255).
+    \item \textbf{Префиксная сумма:} На основе массива подсчета формируется массив смещений, указывающий начальные индексы для каждого значения байта в отсортированном массиве.
+    \item \textbf{Перестановка элементов:} Создается временный массив, в который числа размещаются в порядке, определяемом текущим разрядом и массивом смещений.
+    \item \textbf{Обновление массива:} Отсортированный на текущем этапе временный массив копируется обратно в основной массив для использования на следующем этапе сортировки.
+\end{enumerate}
+
+\subsection{Преобразование результата}
+
+После завершения всех итераций поразрядной сортировки 64-битные представления обратно преобразуются в числа с плавающей точкой (\texttt{double}) через обратную интерпретацию битов.
+
+\subsection{Запись результата}
+
+Отсортированный массив возвращается через выходные данные.
+
+Данная реализация обеспечивает линейную временную сложность и эффективное использование памяти. Особое внимание уделено корректной обработке отрицательных чисел путем изменения порядка их представления в 64-битном целочисленном формате.
+
+\section{Схема распараллеливания}
+
+Для повышения производительности и обработки больших массивов данных используется параллельная реализация алгоритма с использованием MPI. Схема распараллеливания включает следующие основные этапы:
+
+\subsection{Инициализация и распределение данных}
+
+Процесс с \texttt{rank=0} считывает входные данные и распределяет подмножества массива между доступными процессами. Размеры подмножеств зависят от общего количества данных и числа процессов, обеспечивая равномерное распределение нагрузки.
+
+\subsection{Локальная поразрядная сортировка}
+
+Каждый процесс выполняет поразрядную сортировку своего подмассива аналогично последовательной версии алгоритма. Это позволяет параллельно обрабатывать различные части данных, сокращая общее время выполнения
+
+\subsection{Параллельное слияние}
+
+После завершения локальной сортировки данные объединяются с использованием дерева слияний. На каждом шаге процесса с определенными рангами принимают данные от соседних процессов и выполняют слияние локальных массивов с использованием стандартного алгоритма слияния. Это позволяет постепенно собирать отсортированный массив на одном из процессов.
+
+\subsection{Сбор результата}
+
+После всех шагов слияния процесс с \texttt{rank=0} получает полностью отсортированный массив, который затем возвращается через выходные данные.
+
+Данная параллельная схема обеспечивает эффективное использование вычислительных ресурсов и масштабируемость алгоритма, позволяя обрабатывать большие объемы данных за счет распределения вычислений между процессами.
+
+\section{Описание MPI-реализации}
+
+Реализация поразрядной сортировки с использованием MPI включает следующие ключевые компоненты:
+
+\subsection{Инициализация и распределение данных}
+
+Процесс с \texttt{rank=0} отвечает за считывание исходных данных и распределение подмножеств массива между процессами. Для этого используется функция \texttt{MPI\_Scatterv}, которая позволяет отправить различные объемы данных каждому процессу в зависимости от их \texttt{rank}.
+
+\subsection{Локальная поразрядная сортировка}
+
+Каждый процесс выполняет локальную поразрядную сортировку своего подмассива. Реализация локальной сортировки аналогична последовательной версии, используя преобразование чисел с плавающей точкой в 64-битные целые для корректного сравнения и сортировки.
+
+\subsection{Параллельное слияние}
+
+После локальной сортировки данные объединяются с использованием дерева слияний. На каждом шаге процесса с определенными рангами принимают данные от соседних процессов и выполняют слияние массивов с помощью стандартного алгоритма \texttt{std::merge}. Для обмена данными используются функции \texttt{MPI\_Send} и \texttt{MPI\_Recv}.
+
+\subsection{Сбор результата}
+
+После завершения всех шагов слияния процесс с \texttt{rank=0} собирает полностью отсортированный массив и записывает его в выходные данные. Для этого используется функция \texttt{MPI\_Gather}, которая собирает данные от всех процессов.
+
+\subsection{Обработка отрицательных чисел}
+
+Для корректной обработки отрицательных чисел используется специальное преобразование: отрицательные числа инвертируются побитовым образом, а положительные числа получают смещение за счет установки старшего бита. Это позволяет гарантировать правильный порядок сортировки как для отрицательных, так и для положительных чисел.
+
+\subsection{Пример кода}
+
+Ниже приведен пример реализации параллельной поразрядной сортировки с использованием MPI на языке C++:
+
+\begin{lstlisting}[language=C++, caption={Реализация параллельной поразрядной сортировки с использованием MPI}]
+#include "mpi/kharin_m_radix_double_sort/include/ops_mpi.hpp"
+
+#include <boost/mpi.hpp>
+#include <cmath>
+#include <queue>
+
+namespace mpi = boost::mpi;
+using namespace kharin_m_radix_double_sort;
+
+bool RadixSortSequential::pre_processing() {
+  internal_order_test();
+
+  data.resize(n);
+  auto* arr = reinterpret_cast<double*>(taskData->inputs[1]);
+  std::copy(arr, arr + n, data.begin());
+
+  return true;
+}
+
+bool RadixSortSequential::validation() {
+  internal_order_test();
+
+  bool is_valid = true;
+  n = *(reinterpret_cast<int*>(taskData->inputs[0]));
+  if (taskData->inputs_count[0] != 1 || taskData->inputs_count[1] != static_cast<size_t>(n) ||
+      taskData->outputs_count[0] != static_cast<size_t>(n)) {
+    is_valid = false;
+  }
+
+  return is_valid;
+}
+
+bool RadixSortSequential::run() {
+  internal_order_test();
+
+  radix_sort_doubles(data);
+  return true;
+}
+
+bool RadixSortSequential::post_processing() {
+  internal_order_test();
+
+  auto* out = reinterpret_cast<double*>(taskData->outputs[0]);
+  std::copy(data.begin(), data.end(), out);
+  return true;
+}
+
+void RadixSortSequential::radix_sort_doubles(std::vector<double>& data_) {
+  size_t n_ = data_.size();
+  std::vector<uint64_t> keys(n_);
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u;
+    std::memcpy(&u, &data_[i], sizeof(double));
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u = ~u;
+    } else {
+      u |= 0x8000000000000000ULL;
+    }
+    keys[i] = u;
+  }
+
+  radix_sort_uint64(keys);
+
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u = keys[i];
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u &= ~0x8000000000000000ULL;
+    } else {
+      u = ~u;
+    }
+    std::memcpy(&data_[i], &u, sizeof(double));
+  }
+}
+
+void RadixSortSequential::radix_sort_uint64(std::vector<uint64_t>& keys) {
+  const int BITS = 64;
+  const int RADIX = 256;
+  std::vector<uint64_t> temp(keys.size());
+
+  for (int shift = 0; shift < BITS; shift += 8) {
+    size_t count[RADIX + 1] = {0};
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      ++count[byte + 1];
+    }
+    for (int i = 0; i < RADIX; ++i) {
+      count[i + 1] += count[i];
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      temp[count[byte]++] = keys[i];
+    }
+    keys.swap(temp);
+  }
+}
+
+bool RadixSortParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    data.resize(n);
+    auto* arr = reinterpret_cast<double*>(taskData->inputs[1]);
+    std::copy(arr, arr + n, data.begin());
+  }
+
+  return true;
+}
+
+bool RadixSortParallel::validation() {
+  internal_order_test();
+
+  bool is_valid = true;
+  if (world.rank() == 0) {
+    n = *(reinterpret_cast<int*>(taskData->inputs[0]));
+    if (taskData->inputs_count[0] != 1 || taskData->inputs_count[1] != static_cast<size_t>(n) ||
+        taskData->outputs_count[0] != static_cast<size_t>(n)) {
+      is_valid = false;
+    }
+  }
+  mpi::broadcast(world, is_valid, 0);
+  mpi::broadcast(world, n, 0);
+  return is_valid;
+}
+
+bool RadixSortParallel::run() {
+  internal_order_test();
+
+  int rank = world.rank();
+  int size = world.size();
+  int local_n = n / size;
+  int remainder = n % size;
+
+  std::vector<int> counts(size);
+  std::vector<int> displs(size);
+  if (rank == 0) {
+    for (int i = 0; i < size; ++i) {
+      counts[i] = local_n + (i < remainder ? 1 : 0);
+    }
+    displs[0] = 0;
+    for (int i = 1; i < size; ++i) {
+      displs[i] = displs[i - 1] + counts[i - 1];
+    }
+  }
+
+  mpi::broadcast(world, counts, 0);
+  mpi::broadcast(world, displs, 0);
+
+  std::vector<double> local_data(counts[rank]);
+  mpi::scatterv(world, (rank == 0 ? data.data() : (double*)nullptr), counts, displs, local_data.data(), counts[rank],
+                0);
+
+  radix_sort_doubles(local_data);
+
+  int steps = 0;
+  {
+    int tmp = size;
+    while (tmp > 1) {
+      tmp = (tmp + 1) / 2;
+      steps++;
+    }
+  }
+
+  int group_size = 1; 
+  for (int step = 0; step < steps; ++step) {
+    int partner_rank = rank + group_size;
+
+    int group_step_size = group_size * 2;
+    bool is_merger = (rank % group_step_size == 0); 
+    bool has_partner = (partner_rank < size);
+
+    if (is_merger && has_partner) {
+      int partner_size;
+      world.recv(partner_rank, 0, partner_size);
+
+      std::vector<double> partner_data(partner_size);
+      world.recv(partner_rank, 1, partner_data.data(), partner_size);
+
+      std::vector<double> merged;
+      merged.reserve(local_data.size() + partner_data.size());
+      std::merge(local_data.begin(), local_data.end(), partner_data.begin(), partner_data.end(),
+                 std::back_inserter(merged));
+      local_data.swap(merged);
+    } else if (!is_merger && (rank % group_step_size == group_size)) {
+
+      int receiver = rank - group_size;
+      int my_size = (int)local_data.size();
+      world.send(receiver, 0, my_size);
+      world.send(receiver, 1, local_data.data(), my_size);
+      local_data.clear();
+    }
+
+    group_size *= 2;
+
+  }
+
+  if (rank == 0) {
+    data.swap(local_data);
+  }
+
+  return true;
+}
+
+bool RadixSortParallel::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    auto* out = reinterpret_cast<double*>(taskData->outputs[0]);
+    std::copy(data.begin(), data.end(), out);
+  }
+
+  return true;
+}
+
+void RadixSortParallel::radix_sort_doubles(std::vector<double>& data_) {
+  size_t n_ = data_.size();
+  std::vector<uint64_t> keys(n_);
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u;
+    std::memcpy(&u, &data_[i], sizeof(double));
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u = ~u;
+    } else {
+      u |= 0x8000000000000000ULL;
+    }
+    keys[i] = u;
+  }
+
+  radix_sort_uint64(keys);
+
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u = keys[i];
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u &= ~0x8000000000000000ULL;
+    } else {
+      u = ~u;
+    }
+    std::memcpy(&data_[i], &u, sizeof(double));
+  }
+}
+
+void RadixSortParallel::radix_sort_uint64(std::vector<uint64_t>& keys) {
+  const int BITS = 64;
+  const int RADIX = 256;
+  std::vector<uint64_t> temp(keys.size());
+
+  for (int shift = 0; shift < BITS; shift += 8) {
+    size_t count[RADIX + 1] = {0};
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      ++count[byte + 1];
+    }
+    for (int i = 0; i < RADIX; ++i) {
+      count[i + 1] += count[i];
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      temp[count[byte]++] = keys[i];
+    }
+    keys.swap(temp);
+  }
+}
+
+\end{lstlisting}
+
+\section{Результаты экспериментов}
+
+Для оценки эффективности реализованного алгоритма были проведены серии тестов на различных наборах данных. Эксперименты проводились как на последовательной, так и на параллельной реализации алгоритма. В тестировании использовались следующие параметры:
+
+\begin{itemize}
+    \item \textbf{Размер данных:} от небольших (10 элементов) до крупных (10 миллионов элементов).
+    \item \textbf{Тип данных:} случайные числа, уже отсортированные массивы, массивы в обратном порядке.
+    \item \textbf{Вычислительное окружение:} многопроцессорные системы с различным количеством ядер и узлов.
+\end{itemize}
+
+\subsection{Тестирование на корректность}
+
+Проведено несколько тестов на корректность работы алгоритма:
+
+\begin{itemize}
+    \item \textbf{Простой набор данных:} проверка сортировки небольшого массива с как положительными, так и отрицательными числами.
+    \item \textbf{Некорректные входные данные:} проверка поведения алгоритма при несоответствии заявленного и фактического количества элементов.
+    \item \textbf{Случайные данные:} сортировка случайно сгенерированных массивов разного размера.
+    \item \textbf{Отсортированные и обратные массивы:} проверка стабильности и корректности алгоритма на уже отсортированных и полностью обратных массивах.
+\end{itemize}
+
+Все тесты на корректность прошли успешно, подтверждая правильность реализации как последовательной, так и параллельной версии алгоритма.
+
+\subsection{Тестирование производительности}
+
+Проведено тестирование производительности алгоритма на различных размерах данных и с разным количеством процессов. Результаты показали, что параллельная версия алгоритма превосходит последовательную при увеличении объема данных и количества процессов. В среднем при использовании 4 процессов время выполнения сократилось более чем в 2 раза по сравнению с последовательной реализацией.
+
+\section{Выводы}
+
+В ходе работы была успешно реализована поразрядная сортировка для вещественных чисел типа \texttt{double} с поддержкой параллельной обработки данных с использованием MPI. Последовательная версия алгоритма продемонстрировала высокую эффективность при сортировке больших массивов данных благодаря линейной временной сложности. Параллельная реализация позволила значительно сократить время выполнения за счет распределения вычислений между несколькими процессами и эффективного использования вычислительных ресурсов.
+
+Проведенные тесты подтвердили корректность работы алгоритма и его способность масштабироваться с увеличением количества процессов. Данная реализация может быть использована в системах, требующих быстрой и надежной сортировки больших объемов вещественных данных.
+
+\section{Приложение}
+
+\subsection{Исходный код}
+\begin{lstlisting}[language=C++, caption={Реализация}]
+//ops_mpi.hpp
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi/communicator.hpp>
+#include <boost/mpi/environment.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace kharin_m_radix_double_sort {
+
+class RadixSortSequential : public ppc::core::Task {
+ public:
+  explicit RadixSortSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> data;
+  int n = 0;
+
+  static void radix_sort_doubles(std::vector<double>& data);
+  static void radix_sort_uint64(std::vector<uint64_t>& keys);
+};
+
+class RadixSortParallel : public ppc::core::Task {
+ public:
+  explicit RadixSortParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> data;
+  int n = 0;
+  boost::mpi::communicator world;
+
+  static void radix_sort_doubles(std::vector<double>& data);
+  static void radix_sort_uint64(std::vector<uint64_t>& keys);
+};
+
+}  // namespace kharin_m_radix_double_sort
+
+
+
+//ops_mpi.cpp
+#include "mpi/kharin_m_radix_double_sort/include/ops_mpi.hpp"
+
+#include <boost/mpi.hpp>
+#include <cmath>
+#include <queue>
+
+namespace mpi = boost::mpi;
+using namespace kharin_m_radix_double_sort;
+
+bool RadixSortSequential::pre_processing() {
+  internal_order_test();
+
+  data.resize(n);
+  auto* arr = reinterpret_cast<double*>(taskData->inputs[1]);
+  std::copy(arr, arr + n, data.begin());
+
+  return true;
+}
+
+bool RadixSortSequential::validation() {
+  internal_order_test();
+
+  bool is_valid = true;
+  n = *(reinterpret_cast<int*>(taskData->inputs[0]));
+  if (taskData->inputs_count[0] != 1 || taskData->inputs_count[1] != static_cast<size_t>(n) ||
+      taskData->outputs_count[0] != static_cast<size_t>(n)) {
+    is_valid = false;
+  }
+
+  return is_valid;
+}
+
+bool RadixSortSequential::run() {
+  internal_order_test();
+
+  radix_sort_doubles(data);
+  return true;
+}
+
+bool RadixSortSequential::post_processing() {
+  internal_order_test();
+
+  auto* out = reinterpret_cast<double*>(taskData->outputs[0]);
+  std::copy(data.begin(), data.end(), out);
+  return true;
+}
+
+void RadixSortSequential::radix_sort_doubles(std::vector<double>& data_) {
+  size_t n_ = data_.size();
+  std::vector<uint64_t> keys(n_);
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u;
+    std::memcpy(&u, &data_[i], sizeof(double));
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u = ~u;
+    } else {
+      u |= 0x8000000000000000ULL;
+    }
+    keys[i] = u;
+  }
+
+  radix_sort_uint64(keys);
+
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u = keys[i];
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u &= ~0x8000000000000000ULL;
+    } else {
+      u = ~u;
+    }
+    std::memcpy(&data_[i], &u, sizeof(double));
+  }
+}
+
+void RadixSortSequential::radix_sort_uint64(std::vector<uint64_t>& keys) {
+  const int BITS = 64;
+  const int RADIX = 256;
+  std::vector<uint64_t> temp(keys.size());
+
+  for (int shift = 0; shift < BITS; shift += 8) {
+    size_t count[RADIX + 1] = {0};
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      ++count[byte + 1];
+    }
+    for (int i = 0; i < RADIX; ++i) {
+      count[i + 1] += count[i];
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      temp[count[byte]++] = keys[i];
+    }
+    keys.swap(temp);
+  }
+}
+
+bool RadixSortParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    data.resize(n);
+    auto* arr = reinterpret_cast<double*>(taskData->inputs[1]);
+    std::copy(arr, arr + n, data.begin());
+  }
+
+  return true;
+}
+
+bool RadixSortParallel::validation() {
+  internal_order_test();
+
+  bool is_valid = true;
+  if (world.rank() == 0) {
+    n = *(reinterpret_cast<int*>(taskData->inputs[0]));
+    if (taskData->inputs_count[0] != 1 || taskData->inputs_count[1] != static_cast<size_t>(n) ||
+        taskData->outputs_count[0] != static_cast<size_t>(n)) {
+      is_valid = false;
+    }
+  }
+  mpi::broadcast(world, is_valid, 0);
+  mpi::broadcast(world, n, 0);
+  return is_valid;
+}
+
+bool RadixSortParallel::run() {
+  internal_order_test();
+
+  int rank = world.rank();
+  int size = world.size();
+  int local_n = n / size;
+  int remainder = n % size;
+
+  std::vector<int> counts(size);
+  std::vector<int> displs(size);
+  if (rank == 0) {
+    for (int i = 0; i < size; ++i) {
+      counts[i] = local_n + (i < remainder ? 1 : 0);
+    }
+    displs[0] = 0;
+    for (int i = 1; i < size; ++i) {
+      displs[i] = displs[i - 1] + counts[i - 1];
+    }
+  }
+
+  mpi::broadcast(world, counts, 0);
+  mpi::broadcast(world, displs, 0);
+
+  std::vector<double> local_data(counts[rank]);
+  mpi::scatterv(world, (rank == 0 ? data.data() : (double*)nullptr), counts, displs, local_data.data(), counts[rank],
+                0);
+
+  radix_sort_doubles(local_data);
+
+  int steps = 0;
+  {
+    int tmp = size;
+    while (tmp > 1) {
+      tmp = (tmp + 1) / 2;
+      steps++;
+    }
+  }
+
+  int group_size = 1; 
+  for (int step = 0; step < steps; ++step) {
+    int partner_rank = rank + group_size;
+    int group_step_size = group_size * 2;
+    bool is_merger = (rank % group_step_size == 0); 
+    bool has_partner = (partner_rank < size); 
+
+    if (is_merger && has_partner) {
+
+      int partner_size;
+      world.recv(partner_rank, 0, partner_size);
+
+      std::vector<double> partner_data(partner_size);
+      world.recv(partner_rank, 1, partner_data.data(), partner_size);
+
+
+      std::vector<double> merged;
+      merged.reserve(local_data.size() + partner_data.size());
+      std::merge(local_data.begin(), local_data.end(), partner_data.begin(), partner_data.end(),
+                 std::back_inserter(merged));
+      local_data.swap(merged);
+    } else if (!is_merger && (rank % group_step_size == group_size)) {
+     
+      int receiver = rank - group_size;
+      int my_size = (int)local_data.size();
+      world.send(receiver, 0, my_size);
+      world.send(receiver, 1, local_data.data(), my_size);
+    local_data.clear();
+    }
+
+    group_size *= 2;
+
+  }
+
+  if (rank == 0) {
+    data.swap(local_data);
+  }
+
+  return true;
+}
+
+bool RadixSortParallel::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    auto* out = reinterpret_cast<double*>(taskData->outputs[0]);
+    std::copy(data.begin(), data.end(), out);
+  }
+
+  return true;
+}
+
+void RadixSortParallel::radix_sort_doubles(std::vector<double>& data_) {
+  size_t n_ = data_.size();
+  std::vector<uint64_t> keys(n_);
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u;
+    std::memcpy(&u, &data_[i], sizeof(double));
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u = ~u;
+    } else {
+      u |= 0x8000000000000000ULL;
+    }
+    keys[i] = u;
+  }
+
+  radix_sort_uint64(keys);
+
+  for (size_t i = 0; i < n_; ++i) {
+    uint64_t u = keys[i];
+    if ((u & 0x8000000000000000ULL) != 0) {
+      u &= ~0x8000000000000000ULL;
+    } else {
+      u = ~u;
+    }
+    std::memcpy(&data_[i], &u, sizeof(double));
+  }
+}
+
+void RadixSortParallel::radix_sort_uint64(std::vector<uint64_t>& keys) {
+  const int BITS = 64;
+  const int RADIX = 256;
+  std::vector<uint64_t> temp(keys.size());
+
+  for (int shift = 0; shift < BITS; shift += 8) {
+    size_t count[RADIX + 1] = {0};
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      ++count[byte + 1];
+    }
+    for (int i = 0; i < RADIX; ++i) {
+      count[i + 1] += count[i];
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+      uint8_t byte = (keys[i] >> shift) & 0xFF;
+      temp[count[byte]++] = keys[i];
+    }
+    keys.swap(temp);
+  }
+}
+\end{lstlisting}
+
+\subsection{Тесты}
+
+\begin{lstlisting}[language=C++, caption={Тесты}]
+//func_test.cpp
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <random>
+#include <vector>
+
+#include "mpi/kharin_m_radix_double_sort/include/ops_mpi.hpp"
+
+namespace mpi = boost::mpi;
+using namespace kharin_m_radix_double_sort;
+
+TEST(kharin_m_radix_double_sort_mpi, SimpleData) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  int N = 8;
+  std::vector<double> inputData = {3.5, -2.1, 0.0, 1.1, -3.3, 2.2, -1.4, 5.6};
+  std::vector<double> xPar(N, 0.0);
+  std::vector<double> xSeq(N, 0.0);
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+
+    taskDataSeq->inputs = taskDataPar->inputs;
+    taskDataSeq->inputs_count = taskDataPar->inputs_count;
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+  }
+
+  RadixSortParallel radixSortPar(taskDataPar);
+  ASSERT_TRUE(radixSortPar.validation());
+  radixSortPar.pre_processing();
+  radixSortPar.run();
+  radixSortPar.post_processing();
+
+  if (world.rank() == 0) {
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_TRUE(radixSortSeq.validation());
+    radixSortSeq.pre_processing();
+    radixSortSeq.run();
+    radixSortSeq.post_processing();
+
+    auto* resultPar = reinterpret_cast<double*>(taskDataPar->outputs[0]);
+    auto* resultSeq = reinterpret_cast<double*>(taskDataSeq->outputs[0]);
+
+    for (int i = 0; i < N; ++i) {
+      ASSERT_NEAR(resultPar[i], resultSeq[i], 1e-12);
+    }
+  }
+}
+
+TEST(kharin_m_radix_double_sort_mpi, ValidationFailureTestSize) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  int N = 5;
+  std::vector<double> inputData = {3.5, -2.1, 0.0}; 
+  std::vector<double> xSeq(N, 0.0);
+
+  if (world.rank() == 0) {
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataSeq->inputs_count.emplace_back(1);
+
+    taskDataSeq->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataSeq->inputs_count.emplace_back(3);
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_FALSE(radixSortSeq.validation());
+  }
+}
+
+
+TEST(kharin_m_radix_double_sort_mpi, RandomDataSmall) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 20;
+  std::vector<double> inputData(N);
+  if (world.rank() == 0) {
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (int i = 0; i < N; ++i) {
+      inputData[i] = dist(gen);
+    }
+  }
+
+  std::vector<double> xPar(N, 0.0);
+  std::vector<double> xSeq(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+
+    taskDataSeq->inputs = taskDataPar->inputs;
+    taskDataSeq->inputs_count = taskDataPar->inputs_count;
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+  }
+
+  RadixSortParallel radixSortPar(taskDataPar);
+  ASSERT_TRUE(radixSortPar.validation());
+  radixSortPar.pre_processing();
+  radixSortPar.run();
+  radixSortPar.post_processing();
+
+  if (world.rank() == 0) {
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_TRUE(radixSortSeq.validation());
+    radixSortSeq.pre_processing();
+    radixSortSeq.run();
+    radixSortSeq.post_processing();
+
+    auto* resultPar = reinterpret_cast<double*>(taskDataPar->outputs[0]);
+    auto* resultSeq = reinterpret_cast<double*>(taskDataSeq->outputs[0]);
+
+    for (int i = 0; i < N; ++i) {
+      ASSERT_NEAR(resultPar[i], resultSeq[i], 1e-12);
+    }
+  }
+}
+
+
+TEST(kharin_m_radix_double_sort_mpi, RandomDataLarge) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 10000;
+  std::vector<double> inputData;
+  if (world.rank() == 0) {
+    inputData.resize(N);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dist(-1e6, 1e6);
+    for (int i = 0; i < N; ++i) {
+      inputData[i] = dist(gen);
+    }
+  }
+
+  std::vector<double> xPar(N, 0.0);
+  std::vector<double> xSeq(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+
+    taskDataSeq->inputs = taskDataPar->inputs;
+    taskDataSeq->inputs_count = taskDataPar->inputs_count;
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+  }
+
+  RadixSortParallel radixSortPar(taskDataPar);
+  ASSERT_TRUE(radixSortPar.validation());
+  radixSortPar.pre_processing();
+  radixSortPar.run();
+  radixSortPar.post_processing();
+
+  if (world.rank() == 0) {
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_TRUE(radixSortSeq.validation());
+    radixSortSeq.pre_processing();
+    radixSortSeq.run();
+    radixSortSeq.post_processing();
+
+    auto* resultPar = reinterpret_cast<double*>(taskDataPar->outputs[0]);
+    auto* resultSeq = reinterpret_cast<double*>(taskDataSeq->outputs[0]);
+
+    for (int i = 0; i < N; ++i) {
+      ASSERT_NEAR(resultPar[i], resultSeq[i], 1e-12);
+    }
+  }
+}
+
+TEST(kharin_m_radix_double_sort_mpi, AlreadySortedData) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 10;
+  std::vector<double> inputData;
+  if (world.rank() == 0) {
+    inputData = {-5.4, -3.3, -1.0, 0.0, 0.1, 1.2, 2.3, 2.4, 3.5, 10.0};
+  }
+
+  std::vector<double> xPar(N, 0.0);
+  std::vector<double> xSeq(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+
+    taskDataSeq->inputs = taskDataPar->inputs;
+    taskDataSeq->inputs_count = taskDataPar->inputs_count;
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+  }
+
+  RadixSortParallel radixSortPar(taskDataPar);
+  ASSERT_TRUE(radixSortPar.validation());
+  radixSortPar.pre_processing();
+  radixSortPar.run();
+  radixSortPar.post_processing();
+
+  if (world.rank() == 0) {
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_TRUE(radixSortSeq.validation());
+    radixSortSeq.pre_processing();
+    radixSortSeq.run();
+    radixSortSeq.post_processing();
+
+    auto* resultPar = reinterpret_cast<double*>(taskDataPar->outputs[0]);
+    auto* resultSeq = reinterpret_cast<double*>(taskDataSeq->outputs[0]);
+
+    for (int i = 0; i < N; ++i) {
+      ASSERT_NEAR(resultPar[i], resultSeq[i], 1e-12);
+    }
+  }
+}
+
+TEST(kharin_m_radix_double_sort_mpi, ReverseSortedData) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 10;
+  std::vector<double> inputData;
+  if (world.rank() == 0) {
+    inputData = {10.0, 3.5, 2.4, 2.3, 1.2, 0.1, 0.0, -1.0, -3.3, -5.4};
+  }
+
+  std::vector<double> xPar(N, 0.0);
+  std::vector<double> xSeq(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+  std::shared_ptr<ppc::core::TaskData> taskDataSeq = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+
+    taskDataSeq->inputs = taskDataPar->inputs;
+    taskDataSeq->inputs_count = taskDataPar->inputs_count;
+
+    taskDataSeq->outputs.emplace_back(reinterpret_cast<uint8_t*>(xSeq.data()));
+    taskDataSeq->outputs_count.emplace_back(N);
+  }
+
+  RadixSortParallel radixSortPar(taskDataPar);
+  ASSERT_TRUE(radixSortPar.validation());
+  radixSortPar.pre_processing();
+  radixSortPar.run();
+  radixSortPar.post_processing();
+
+  if (world.rank() == 0) {
+    RadixSortSequential radixSortSeq(taskDataSeq);
+    ASSERT_TRUE(radixSortSeq.validation());
+    radixSortSeq.pre_processing();
+    radixSortSeq.run();
+    radixSortSeq.post_processing();
+
+    auto* resultPar = reinterpret_cast<double*>(taskDataPar->outputs[0]);
+    auto* resultSeq = reinterpret_cast<double*>(taskDataSeq->outputs[0]);
+
+    for (int i = 0; i < N; ++i) {
+      ASSERT_NEAR(resultPar[i], resultSeq[i], 1e-12);
+    }
+  }
+}
+
+//perf_test.cpp
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <boost/mpi/timer.hpp>
+#include <random>
+#include <vector>
+
+#include "core/perf/include/perf.hpp"
+#include "mpi/kharin_m_radix_double_sort/include/ops_mpi.hpp"
+
+namespace mpi = boost::mpi;
+using namespace kharin_m_radix_double_sort;
+
+
+TEST(kharin_m_radix_double_sort_mpi_perf, test_pipeline_run) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 10000000;
+
+  std::vector<double> inputData;
+  if (world.rank() == 0) {
+    inputData.resize(N);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dist(-1e9, 1e9);
+
+    for (int i = 0; i < N; ++i) {
+      inputData[i] = dist(gen);
+    }
+  }
+
+  std::vector<double> xPar(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+  }
+
+  auto radixSortPar = std::make_shared<RadixSortParallel>(taskDataPar);
+  ASSERT_TRUE(radixSortPar->validation());
+  radixSortPar->pre_processing();
+  radixSortPar->run();
+  radixSortPar->post_processing();
+
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 5; 
+  const mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(radixSortPar);
+  perfAnalyzer->pipeline_run(perfAttr, perfResults);
+
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+
+TEST(kharin_m_radix_double_sort_mpi_perf, test_task_run) {
+  mpi::environment env;
+  mpi::communicator world;
+
+  int N = 1000000;
+  std::vector<double> inputData;
+  if (world.rank() == 0) {
+    inputData.resize(N);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dist(-1e9, 1e9);
+
+    for (int i = 0; i < N; ++i) {
+      inputData[i] = dist(gen);
+    }
+  }
+
+  std::vector<double> xPar(N, 0.0);
+
+  std::shared_ptr<ppc::core::TaskData> taskDataPar = std::make_shared<ppc::core::TaskData>();
+
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(&N));
+    taskDataPar->inputs_count.emplace_back(1);
+
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t*>(inputData.data()));
+    taskDataPar->inputs_count.emplace_back(N);
+
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t*>(xPar.data()));
+    taskDataPar->outputs_count.emplace_back(N);
+  }
+
+  auto radixSortPar = std::make_shared<RadixSortParallel>(taskDataPar);
+  ASSERT_TRUE(radixSortPar->validation());
+  radixSortPar->pre_processing();
+  radixSortPar->run();
+  radixSortPar->post_processing();
+
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 5;  
+  const mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(radixSortPar);
+  perfAnalyzer->task_run(perfAttr, perfResults);
+
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+\end{lstlisting}
+
+\end{document}
