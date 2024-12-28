@@ -1,0 +1,602 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет},
+    pdfauthor={Мухина Маргарита},
+    pdfsubject={Сортировка Шелла с простым слиянием}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \large
+    Министерство образования и науки Российской Федерации\\
+    Федеральное государственное автономное образовательное учреждение высшего образования\\
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\[1cm]
+    Институт информационных технологий, математики и механики\\
+    Кафедра математического обеспечения и суперкомпьютерных технологий\\
+    Направление подготовки: «Программная инженерия»\\[2cm]
+
+    {\Large \textbf{ОТЧЕТ}}\\[0.5cm]
+    {\Large \textbf{«Сортировка Шелла с простым слиянием»}}\\[0.5cm]
+    {\Large Вариант 16}\\[4cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        Выполнила: студентка группы 3822Б1ПР2\\
+        Мухина Маргарита Олеговна\\
+        Преподаватель: Доцент кафедры высокопроизводительных вычислений и системного программирования\\
+        Сысоев Александр Владимирович
+    }\\[4cm]
+
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+\thispagestyle{empty}
+\clearpage
+\pagenumbering{arabic} 
+\setcounter{page}{2} 
+\tableofcontents
+\clearpage
+\setcounter{page}{3} 
+\section{Введение}
+
+\hspace*{1.25em}В современных вычислениях, обработка и анализ больших объемов данных стали неотъемлемой частью многих научных и инженерных задач. Сортировка данных является одной из фундаментальных операций, которая широко используется в различных областях, таких как численное моделирование, анализ графов, сжатие данных и кэширование геометрической информации. Эффективные алгоритмы сортировки критически важны для производительности и масштабируемости этих приложений.
+
+Сортировка Шелла — алгоритм сортировки, являющийся усовершенствованным вариантом сортировки вставками. Идея метода Шелла состоит в сравнении элементов, стоящих не только рядом, но и на определённом расстоянии друг от друга. Иными словами — это сортировка вставками с предварительными «грубыми» проходами.
+
+
+\section{Постановка задачи}
+
+\hspace*{1.25em} Целью данной работы является разработка, реализация и анализ производительности параллельной версии алгоритма сортировки Шелла, использующей интерфейс передачи сообщений (MPI) для распараллеливания вычислений. В работе также рассмотрена последовательная реализация алгоритма.
+
+Необходимо разработать и реализовать параллельную программу для сортировки вектора целых чисел в порядке неубывания на многопроцессорной системе с распределенной памятью, используя алгоритм сортировки Шелла.
+Основные требования:
+
+\begin{enumerate}
+    \item \textbf{Параллельная реализация:} Разработать алгоритм, который распараллеливает процесс сортировки, эффективно используя ресурсы многопроцессорной системы.
+    \item \textbf{Использование MPI:} Применить MPI для обмена данными и синхронизации между процессами на разных узлах вычислительной системы.
+    \item \textbf{Распределение данных:} Обеспечить равномерное распределение данных между процессорами перед началом сортировки.
+    \item \textbf{Локальная сортировка:} Применить последовательный алгоритм сортировки Шелла для сортировки данных на каждом процессорном узле.
+    \item \textbf{Слияние результатов:} Разработать эффективный механизм слияния локально отсортированных данных в единый глобально отсортированный вектор.
+    \item \textbf{Корректность:} Обеспечить корректность работы алгоритма и верифицировать результаты сортировки с помощью тестов.
+    \item \textbf{Анализ производительности:} Измерить время работы последовательной и параллельной версий алгоритма для векторов разного размера и на различном количестве процессоров.
+\end{enumerate}
+
+\section{Описание алгоритма}
+
+\begin{enumerate}
+    \item \textbf{Определение последовательности промежутков:} Сортировка Шелла использует последовательность убывающих промежутков (\textit{gap}), которые определяют расстояние между сравниваемыми элементами. Существует множество вариантов выбора последовательности промежутков. В моей реализации используется последовательность, начинающаяся с $n/3$ и уменьшающаяся по формуле $gap = (gap - 1) / 3$, что соответствует последовательности $h = (3^k - 1) / 2$.
+    \item \textbf{Итерация по промежуткам:} Для каждого промежутка \textit{gap} выполняется следующее:
+    \begin{itemize}
+        \item Начинается итерация по вектору с элемента, находящегося на позиции \textit{gap}.
+        \item Для каждого элемента на позиции $i$ (где $i \ge gap$), выполняется сравнение с элементами, расположенными на расстоянии \textit{gap} слева от него (т.е. на позициях $i - gap$, $i - 2*gap$, и т.д.).
+        \item Если элемент на позиции $j - gap$ больше, чем текущий элемент на позиции $i$, то происходит перемещение элементов на расстояние \textit{gap} вправо.
+        \item После того, как найдено место для элемента на позиции $i$, текущий элемент вставляется на это место.
+    \end{itemize}
+    \item \textbf{Уменьшение промежутка:} После завершения итерации по текущему промежутку \textit{gap}, значение промежутка уменьшается.
+    \item \textbf{Повторение:} Шаги 2 и 3 повторяются, пока промежуток \textit{gap} не станет равным 0.
+\end{enumerate}
+
+\subsubsection*{Сложность алгоритма:}
+\begin{itemize}
+    \item \textbf{Временная сложность:} Зависит от выбранной последовательности промежутков. В худшем случае (при неудачном выборе промежутков) может достигать $O(n^2)$. В среднем, для хорошо выбранных последовательностей, сложность приближается к $O(n \log^2 n)$ или даже $O(n^{3/2})$. Для последовательности $h = (3^k - 1) / 2$, используемой в данной реализации, средняя сложность близка к $O(n \log^2 n)$.
+    \item \textbf{Пространственная сложность:} $O(1)$ (сортировка на месте).
+\end{itemize}
+
+\section{Описание схемы распараллеливания}
+\subsubsection*{Общая схема:}
+\begin{enumerate}
+    \item \textbf{Распределение данных:} Исходный вектор равномерно распределяется между процессами. Процесс с рангом 0 читает данные и рассылает части вектора другим процессам.
+    \item \textbf{Локальная сортировка:} Каждый процесс независимо сортирует свою часть вектора, используя последовательную версию сортировки Шелла.
+    \item \textbf{Сбор результатов (с использованием слияния):} Процесс с рангом 0 собирает отсортированные локальные векторы от всех процессов и последовательно сливает их в результирующий отсортированный вектор.
+    \begin{itemize}
+        \item Все процессы, кроме процесса с рангом 0, отправляют свой отсортированный вектор процессу 0.
+        \item Процесс 0 получает отсортированные векторы от других процессов и сливает их, используя алгоритм слияния.
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection*{Детали распределения:}
+
+\begin{itemize}
+    \item \textbf{Количество процессов:} Пусть \textit{size} — количество процессов.
+    \item \textbf{Размер вектора:} \textit{n} — размер исходного вектора.
+    \item \textbf{Размер локального вектора:} Размер локального вектора \textit{local\_size} для каждого процесса зависит от размера исходного вектора и количества процессов. В общем случае, это $n / size$, но при $n \% size \ne 0$ необходимо учесть остаток, который распределяется между первыми $n \% size$ процессами, то есть $local\_size = n/size + (\text{rank} < n \% size ? 1 : 0)$.
+    \item \textbf{Распределение с использованием scatterv:} Функция \texttt{scatterv} используется для распределения данных из 0-ого процесса в \textit{local\_input\_} векторы соответствующих процессов.
+\end{itemize}
+
+\subsubsection*{Детали слияния:}
+\begin{itemize}
+    \item \textbf{Алгоритм слияния:} Используется алгоритм слияния двух отсортированных векторов, который сливает два отсортированных вектора в единый отсортированный вектор.
+    \item \textbf{Сборка на процессе 0:} Процесс 0 собирает отсортированные локальные векторы в последовательном порядке (сначала сливается свой локальный вектор, затем результат сливается с локальными векторами от других процессов в порядке возрастания их рангов). Для обмена данными используется функция \texttt{recv}.
+\end{itemize}
+
+\section{Программная реализация}
+
+\subsubsection*{Основные шаги реализации:}
+
+\begin{enumerate}
+    \item \textbf{Validation} Выполняется проверка корректности входных данных на корневом процессе:
+    \begin{itemize}
+    \item Размер входного вектора должен быть больше нуля
+    \item Размер входного и выходного вектора должны быть одинаковыми
+    \end{itemize}
+    \item \textbf{Распределение данных:}
+    \begin{itemize}
+        \item Процесс с рангом 0: Читает входной вектор \textit{input\_}. Определяет размеры \textit{sizes} для каждой локальной части вектора в зависимости от \textit{n} и количества процессов \textit{size}, а также распределяет данные с использованием \texttt{scatterv}.
+        \item Остальные процессы: Получают свою часть данных с помощью \texttt{scatterv} и сохраняют их в \textit{local\_input\_}.
+    \end{itemize}
+    \item \textbf{Локальная сортировка:} Каждый процесс вызывает функцию \texttt{shellSort} для сортировки \textit{local\_input\_}, результат сохраняется в \textit{local\_res\_}.
+    \item \textbf{Слияние результатов:}
+    \begin{itemize}
+        \item Корневой процесс:
+        \begin{itemize}
+            \item Получает отсортированный \textit{local\_res\_} в переменную \textit{res\_}.
+            \item Принимает отсортированные векторы \textit{temp} от всех остальных процессов с помощью \texttt{recv}.
+            \item Последовательно сливает эти векторы, вызывая функцию \texttt{merge}, в результирующий отсортированный вектор \textit{res\_}.
+        \end{itemize}
+        \item Остальные процессы: Отправляют свой отсортированный \textit{local\_res\_} процессу 0 с помощью \texttt{send}.
+    \end{itemize}
+    \item \textbf{Вывод результатов:} Процесс 0 записывает результирующий отсортированный вектор \textit{res\_} в выходной вектор \textit{output\_data}.
+\end{enumerate}
+
+\subsubsection*{Функции MPI:}
+
+\begin{itemize}
+    \item \texttt{boost::mpi::communicator world\_}: Коммуникатор, представляющий все процессы.
+    \item \texttt{world\_.rank()}: Возвращает ранг текущего процесса.
+    \item \texttt{world\_.size()}: Возвращает общее количество процессов.
+    \item \texttt{broadcast(world\_, n, 0)}: Рассылает размер вектора \textit{n} от процесса 0 всем остальным процессам.
+    \item \texttt{scatterv(world\_, input\_, sizes, local\_input\_.data(), 0)}: Распределяет вектор \textit{input\_} между процессами на основе векторов \textit{sizes}.
+    \item \texttt{world\_.send(0, 0, local\_res\_)}: Отправляет отсортированный вектор \textit{local\_res\_} процессу 0.
+    \item \texttt{world\_.recv(i, 0, temp)}: Получает отсортированный вектор \textit{temp} от процесса с рангом \textit{i}.
+\end{itemize}
+
+\hspace*{1.25em}Программная реализация алгоритма включает следующие компоненты:
+
+\begin{enumerate}
+    \item Функция \texttt{shellSort:}
+    \begin{itemize}
+        \item Реализует последовательный алгоритм сортировки Шелла.
+        \item Принимает на вход вектор \textit{vect} и возвращает отсортированный вектор.
+    \end{itemize}
+    \item Функция \texttt{merge:}
+    \begin{itemize}
+        \item Реализует слияние двух отсортированных векторов.
+    \end{itemize}
+\end{enumerate}
+
+\section{Результаты экспериментов}
+
+\hspace*{1.25em}Эксперименты проводились на ПК с следующими параметрами:
+
+\begin{itemize}
+    \item Операционная система: Windows 10
+    \item Процессор: Intel(R) Core(TM) i3-7020U CPU @ 2.30GHz
+    \item Оперативная память: 8 GB DDR4
+\end{itemize}
+\hspace*{1.25em}Для оценки производительности и корректности алгоритма были проведены следующие типы экспериментов:
+
+\begin{enumerate}
+    \item \textbf{ Google Tests:} Проведены для проверки корректности работы как последовательной, так и параллельной версий алгоритма на небольших наборах данных, а также на граничных случаях: пустой вектор, вектор из одного элемента, вектор с повторяющимися элементами, вектор с отрицательными элементами.
+    \item \textbf{Тесты производительности (время выполнения):} Измерено время выполнения как последовательной, так и параллельной версий алгоритма на различных размерах входных векторов (от 10 до 2 500 000 элементов) и на различном количестве процессов (1, 2, 4, 8).
+    \item \textbf{Оценка ускорения и эффективности:} На основе времени выполнения рассчитаны ускорение и эффективность параллельного алгоритма по сравнению с последовательным.
+\end{enumerate}
+\subsubsection*{Тесты:}
+
+\begin{itemize}
+    \item \textbf{Test\_Sort\_SmallVec:} Проверка сортировки вектора из 6 элементов.
+    \item \textbf{Test\_Sort\_SingleElementVec:} Проверка сортировки вектора из одного элемента.
+    \item \textbf{Test\_Sort\_EmptyVec:} Проверка обработки пустого вектора (должен выдавать ошибку валидации).
+    \item \textbf{Test\_Sort\_LargeVector:} Проверка сортировки вектора из 100 элементов.
+    \item \textbf{Test\_Sort\_NegativeValues:} Проверка сортировки вектора, содержащего отрицательные элементы.
+    \item \textbf{Test\_Sort\_RepeatingValues:} Проверка сортировки вектора, содержащего повторяющиеся элементы.
+    \item \textbf{Test\_Sort\_10\_Elements, Test\_Sort\_20\_Elements, Test\_Sort\_50\_Elements, Test\_Sort\_150\_Elements:} Проверки сортировки рандомно заполненных векторов размером 10, 20, 50 и 150 элементов соответственно.
+\end{itemize}
+\begin{table}[htbp]
+\centering
+\caption{Время выполнения (в секундах) для разных размеров векторов и количества процессов.}
+    \label{tab:time}
+    \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    Размер вектора & 1 процесс (последов.) & 2 процесса & 4 процесса & 8 процессов\\ \hline
+    10 & 0,000018 & 0,00019 & 0,00002 & 0,00010 \\ \hline
+    100 & 0,00026 & 0,00033 & 0,00043 & 0,00022  \\ \hline
+    1000 & 0,00304 & 0,00214 & 0,00147 & 0,00171  \\ \hline
+    10000 & 0,0366 & 0,0193 & 0,0117 & 0,00911  \\ \hline
+    100000 & 0,414 & 0,211 & 0,127 & 0,0713 \\ \hline
+    1000000 & 5,26 & 2,75 & 1,51 & 0,864  \\ \hline
+    2500000 & 14,4 & 7,35 & 3,86 & 2,17 \\ \hline
+    \end{tabular}
+\end{table}
+\subsubsection*{Оценка ускорения и эффективности}
+
+Ускорение параллельного алгоритма относительно последовательного рассчитывается по формуле:
+
+\begin{equation}
+S(n, p) = \frac{T_{seq}(n)}{T_{par}(n, p)}
+\end{equation}
+
+Эффективность использования рассчитывается по формуле:
+
+\begin{equation}
+E(n, p) = \frac{S(n, p)}{p}
+\end{equation}
+
+где:
+\begin{itemize}
+    \item $n$ - размер вектора.
+    \item $p$ - количество процессов.
+    \item $T_{seq}(n)$ - время выполнения последовательного алгоритма.
+    \item $T_{par}(n, p)$ - время выполнения параллельного алгоритма.
+\end{itemize}
+
+\begin{table}[h!]
+    \centering
+    \caption{Ускорение и эффективность для разных размеров векторов и количества процессов.}
+    \label{tab:speedup}
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+    Размер вектора & 2 процесса & 4 процесса & 8 процессов \\
+    \hline
+    \multicolumn{4}{c}{Ускорение (S)} \\
+    \hline
+    10 & 0,095 & 0,9 & 0,18 \\ \hline
+    100 & 0,78 & 0,6 & 1,18 \\ \hline
+    1000 & 1,42 & 2,07 & 1,77 \\ \hline
+    10000 & 1,9 & 3,13 & 4,02 \\ \hline
+    100000 & 1,96 & 3,26 & 5,80 \\ \hline
+    1000000 & 1,91 & 3,48 & 6,08 \\ \hline
+    2500000 & 1,96 & 3,73 & 6,63 \\ \hline
+    \multicolumn{4}{c}{Эффективность (E)} \\
+    \hline
+    10 & 0,048 & 0,23 & 0,022 \\ \hline
+    100 & 0,39 & 0,15 & 0,15 \\ \hline
+    1000 & 0,71 & 0,52 & 0,22 \\ \hline
+    10000 & 0,95 & 0,78 & 0,50 \\ \hline
+    100000 & 0,98 & 0,82 & 0,72 \\ \hline
+    1000000 & 0,96 & 0,87 & 0,76 \\ \hline
+    2500000 & 0,98 & 0,93 & 0,82 \\ \hline
+    \end{tabular}
+\end{table}
+\section{Выводы из результатов}
+\begin{enumerate}
+    \itemВсе unit-тесты прошли успешно, что подтверждает корректность работы как последовательного, так и параллельного алгоритмов.
+    \item Ускорение параллельного алгоритма увеличивается с ростом размера вектора и количества процессов.
+    \item Для больших векторов, ускорение приближается к линейному (то есть ускорение близко к числу процессоров).
+    \item Эффективность уменьшается с увеличением количества процессов, что связано с накладными расходами на обмен данными и синхронизацию.
+\end{enumerate}
+
+\section{Заключение}
+
+\hspace*{1.25em}В данной работе были реализованы как последовательная, так и параллельная версии алгоритма сортировки Шелла. Проведены обширные тесты на корректность и производительность. Результаты экспериментов демонстрируют эффективность предложенного подхода к распараллеливанию сортировки. Все Google Test, охватывающие различные сценарии, включая пустой вектор, вектор из одного элемента, векторы с повторяющимися и отрицательными элементами, успешно пройдены как для последовательной, так и для параллельной реализации. Это подтверждает корректность работы разработанного алгоритма. Используемая в данной работе последовательность $h = (3^k - 1) / 2$ обеспечивает среднюю временную сложность, близкую к $O(n \log^2 n)$, что является достаточно эффективным для многих практических задач.
+
+\section*{Литература}
+
+\begin{enumerate}
+    \item \href{https://parallel.ru/vvv/mpi.html#p1}{Лекция 5. Технологии параллельного программирования. Message Passing Interface (MPI)}.
+    \item \href{https://habr.com/ru/post/119090/}{Google testing framework (gtest)}.
+    \item \href{https://ru.wikipedia.org/wiki/Сортировка_Шелла}{Сортировка Шелла}.\
+    \item \href{https://www.geeksforgeeks.org/shell-sort/}{Shell Sort}.
+    
+\end{enumerate}
+
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\subsection*{\texttt{tasks/mpi/muhina\_m\_shell\_sort/include/ops\_mpi.hpp}}
+\addcontentsline{toc}{subsection}{\texttt{tasks/mpi/muhina\_m\_shell\_sort/include/ops\_mpi.hpp}}
+
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace muhina_m_shell_sort_mpi {
+std::vector<int> shellSort(const std::vector<int>& vect);
+std::vector<int> merge(const std::vector<int>& left, const std::vector<int>& right);
+
+class ShellSortMPISequential : public ppc::core::Task {
+ public:
+  explicit ShellSortMPISequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> res_;
+};
+
+class ShellSortMPIParallel : public ppc::core::Task {
+ public:
+  explicit ShellSortMPIParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_, local_input_;
+  std::vector<int> res_, local_res_;
+  boost::mpi::communicator world_;
+};
+
+}  
+
+\end{lstlisting}
+
+\subsection*{\texttt{tasks/mpi/muhina\_m\_shell\_sort/src/ops\_mpi.cpp}}
+\addcontentsline{toc}{subsection}{\texttt{tasks/mpi/muhina\_m\_shell\_sort/src/ops\_mpi.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "mpi/muhina_m_shell_sort/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <thread>
+#include <vector>
+
+std::vector<int> muhina_m_shell_sort_mpi::shellSort(const std::vector<int>& vect) {
+  std::vector<int> sortedVec = vect;
+  int n = sortedVec.size();
+  int gap;
+  for (gap = 1; gap < n / 3; gap = gap * 3 + 1);
+  for (; gap > 0; gap = (gap - 1) / 3) {
+    for (int i = gap; i < n; i++) {
+      int temp = sortedVec[i];
+      int j;
+      for (j = i; j >= gap && sortedVec[j - gap] > temp; j -= gap) {
+        sortedVec[j] = sortedVec[j - gap];
+      }
+      sortedVec[j] = temp;
+    }
+  }
+  return sortedVec;
+}
+bool muhina_m_shell_sort_mpi::ShellSortMPISequential::pre_processing() {
+  internal_order_test();
+  input_ = std::vector<int>(taskData->inputs_count[0]);
+  auto* tmp_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+  for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+    input_[i] = tmp_ptr[i];
+  }
+  return true;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPISequential::validation() {
+  internal_order_test();
+  int sizeVec = taskData->inputs_count[0];
+  int sizeResultVec = taskData->outputs_count[0];
+
+  return (sizeVec > 0 && sizeVec == sizeResultVec);
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPISequential::run() {
+  internal_order_test();
+  res_ = shellSort(input_);
+  return true;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPISequential::post_processing() {
+  internal_order_test();
+  int* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res_.begin(), res_.end(), output_data);
+  return true;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPIParallel::pre_processing() {
+  internal_order_test();
+
+  if (world_.rank() == 0) {
+    input_ = std::vector<int>(taskData->inputs_count[0]);
+    auto* tmp_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+    for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+      input_[i] = tmp_ptr[i];
+    }
+  }
+  return true;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPIParallel::validation() {
+  internal_order_test();
+  if (world_.rank() == 0) {
+    int sizeVec = taskData->inputs_count[0];
+    int sizeResultVec = taskData->outputs_count[0];
+
+    return (sizeVec > 0 && sizeVec == sizeResultVec);
+  }
+  return true;
+}
+
+std::vector<int> muhina_m_shell_sort_mpi::merge(const std::vector<int>& left, const std::vector<int>& right) {
+  std::vector<int> result;
+  result.reserve(left.size() + right.size());
+  std::merge(left.begin(), left.end(), right.begin(), right.end(), std::back_inserter(result));
+
+  return result;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPIParallel::run() {
+  internal_order_test();
+
+  int rank = world_.rank();
+  int size = world_.size();
+
+  int n = input_.size();
+  broadcast(world_, n, 0);
+
+  int delta = n / size;
+  int remainder = n % size;
+
+  std::vector<int> sizes(world_.size(), delta);
+  for (int i = 0; i < remainder; ++i) {
+    sizes[i]++;
+  }
+
+  local_input_.resize(delta + (rank < remainder ? 1 : 0));
+  scatterv(world_, input_, sizes, local_input_.data(), 0);
+
+  local_res_ = shellSort(local_input_);
+
+  if (world_.rank() == 0) {
+    res_ = local_res_;
+    std::vector<int> temp;
+
+    for (int i = 1; i < world_.size(); ++i) {
+      world_.recv(i, 0, temp);
+      res_ = merge(res_, temp);
+    }
+  } else {
+    world_.send(0, 0, local_res_);
+  }
+
+  return true;
+}
+
+bool muhina_m_shell_sort_mpi::ShellSortMPIParallel::post_processing() {
+  internal_order_test();
+  if (world_.rank() == 0) {
+    int* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res_.begin(), res_.end(), output_data);
+  }
+  return true;
+}
+\end{lstlisting}
+\subsection*{\texttt{tasks/seq/muhina\_m\_shell\_sort/include/ops\_seq.hpp}}
+\addcontentsline{toc}{subsection}{\texttt{tasks/seq/muhina\_m\_shell\_sort/include/ops\_seq.hpp}}
+
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <algorithm>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace muhina_m_shell_sort_seq {
+std::vector<int> shellSort(const std::vector<int>& vect);
+
+class ShellSortSequential : public ppc::core::Task {
+ public:
+  explicit ShellSortSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> res_;
+};
+} 
+\end{lstlisting}
+\subsection*{\texttt{tasks/seq/muhina\_m\_shell\_sort/src/ops\_seq.cpp}}
+\addcontentsline{toc}{subsection}{\texttt{tasks/seq/muhina\_m\_shell\_sort/src/ops\_seq.cpp}}
+
+\begin{lstlisting}[language=C++]
+#include "seq/muhina_m_shell_sort/include/ops_seq.hpp"
+
+#include <random>
+#include <thread>
+
+std::vector<int> muhina_m_shell_sort_seq::shellSort(const std::vector<int>& vect) {
+  std::vector<int> sortedVec = vect;
+  int n = sortedVec.size();
+  int gap;
+  for (gap = 1; gap < n / 3; gap = gap * 3 + 1);
+  for (; gap > 0; gap = (gap - 1) / 3) {
+    for (int i = gap; i < n; i++) {
+      int temp = sortedVec[i];
+      int j;
+      for (j = i; j >= gap && sortedVec[j - gap] > temp; j -= gap) {
+        sortedVec[j] = sortedVec[j - gap];
+      }
+      sortedVec[j] = temp;
+    }
+  }
+  return sortedVec;
+}
+
+bool muhina_m_shell_sort_seq::ShellSortSequential::pre_processing() {
+  internal_order_test();
+
+  input_ = std::vector<int>(taskData->inputs_count[0]);
+  auto* tempPtr = reinterpret_cast<int*>(taskData->inputs[0]);
+  for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+    input_[i] = tempPtr[i];
+  }
+
+  return true;
+}
+
+bool muhina_m_shell_sort_seq::ShellSortSequential::validation() {
+  internal_order_test();
+  int sizeVec = taskData->inputs_count[0];
+  int sizeResultVec = taskData->outputs_count[0];
+
+  return (sizeVec > 0 && sizeVec == sizeResultVec);
+}
+
+bool muhina_m_shell_sort_seq::ShellSortSequential::run() {
+  internal_order_test();
+  res_ = shellSort(input_);
+  return true;
+}
+
+bool muhina_m_shell_sort_seq::ShellSortSequential::post_processing() {
+  internal_order_test();
+  int* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res_.begin(), res_.end(), output_data);
+  return true;
+}
+
+\end{lstlisting}
+\end{document}
