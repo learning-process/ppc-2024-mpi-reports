@@ -1,0 +1,669 @@
+﻿\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[russian,english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+
+\title{Отчет по лабораторной работе №3\\[5pt]
+«Поразрядная сортировка для целых чисел с четно-нечетным слиянием Бэтчера»}
+\author{}
+\date{}
+
+\begin{document}
+
+% Титульный лист
+\begin{titlepage}
+    \centering
+    \textbf{Министерство образования и науки Российской Федерации\\[5pt]
+    Федеральное государственное автономное образовательное\\
+    учреждение высшего образования\\
+    Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского\\[10pt]
+    Институт информационных технологий, математики и механики}\\[30pt]
+    
+    \vfill
+    
+    \textbf{\Large Отчет по лабораторной работе №3\\[10pt]
+    «Поразрядная сортировка для целых чисел с четно-нечетным слиянием Бэтчера»}\\[50pt]
+    
+    \hfill\parbox{0.4\textwidth}{
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПР1,\\
+        Белов А.А.\\[10pt]
+        \textbf{Проверил:}\\
+        доцент кафедры ВВиСП,\\
+        к.т.н., Сысоев А.В.\\
+    }
+    
+    \vfill
+    
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+\section*{Введение}
+Цель данной работы — разработка параллельной реализации алгоритма сортировки целых чисел методом поразрядной сортировки (Radix Sort) с использованием четно-нечетного слияния Бэтчера (Batcher's Odd-Even Mergesort). Программа использует технологии MPI для распараллеливания вычислений.
+
+\section*{Постановка задачи}
+Требуется разработать программу, которая выполняет:
+\begin{itemize}
+    \item поразрядную сортировку массива целых чисел (тип данных bigint выбран как наиболее вместительный и устойчивый к нежелательным переполнениям);
+    \item распараллеливание вычислений с использованием библиотеки Boost MPI;
+    \item проверку корректности результатов путём проведения функционального тестирования с использованием GTests;
+    \item оценку времени выполнения и производительности распараллеливания путём проведения perfomance тестирования.
+\end{itemize}
+
+\section*{Описание алгоритма}
+
+\textbf{Radix Sort.} В реализованном алгоритме поразрядной сортировки используется подход LSD (Least Significant Digit), который обрабатывает числа начиная с младших разрядов. Основным этапом является сортировка чисел по текущему разряду, что выполняется с помощью метода подсчета частоты элементов (Counting Sort). Для обработки чисел с отрицательным значением данные предварительно разделяются на два массива: положительные и отрицательные числа. Отрицательные числа инвертируются, сортируются, а затем их порядок восстанавливается после объединения с отсортированными положительными числами. Такой подход гарантирует корректную обработку чисел любого знака.
+
+\textbf{Odd-Even Batcher's Mergesort.} В реализации четно-нечетного слияния Бэтчера ключевой этап заключается в многопоточной обработке данных. Алгоритм рекурсивно делит массивы на подмассивы, которые раздаются процессам для локальной поразрядной сортировки, а затем собирает локально отсортированные части исходного массива и окончательно сортирует их чётно-нечётным слиянием Бэтчера, используя операции сравнения и обмена элементов. Для обеспечения параллелизма каждая итерация слияния выполняет разделение работы между процессами с использованием MPI. Для синхронизации обмена данных между процессами применяются коллективные операции Boost MPI, такие как \texttt{boost::mpi::scatterv} и \texttt{boost::mpi::gatherv}. Основное преимущество данной реализации заключается в использовании эффективного распределения данных, минимизирующего накладные расходы на коммуникацию между процессами.
+
+Поразрядная сортировка использует сортировку подсчетом (Counting Sort) для обработки каждого разряда. Четно-нечетное слияние Бэтчера работает на основе итеративного сравнения и обмена соседних элементов, обеспечивая итоговую сортировку.
+
+\section*{Описание схемы распараллеливания}
+Сортировка выполняется с использованием следующих этапов распараллеливания:
+\begin{enumerate}
+    \item Разделение массива на подмассивы, распределяемые между процессами MPI.
+    \item Локальная поразрядная сортировка на каждом процессе.
+    \item Параллельное чётно-нечётное слияние отсортированных подмассивов с использованием соседних обменов между процессами.
+    \item Сборка итогового отсортированного массива на корневом процессе.
+\end{enumerate}
+
+\section*{Описание MPI-версии}
+Программа реализует следующие этапы:
+\begin{enumerate}
+    \item \textbf{Предварительная обработка:} процесс с рангом 0 считывает данные и передает их другим процессам с использованием функции MPI \texttt{scatterv}.
+    \item \textbf{Локальная сортировка:} каждый процесс выполняет поразрядную сортировку на своей части данных.
+    \item \textbf{Чётно-нечётное слияние:} процессы обмениваются данными с соседями для выполнения слияния, результат сохраняется локально.
+    \item \textbf{Сборка результата:} корневой процесс собирает отсортированные данные от всех процессов с использованием функции Boost MPI \texttt{gatherv}.
+\end{enumerate}
+
+\section*{Результаты экспериментов}
+В ходе экспериментов была измерена производительность программы на массиве из 1 048 576 (2 в степени 20) случайных чисел. Среднее время выполнения программы (на дистанции из 10 запусков) составило:
+\begin{itemize}
+    \item на 1 процессе: 0.1665 секунды.
+    \item на 2 процессах: 0.1089 секунды.
+    \item на 3 процессах: 0.1127 секунды.
+    \item на 4 процессах: 0.0991 секунды.
+    \item Ускорение: $S = \frac{0,1665}{0,0991} \approx 1.68$.
+\end{itemize}
+
+Корректность работы программы проверена сравнением результатов с последовательной реализацией.
+
+\section*{Выводы из результатов}
+Реализация показала высокую производительность (и могла бы показать ещё большую при большем размере входных данных) благодаря использованию MPI. Ускорение близко к линейному, что подтверждает эффективность распараллеливания.
+
+\section*{Заключение}
+Разработанная программа успешно выполняет сортировку больших массивов целых чисел, используя параллельные вычисления. Алгоритм может быть масштабирован для работы на большем числе процессов.
+
+\section*{Литература}
+\begin{enumerate}
+    \item Тарасов Ю.Г. Основы параллельного программирования. М.: Издательство МФТИ, 2015.
+    \item Gropp W., Lusk E., Skjellum A. Using MPI: Portable Parallel Programming with the Message Passing Interface. MIT Press, 2014.
+    \item Boost MPI Documentation. \url{https://www.boost.org/doc/libs/release/doc/html/mpi.html}.
+\end{enumerate}
+
+\section*{Приложение: Код программы}
+\subsection*{Файл ops\_mpi.hpp}
+\begin{lstlisting}
+#ifndef OPS_MPI_HPP
+#define OPS_MPI_HPP
+
+#include <mpi.h>
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <boost/mpi/collectives.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cmath>
+#include <memory>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+using bigint = long long;
+using namespace std;
+
+namespace belov_a_radix_batcher_mergesort_mpi {
+
+class RadixBatcherMergesortParallel : public ppc::core::Task {
+ public:
+  explicit RadixBatcherMergesortParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+  static void sort(vector<bigint>& arr);
+
+ private:
+  boost::mpi::communicator world;
+  vector<bigint> array;  // input unsorted numbers array
+  int n = 0;             // array size
+
+  static vector<bigint> merge(const vector<bigint>& arr1, const vector<bigint>& arr2);
+  static void compare_and_swap(vector<int>& data, int i, int j);
+  static vector<bigint> odd_even_merge(const vector<bigint>& left, const vector<bigint>& right);
+
+  static void radix_sort(vector<bigint>& arr, bool invert);
+  static void counting_sort(vector<bigint>& arr, bigint digit_place);
+  static int get_number_digit_capacity(bigint num);
+};
+
+class RadixBatcherMergesortSequential : public ppc::core::Task {
+ public:
+  explicit RadixBatcherMergesortSequential(std::shared_ptr<ppc::core::TaskData> taskData_)
+      : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+  static void sort(vector<bigint>& arr);
+
+ private:
+  vector<bigint> array;
+  int n = 0;
+
+  static void radix_sort(vector<bigint>& arr, bool invert);
+  static void counting_sort(vector<bigint>& arr, bigint digit_place);
+  static int get_number_digit_capacity(bigint num);
+};
+
+}  // namespace belov_a_radix_batcher_mergesort_mpi
+
+#endif  // OPS_MPI_HPP
+\end{lstlisting}
+
+
+\subsection*{Файл ops\_mpi.cpp}
+\begin{lstlisting}
+#include "mpi/belov_a_radix_sort_with_batcher_mergesort/include/ops_mpi.hpp"
+
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/vector.hpp>
+
+#include "boost/mpi/detail/broadcast_sc.hpp"
+
+using namespace std;
+
+namespace belov_a_radix_batcher_mergesort_mpi {
+
+int RadixBatcherMergesortParallel::get_number_digit_capacity(bigint num) {
+  return (num == 0 ? 1 : static_cast<int>(log10(abs(num))) + 1);
+}
+
+void RadixBatcherMergesortParallel::sort(vector<bigint>& arr) {
+  vector<bigint> pos;
+  vector<bigint> neg;
+
+  for (const auto& num : arr) {
+    (num >= 0 ? pos : neg).push_back(abs(num));
+  }
+
+  radix_sort(pos, false);
+  radix_sort(neg, true);
+
+  arr.clear();
+  arr.reserve(neg.size() + pos.size());
+  for (const auto& num : neg) arr.push_back(-num);
+  arr.insert(arr.end(), pos.begin(), pos.end());
+}
+
+void RadixBatcherMergesortParallel::radix_sort(vector<bigint>& arr, bool invert) {
+  if (arr.empty()) return;
+
+  bigint max_val = *std::max_element(arr.begin(), arr.end());
+  int max_val_digit_capacity = get_number_digit_capacity(max_val);
+  int iter = 1;
+
+  for (bigint digit_place = 1; iter <= max_val_digit_capacity; digit_place *= 10, ++iter) {
+    counting_sort(arr, digit_place);
+  }
+
+  if (invert) std::reverse(arr.begin(), arr.end());
+}
+
+void RadixBatcherMergesortParallel::counting_sort(vector<bigint>& arr, bigint digit_place) {
+  vector<bigint> output(arr.size());
+  int count[10] = {};
+
+  for (const auto& num : arr) {
+    bigint index = (num / digit_place) % 10;
+    count[index]++;
+  }
+
+  for (int i = 1; i < 10; i++) {
+    count[i] += count[i - 1];
+  }
+
+  for (int i = arr.size() - 1; i >= 0; i--) {
+    bigint num = arr[i];
+    bigint index = (num / digit_place) % 10;
+    output[--count[index]] = num;
+  }
+
+  std::copy(output.begin(), output.end(), arr.begin());
+}
+
+bool RadixBatcherMergesortParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    n = taskData->inputs_count[0];
+    auto* input_array_data = reinterpret_cast<bigint*>(taskData->inputs[0]);
+    array.assign(input_array_data, input_array_data + n);
+  }
+  return true;
+}
+
+bool RadixBatcherMergesortParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    return (taskData->inputs.size() == 1 && !(taskData->inputs_count.size() < 2) && taskData->inputs_count[0] != 0 &&
+            (taskData->inputs_count[0] == taskData->inputs_count[1]) && !taskData->outputs.empty());
+  }
+  return true;
+}
+
+vector<int> calculate_sizes(size_t input_size, size_t num_proc) {
+  size_t count = input_size / num_proc;
+  size_t mod = input_size % num_proc;
+  vector<int> sizes(num_proc, count);
+
+  transform(sizes.cbegin(), sizes.cbegin() + mod, sizes.begin(), [](auto i) { return i + 1; });
+
+  return sizes;
+}
+
+vector<int> calculate_displ(size_t input_size, size_t num_proc) {
+  auto sizes = calculate_sizes(input_size, num_proc);
+  vector<int> displ(num_proc, 0);
+
+  for (size_t i = 1; i < num_proc; ++i) {
+    displ[i] = displ[i - 1] + sizes[i - 1];
+  }
+  return displ;
+}
+
+vector<bigint> RadixBatcherMergesortParallel::merge(const vector<bigint>& arr1, const vector<bigint>& arr2) {
+  vector<bigint> merged;
+  merged.reserve(arr1.size() + arr2.size());
+
+  size_t i = 0;
+  size_t j = 0;
+
+  while (i < arr1.size() && j < arr2.size()) {
+    if (arr1[i] <= arr2[j]) {
+      merged.push_back(arr1[i++]);
+    } else {
+      merged.push_back(arr2[j++]);
+    }
+  }
+
+  while (i < arr1.size()) {
+    merged.push_back(arr1[i++]);
+  }
+
+  while (j < arr2.size()) {
+    merged.push_back(arr2[j++]);
+  }
+
+  return merged;
+}
+
+vector<bigint> RadixBatcherMergesortParallel::odd_even_merge(const vector<bigint>& left, const vector<bigint>& right) {
+  vector<bigint> merged(left.size() + right.size());
+  std::merge(left.begin(), left.end(), right.begin(), right.end(), merged.begin());
+
+  for (size_t i = 1; i < merged.size(); i += 2) {
+    if (i + 1 < merged.size() && merged[i] > merged[i + 1]) {
+      std::swap(merged[i], merged[i + 1]);
+    }
+  }
+  return merged;
+}
+
+bool RadixBatcherMergesortParallel::run() {
+  internal_order_test();
+  boost::mpi::broadcast(world, n, 0);
+
+  int power_of_2 = 1;
+  while (power_of_2 * 2 <= world.size()) {
+    power_of_2 *= 2;
+  }
+
+  const bool participating = world.rank() < power_of_2;
+
+  if (!participating) {
+    world.split(1);
+    return true;
+  }
+
+  auto com = world.split(0);
+  const int rank = com.rank();
+  const int com_size = com.size();
+
+  vector<bigint> local_data;
+
+  vector<int> sizes(power_of_2);
+  vector<int> displ(power_of_2);
+
+  if (com.rank() == 0) {
+    sizes = calculate_sizes(n, power_of_2);
+    displ = calculate_displ(n, power_of_2);
+
+    local_data.resize(sizes[0]);
+    local_data.assign(array.begin(), array.begin() + sizes[0]);
+    boost::mpi::scatterv(com, array, sizes, displ, local_data.data(), local_data.size(), 0);
+  } else {
+    int cur_size = rank < n % com_size ? (n / com_size + 1) : (n / com_size);
+    local_data.resize(cur_size);
+    boost::mpi::scatterv(com, local_data.data(), cur_size, 0);
+  }
+
+  sort(local_data);
+
+  int local_size = rank < n % com_size ? (n / com_size + 1) : (n / com_size);
+  for (int step = 0; step < com_size; ++step) {
+    if ((step + rank) % 2 == 0) {
+      if (rank < com_size - 1) {
+        vector<bigint> neighbor_data(local_size);
+        com.send(rank + 1, 0, local_data);
+        com.recv(rank + 1, 0, neighbor_data);
+
+        vector<bigint> merged = odd_even_merge(local_data, neighbor_data);
+        local_data.assign(merged.begin(), merged.begin() + local_size);
+      }
+    } else if (rank > 0) {
+      vector<bigint> neighbor_data(local_size);
+      com.recv(rank - 1, 0, neighbor_data);
+      com.send(rank - 1, 0, local_data);
+      vector<bigint> merged = odd_even_merge(neighbor_data, local_data);
+      local_data.assign(merged.end() - local_size, merged.end());
+    }
+  }
+
+  if (com.rank() == 0) {
+    boost::mpi::gatherv(com, local_data, array.data(), sizes, displ, 0);
+  } else {
+    boost::mpi::gatherv(com, local_data, 0);
+  }
+
+  return true;
+}
+
+bool RadixBatcherMergesortParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    copy(array.begin(), array.end(), reinterpret_cast<bigint*>(taskData->outputs[0]));
+  }
+
+  return true;
+}
+
+int RadixBatcherMergesortSequential::get_number_digit_capacity(bigint num) {
+  return (num == 0 ? 1 : static_cast<int>(log10(abs(num))) + 1);
+}
+
+void RadixBatcherMergesortSequential::sort(vector<bigint>& arr) {
+  vector<bigint> pos;
+  vector<bigint> neg;
+
+  for (const auto& num : arr) {
+    (num >= 0 ? pos : neg).push_back(abs(num));
+  }
+
+  radix_sort(pos, false);
+  radix_sort(neg, true);
+
+  arr.clear();
+  arr.reserve(neg.size() + pos.size());
+  for (const auto& num : neg) arr.push_back(-num);
+  arr.insert(arr.end(), pos.begin(), pos.end());
+}
+
+void RadixBatcherMergesortSequential::radix_sort(vector<bigint>& arr, bool invert) {
+  if (arr.empty()) return;
+
+  bigint max_val = *std::max_element(arr.begin(), arr.end());
+  int max_val_digit_capacity = get_number_digit_capacity(max_val);
+  int iter = 1;
+
+  for (bigint digit_place = 1; iter <= max_val_digit_capacity; digit_place *= 10, ++iter) {
+    counting_sort(arr, digit_place);
+  }
+
+  if (invert) std::reverse(arr.begin(), arr.end());
+}
+
+void RadixBatcherMergesortSequential::counting_sort(vector<bigint>& arr, bigint digit_place) {
+  vector<bigint> output(arr.size());
+  int count[10] = {};
+
+  for (const auto& num : arr) {
+    bigint index = (num / digit_place) % 10;
+    count[index]++;
+  }
+
+  for (int i = 1; i < 10; i++) {
+    count[i] += count[i - 1];
+  }
+
+  for (int i = arr.size() - 1; i >= 0; i--) {
+    bigint num = arr[i];
+    bigint index = (num / digit_place) % 10;
+    output[--count[index]] = num;
+  }
+
+  std::copy(output.begin(), output.end(), arr.begin());
+}
+
+bool RadixBatcherMergesortSequential::pre_processing() {
+  internal_order_test();
+
+  n = taskData->inputs_count[0];
+  auto* input_array_data = reinterpret_cast<bigint*>(taskData->inputs[0]);
+  array.assign(input_array_data, input_array_data + n);
+
+  return true;
+}
+
+bool RadixBatcherMergesortSequential::validation() {
+  internal_order_test();
+
+  return (taskData->inputs.size() == 1 && !(taskData->inputs_count.size() < 2) && taskData->inputs_count[0] != 0 &&
+          (taskData->inputs_count[0] == taskData->inputs_count[1]) && !taskData->outputs.empty());
+}
+
+bool RadixBatcherMergesortSequential::run() {
+  internal_order_test();
+
+  sort(array);
+  return true;
+}
+
+bool RadixBatcherMergesortSequential::post_processing() {
+  internal_order_test();
+
+  copy(array.begin(), array.end(), reinterpret_cast<bigint*>(taskData->outputs[0]));
+  return true;
+}
+
+}  // namespace belov_a_radix_batcher_mergesort_mpi
+\end{lstlisting}
+
+\subsection*{Файл ops\_seq.hpp}
+\begin{lstlisting}
+#ifndef OPS_SEQ_HPP
+#define OPS_SEQ_HPP
+
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <memory>
+#include <random>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+using bigint = long long;
+using namespace std;
+
+namespace belov_a_radix_batcher_mergesort_seq {
+
+class RadixBatcherMergesortSequential : public ppc::core::Task {
+ public:
+  explicit RadixBatcherMergesortSequential(std::shared_ptr<ppc::core::TaskData> taskData_)
+      : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+  static void sort(vector<bigint>& arr);
+
+ private:
+  vector<bigint> array;  // input unsorted numbers array
+  int n = 0;             // array size
+
+  void static radix_sort(vector<bigint>& arr, bool invert);
+  static void counting_sort(vector<bigint>& arr, bigint digit_place);
+  static int get_number_digit_capacity(bigint num);
+};
+
+}  // namespace belov_a_radix_batcher_mergesort_seq
+
+#endif  // OPS_SEQ_HPP
+\end{lstlisting}
+
+\subsection*{Файл ops\_seq.cpp}
+\begin{lstlisting}
+#include "seq/belov_a_radix_sort_with_batcher_mergesort/include/ops_seq.hpp"
+
+using namespace std;
+
+namespace belov_a_radix_batcher_mergesort_seq {
+int RadixBatcherMergesortSequential::get_number_digit_capacity(bigint num) {
+  return (num == 0 ? 1 : static_cast<int>(log10(abs(num))) + 1);
+}
+
+void RadixBatcherMergesortSequential::sort(vector<bigint>& arr) {
+  vector<bigint> pos;
+  vector<bigint> neg;
+
+  for (const auto& num : arr) {
+    (num >= 0 ? pos : neg).push_back(abs(num));
+  }
+
+  radix_sort(pos, false);
+  radix_sort(neg, true);
+
+  arr.clear();
+  arr.reserve(neg.size() + pos.size());
+  for (const auto& num : neg) arr.push_back(-num);
+  arr.insert(arr.end(), pos.begin(), pos.end());
+}
+
+void RadixBatcherMergesortSequential::radix_sort(vector<bigint>& arr, bool invert) {
+  if (arr.empty()) return;
+
+  bigint max_val = *std::max_element(arr.begin(), arr.end());
+  int max_val_digit_capacity = get_number_digit_capacity(max_val);
+  int iter = 1;
+
+  for (bigint digit_place = 1; iter <= max_val_digit_capacity; digit_place *= 10, ++iter) {
+    counting_sort(arr, digit_place);
+  }
+
+  if (invert) std::reverse(arr.begin(), arr.end());
+}
+
+void RadixBatcherMergesortSequential::counting_sort(vector<bigint>& arr, bigint digit_place) {
+  vector<bigint> output(arr.size());
+  int count[10] = {};
+
+  for (const auto& num : arr) {
+    bigint index = (num / digit_place) % 10;
+    count[index]++;
+  }
+
+  for (int i = 1; i < 10; i++) {
+    count[i] += count[i - 1];
+  }
+
+  for (int i = arr.size() - 1; i >= 0; i--) {
+    bigint num = arr[i];
+    bigint index = (num / digit_place) % 10;
+    output[--count[index]] = num;
+  }
+
+  std::copy(output.begin(), output.end(), arr.begin());
+}
+
+bool RadixBatcherMergesortSequential::pre_processing() {
+  internal_order_test();
+
+  n = taskData->inputs_count[0];
+  auto* input_array_data = reinterpret_cast<bigint*>(taskData->inputs[0]);
+  array.assign(input_array_data, input_array_data + n);
+
+  return true;
+}
+
+bool RadixBatcherMergesortSequential::validation() {
+  internal_order_test();
+
+  return (taskData->inputs.size() == 1 && !(taskData->inputs_count.size() < 2) && taskData->inputs_count[0] != 0 &&
+          (taskData->inputs_count[0] == taskData->inputs_count[1]) && !taskData->outputs.empty());
+}
+
+bool RadixBatcherMergesortSequential::run() {
+  internal_order_test();
+
+  sort(array);
+  return true;
+}
+
+bool RadixBatcherMergesortSequential::post_processing() {
+  internal_order_test();
+
+  copy(array.begin(), array.end(), reinterpret_cast<bigint*>(taskData->outputs[0]));
+  return true;
+}
+
+}  // namespace belov_a_radix_batcher_mergesort_seq
+
+\end{lstlisting}
+
+
+\end{document}
