@@ -1,0 +1,517 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+
+\usepackage{xcolor}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\linespread{1.5}
+
+%C++ code 
+\usepackage{listings}
+\usepackage{color}
+% параметры стиля
+\lstdefinestyle{mystyle}{
+	basicstyle=\footnotesize,
+	breakatwhitespace=false, 
+	breaklines=true,
+	captionpos=b,
+	keepspaces=true, 
+	numbers=left,
+	numbersep=5pt,  % номера строк
+	showspaces=false, % не показывать пробелы
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+
+% применяем стиль
+\lstset{style=mystyle}
+% используем заданный нами моноширинный шрифт
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+
+
+
+
+\begin{document}
+\begin{titlepage}
+	\begin{center}
+		\large
+		{МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ\\ РОССИЙСКОЙ ФЕДЕРАЦИИ}
+		
+		Федеральное государственное автономное образовательное учреждение высшего образования
+		\vspace{0.5cm}
+		
+		\textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+		(ННГУ)\\
+		\vspace{1cm}
+		\textbf{Институт информационных технологий, математики и механики}\\
+		\vspace{1cm}
+		
+		
+		\vfill
+		
+		\vfill
+		
+		\Large
+		\textbf{Отчёт по лабораторной работе на тему} \\
+		\textbf{<<Поиск кратчайших путей из одной вершины. Алгоритм Дейкстры. С CRS графов.>>}
+		{\LARGE 
+		}
+		\bigskip
+		
+		
+	\end{center}
+	\vfill
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Выполнил:} 
+
+            студент группы 3822Б1ФИ1
+
+            \underline{\hspace{3cm}} Коробейников А. П. \bigskip
+            
+	\end{minipage}%
+	
+	\hfill\begin{minipage}{0.4\textwidth}
+		\textbf{Проверил:}
+
+           доцент кафедры ВВСП, к.т.н.
+           
+           \underline{\hspace{3cm}} Сысоев А.В.\bigskip
+	\end{minipage}%
+	\vfill
+	
+	\begin{center}
+		Нижний Новгород\\
+		2024 г.
+	\end{center}
+\end{titlepage}
+\thispagestyle{empty} % убираем колонтитулы с этой страницы
+\tableofcontents
+
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+   Алгоритм Дейкстры является одним из наиболее известных и широко используемых алгоритмов для решения задачи нахождения кратчайшего пути в графах с неотрицательными весами рёбер. Он был предложен Эдсгером Дейкстрой в 1956 году и с тех пор нашел применение в различных областях, включая маршрутизацию в сетях, планирование и оптимизацию.\\
+
+    В данной лабораторной работе рассматривается применение обычного алгоритма Дейкстры к графам, представленным в виде сжатых разреженных структур (CRS, или Compressed Row Storage). Такой способ хранения графов позволяет эффективно использовать память и ускоряет операции доступа к данным, что особенно важно при работе с большими графами, где количество рёбер значительно меньше, чем количество возможных пар вершин.\\
+
+    Целью данной работы является изучение и реализация алгоритма Дейкстры для CRS графов в последовательной и паралелльной версиях, а также будет проведен анализ его производительности.
+
+
+   
+
+
+
+\newpage
+
+\section{Постановка задачи}
+Задача заключается в нахождении кратчайших путей от заданной начальной вершины до всех остальных вершин в направленном графе, представленном в формате Compressed Row Storage (CRS). Этот формат позволяет эффективно хранить разреженные графы и быстро получать доступ к их элементам.
+
+\section*{Входные данные}
+\begin{itemize}
+    \item \( G = (V, E) \) — направленный граф, где:
+    \begin{itemize}
+        \item \( V \) — множество вершин, \( |V| = n \);
+        \item \( E \) — множество ребер с положительными весами, заданными функцией \( w: E \to \mathbb{R}^+ \).
+    \end{itemize}
+    \item \( sv \) — начальная вершина для поиска кратчайших путей.
+    \item Структура данных CRS, содержащая:
+    \begin{itemize}
+        \item \( \text{values} \) — массив весов ребер;
+        \item \( \text{col} \) — массив индексов конечных вершин для каждого ребра;
+        \item \( \text{RowIndex} \) — массив указателей на начало каждой строки (вершины) в массиве \( \text{values} \).
+    \end{itemize}
+\end{itemize}
+
+\section*{Выходные данные}
+Массив \( \text{D} \), где \( \text{D}[v] \) — кратчайшее расстояние от начальной вершины \( sv \) до вершины \( v \) для всех \( v \in V \).
+
+\newpage
+
+\section{Описание алгоритма}
+
+\subsection*{Алгоритм}
+Алгоритм Дейкстры находит кратчайшие пути в графе с положительными весами, используя жадный подход. Он последовательно выбирает вершину с минимальным известным расстоянием, обновляет расстояния до её соседей и повторяет процесс, пока не будут обработаны все вершины.
+
+\begin{enumerate}
+    \item \textbf{Инициализация}:
+    \begin{itemize}
+        \item Создаем массив расстояний \( \text{dist} \), инициализировав его значениями, близкими к бесконечности, кроме элемента с индексом стартовой вершины \( \text{dist}[sv] = 0 \) (расстояние до самой себя равно нулю). Также создаем массив \( \text{visited} \), в котором хранится информация о посещении верщины. 
+    \end{itemize}
+    
+    \item \textbf{Поиск минимальной вершины}:
+    \begin{itemize}
+        \item На каждом шаге проходим по массиву и ищем не посещённую вершину с минимальным расстоянием.
+    \end{itemize}
+
+    \item \textbf{Обработка вершин}:
+    \begin{itemize}
+        \item Извлекаем вершину \( u \) с минимальным расстоянием.
+         \item Отмечаем вершину \( u \) как посещённую.
+        \item Для каждой соседней вершины \( v \), связанной с \( u \) через ребро \( (u, v) \):
+        \begin{itemize}
+            \item Вычисляем новое расстояние \( \text{alt} = \text{dist}[u] + w(u, v) \).
+            \item Если \( \text{alt} < \text{dist}[v] \), обновляем \( \text{dist}[v] \).
+        \end{itemize}
+         
+    \end{itemize}
+    
+    \item \textbf{Завершение}:
+    \begin{itemize}
+        \item Повторяем шаги 2 и 3 до тех пор, пока все вершины не будут обработаны.
+    \end{itemize}
+\end{enumerate}
+
+\subsection*{Сложность алгоритма}
+
+Сложность алгоритма Дейкстры на CRS графах составляет \( O((|E| + |V|) \log |V|) \). Это делает его эффективным для разреженных графов, поскольку количество операций, необходимых для обработки каждой вершины и каждого ребра, значительно уменьшается благодаря эффективному представлению графа в формате CRS.
+
+
+\newpage
+
+\section{Описание схемы распараллеливания}
+
+Алгоритм распараллеливается следующим образом:
+
+\begin{itemize}
+    \item \textbf{Инициализация данных:} Все процессы получают необходимые данные о графе.
+    \item \textbf{Распределение работы:} Каждому процессу назначается часть вершин для обработки.
+    \item \textbf{Поиск локальной минимальной вершины:} Каждый процесс ищет минимальное расстояние среди своих вершин.
+    \item \textbf{Сбор глобального минимума:} Для нахождения глобальной минимальной вершины собираем со всех процессах локальные минимумы.
+    \item \textbf{Обновление расстояний:} Процессы обновляют расстояния до соседних вершин.
+    \item \textbf{Завершение:} Процесс продолжается до тех пор, пока все вершины не будут обработаны.
+\end{itemize}
+
+\section{Описание MPI-версии программной реализации}
+
+\subsection*{Подготовка и распределение данных}
+В методе \textbf{pre-processing()} на корневом процессе (с рангом 0) происходит инициализация необходимых данных. Поля \texttt{values}, \texttt{col} и \texttt{RowIndex} заполняются данными, полученными из \texttt{taskData->inputs}. Для каждого массива используется \texttt{std::copy()} для копирования данных из указателей, которые ссылаются на входные данные. Переменные \texttt{size} и \texttt{sv} также инициализируются значениями из входных данных. После выполнения этой процедуры корневой процесс рассылает необходимые данные всем остальным процессам, используя функции \texttt{boost::mpi::broadcast()}.
+
+\subsection*{Валидация входных данных}
+В методе \textbf{validation()} корневой процесс выполняет проверку корректности входных данных. Он проверяет, что все значения в \texttt{taskData->inputs[2]} неотрицательны, а также что количество входных и выходных данных соответствует ожидаемым значениям. В случае, если все проверки пройдены успешно, функция возвращает \texttt{true}, что подтверждает корректность данных.
+
+\subsection*{Локальные вычисления}
+В методе \textbf{run()} происходит распределение работы между процессами. Сначала корневой процесс рассылает значения переменных \texttt{size}, \texttt{sv} и \texttt{count\_edges} с помощью \texttt{boost::mpi::broadcast()}. Остальные процессы инициализируют свои массивы \texttt{values}, \texttt{col} и \texttt{RowIndex} в соответствии с полученными данными. Далее каждый процесс определяет диапазон индексов, который он будет обрабатывать, в зависимости от своего ранга и общего количества процессов.
+
+Каждый процесс создает массив \texttt{visited} для отслеживания посещенных вершин, а также массив \texttt{res} для хранения кратчайших расстояний. Изначально все расстояния инициализируются значением \texttt{std::numeric\_limits<int>::max()}, кроме стартовой вершины \texttt{sv}, для которой расстояние равно 0.
+
+\subsection*{Сбор результатов с процессов}
+В цикле, выполняемом для каждой вершины, каждый процесс находит локальную минимальную вершину, которая еще не была посещена. С помощью \texttt{boost::mpi::all\_reduce()} происходит обмен данными между процессами для нахождения глобального минимума. Если глобальный минимум равен бесконечности, процесс завершает свою работу. В противном случае, выбранная вершина отмечается как посещенная, и выполняется обновление расстояний до соседних вершин.
+
+\subsection*{Вычисление итогового результата}
+В результате работы алгоритма каждый процесс получает массив \texttt{res}, содержащий кратчайшие расстояния от стартовой вершины до всех остальных вершин графа. Эти результаты могут быть использованы для дальнейших вычислений 
+\newpage
+
+\section{Эксперименты}
+ В рамках эксперимента мы будем использовать граф с разным количеством вершин, чтобы с увеличением их количества  оценить эффективность алгоритма.
+
+
+\subsection*{Результаты экспериментов}
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+    Число процессов & Количество вершин  &Количество рёбер   & Время выполнения (с)   \\ \hline
+    1               & 2000               & 4000000           & 0.0061                 \\ \hline
+    2               & 2000               & 4000000           & 0.0187                 \\ \hline
+    3               & 2000               & 4000000           & 0.0216                 \\ \hline
+    5               & 2000               & 4000000           & 0.0267                 \\ \hline
+    1               & 5000               & 25000000          & 0.0378                 \\ \hline
+    2               & 5000               & 25000000          & 0.0987                 \\ \hline
+    3               & 5000               & 25000000          & 0.1059                 \\ \hline
+    5               & 5000               & 25000000          & 0.1508                 \\ \hline
+    1               & 10000              & 100000000         & 0.1632                 \\ \hline
+    2               & 10000              & 100000000         & 0.3822                 \\ \hline
+    3               & 10000              & 100000000         & 0.4458                 \\ \hline
+    5               & 10000              & 100000000         & 0.6890                 \\ \hline
+\end{tabular}
+
+\subsection*{Анализ результатов}
+Время выполнения тестов увеличивается с увеличением числа процессов, это связано с тем, что в алгоритме Дейсктра распараллеливание вычисление происходит только на этапе выбора новой обрабатываемой вершины, а на этапе обновления расстояний распараллелить вычисления невозможно. А операций передачи данных довольно много, то есть расспараллеливать алгоритм Дейсктра таким образом не совсем уместно.
+
+
+\newpage
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В данной работе был рассмотрен и реализован алгоритм Дейкстры на CRS графах. Реализация включает в себя  последовательный и параллельный варианты. Были проведены эксперименты, в ходе которых было выявлено, что выбор такого метода распараллеливания вычислений не совсем корректный. Алгоритм Дейкстры нужно распараллеливать другим образом или не распараллеливать вовсе. 
+
+\newpage
+\section*{Список литературы}
+\addcontentsline{toc}{section}{Список литературы}
+\begin{enumerate}
+    \item \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%94%D0%B5%D0%B9%D0%BA%D1%81%D1%82%D1%80%D1%8B}{ Алгоритм Дейкстры}.
+    \item \url{https://www.youtube.com/watch?v=SvEFV1ewljg&t=805s}{ Алгоритм кратчайшего пути Дейкстры. Анализ производительности последовательного и параллельного выполнения.}.
+
+\end{enumerate}
+\newpage
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\subsection*{ops\_mpi\_korobeinikov.hpp}
+\addcontentsline{toc}{subsection}{ops\_mpi\_korobeinikov.hpp}
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <numeric>
+#include <utility>
+
+#include "core/task/include/task.hpp"
+
+namespace korobeinikov_a_test_task_mpi_lab_03 {
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> values;
+  std::vector<int> col;
+  std::vector<int> RowIndex;
+
+  std::vector<int> res;
+
+  int size;
+  int sv;
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> values;
+  std::vector<int> col;
+  std::vector<int> RowIndex;
+
+  std::vector<int> res;
+
+  int size;
+  int sv;
+
+  boost::mpi::communicator world;
+};
+
+}  // namespace korobeinikov_a_test_task_mpi_lab_03
+
+\end{lstlisting}
+\subsection*{ops\_mpi\_korobeinikov.cpp}
+\addcontentsline{toc}{subsection}{ops\_mpi\_korobeinikov.cpp}
+\begin{lstlisting}[language=C++]
+#include "mpi/korobeinikov_dijkstras_algorithm/include/ops_mpi_korobeinikov.hpp"
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  // Init value for input and output
+  values.reserve(taskData->inputs_count[0]);
+  auto *tmp_ptr_1 = reinterpret_cast<int *>(taskData->inputs[0]);
+  std::copy(tmp_ptr_1, tmp_ptr_1 + taskData->inputs_count[0], values.begin());
+
+  col.reserve(taskData->inputs_count[1]);
+  auto *tmp_ptr_2 = reinterpret_cast<int *>(taskData->inputs[1]);
+  std::copy(tmp_ptr_2, tmp_ptr_2 + taskData->inputs_count[1], col.begin());
+
+  RowIndex.reserve(taskData->inputs_count[2]);
+  auto *tmp_ptr_3 = reinterpret_cast<int *>(taskData->inputs[2]);
+  std::copy(tmp_ptr_3, tmp_ptr_3 + taskData->inputs_count[2], RowIndex.begin());
+
+  size = *reinterpret_cast<int *>(taskData->inputs[3]);
+  sv = *reinterpret_cast<int *>(taskData->inputs[4]);
+
+  res = std::vector<int>(size, 0);
+  return true;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskSequential::validation() {
+  internal_order_test();
+  // Check count elements of output
+
+  bool flag = true;
+  for (size_t i = 0; i < taskData->inputs_count[0]; i++) {
+    if (taskData->inputs[2][i] < 0) {
+      flag = false;
+    }
+  }
+  return taskData->inputs.size() == 5 && taskData->inputs_count.size() == 5 && taskData->outputs.size() == 1 &&
+         taskData->outputs_count.size() == 1 && flag && *(reinterpret_cast<int *>(taskData->inputs[4])) >= 0 &&
+         (*reinterpret_cast<int *>(taskData->inputs[4])) < (*reinterpret_cast<int *>(taskData->inputs[3])) &&
+         (int)taskData->outputs_count[0] == *reinterpret_cast<int *>(taskData->inputs[3]) &&
+         (int)taskData->inputs_count[2] == *reinterpret_cast<int *>(taskData->inputs[3]) + 1;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskSequential::run() {
+  internal_order_test();
+
+  std::vector<bool> visited(size, false);
+  std::vector<int> D(size, std::numeric_limits<int>::max());
+  D[sv] = 0;
+  for (int i = 0; i < size; i++) {
+    int min = std::numeric_limits<int>::max();
+    int index = -1;
+    for (int j = 0; j < size; j++) {
+      if (!visited[j] && D[j] < min) {
+        min = D[j];
+        index = j;
+      }
+    }
+    if (index == -1) break;
+    visited[index] = true;
+    for (int j = RowIndex[index]; j < RowIndex[index + 1]; j++) {
+      int v = col[j];
+      int weight = values[j];
+
+      if (!visited[v] && (D[index] + weight < D[v])) {
+        D[v] = D[index] + weight;
+      }
+    }
+  }
+  res = D;
+  return true;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  std::copy(res.begin(), res.end(), reinterpret_cast<int *>(taskData->outputs[0]));
+  return true;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    // Init value for input and output
+    values.resize(taskData->inputs_count[0]);
+    auto *tmp_ptr_1 = reinterpret_cast<int *>(taskData->inputs[0]);
+    std::copy(tmp_ptr_1, tmp_ptr_1 + taskData->inputs_count[0], values.begin());
+
+    col.resize(taskData->inputs_count[1]);
+    auto *tmp_ptr_2 = reinterpret_cast<int *>(taskData->inputs[1]);
+    std::copy(tmp_ptr_2, tmp_ptr_2 + taskData->inputs_count[1], col.begin());
+
+    RowIndex.resize(taskData->inputs_count[2]);
+    auto *tmp_ptr_3 = reinterpret_cast<int *>(taskData->inputs[2]);
+    std::copy(tmp_ptr_3, tmp_ptr_3 + taskData->inputs_count[2], RowIndex.begin());
+
+    size = *reinterpret_cast<int *>(taskData->inputs[3]);
+    sv = *reinterpret_cast<int *>(taskData->inputs[4]);
+  }
+  return true;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    bool flag = true;
+    for (size_t i = 0; i < taskData->inputs_count[0]; i++) {
+      if (taskData->inputs[2][i] < 0) {
+        flag = false;
+      }
+    }
+
+    return taskData->inputs.size() == 5 && taskData->inputs_count.size() == 5 && taskData->outputs.size() == 1 &&
+           taskData->outputs_count.size() == 1 && flag && *(reinterpret_cast<int *>(taskData->inputs[4])) >= 0 &&
+           (*reinterpret_cast<int *>(taskData->inputs[4])) < (*reinterpret_cast<int *>(taskData->inputs[3])) &&
+           (int)taskData->outputs_count[0] == *reinterpret_cast<int *>(taskData->inputs[3]) &&
+           (int)taskData->inputs_count[2] == *reinterpret_cast<int *>(taskData->inputs[3]) + 1;
+  }
+  return true;
+}
+
+struct ComparePairs {
+  std::pair<int, int> operator()(const std::pair<int, int> &a, const std::pair<int, int> &b) const {
+    if (a.first < b.first) return a;
+    if (a.first > b.first) return b;
+    return a;
+  }
+};
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  broadcast(world, size, 0);
+  broadcast(world, sv, 0);
+  int count_edges = values.size();
+  broadcast(world, count_edges, 0);
+
+  if (world.rank() != 0) {
+    values.resize(count_edges);
+    col.resize(count_edges);
+    RowIndex.resize(size + 1);
+  }
+
+  boost::mpi::broadcast(world, values.data(), values.size(), 0);
+  boost::mpi::broadcast(world, col.data(), col.size(), 0);
+  boost::mpi::broadcast(world, RowIndex.data(), RowIndex.size(), 0);
+
+  int num_use_proc = std::min(world.size(), size);
+  if (num_use_proc == 0) {
+    return true;
+  }
+  int delta = size % num_use_proc == 0 ? (size / num_use_proc) : ((size / num_use_proc) + 1);
+
+  int begin_for_proc = world.rank() * delta;
+  int end_for_proc = std::min(size, delta * (world.rank() + 1));
+
+  std::vector<bool> visited(size, false);
+  res = std::vector<int>(size, std::numeric_limits<int>::max());
+  res[sv] = 0;
+
+  for (int k = 0; k < size; k++) {
+    int local_min = std::numeric_limits<int>::max();
+    int local_index = -1;
+
+    for (int i = begin_for_proc; i < end_for_proc; i++) {
+      if (!visited[i] && res[i] < local_min) {
+        local_min = res[i];
+        local_index = i;
+      }
+    }
+    std::pair<int, int> local_pair = {local_min, local_index};
+    std::pair<int, int> global_pair = {std::numeric_limits<int>::max(), -1};
+
+    boost::mpi::all_reduce(world, local_pair, global_pair, ComparePairs());
+
+    if (global_pair.first == std::numeric_limits<int>::max()) {
+      break;
+    }
+
+    visited[global_pair.second] = true;
+
+    for (int j = RowIndex[global_pair.second]; j < RowIndex[global_pair.second + 1]; j++) {
+      int v = col[j];
+      int w = values[j];
+
+      if (!visited[v] && (res[global_pair.second] + w < res[v])) {
+        res[v] = res[global_pair.second] + w;
+      }
+    }
+  }
+
+  return true;
+}
+
+bool korobeinikov_a_test_task_mpi_lab_03::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    std::copy(res.begin(), res.end(), reinterpret_cast<int *>(taskData->outputs[0]));
+  }
+  return true;
+}
+\end{lstlisting}
+
+\end{document}
