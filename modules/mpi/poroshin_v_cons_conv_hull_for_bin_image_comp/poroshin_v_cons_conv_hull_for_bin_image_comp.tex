@@ -1,0 +1,800 @@
+\documentclass[12pt]{article}
+
+% Подключение пакетов
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\begin{document}
+
+% Титульный лист
+\begin{titlepage}
+    \begin{center}
+        \large
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+        \vspace{4cm}
+        \textbf{\Large Отчёт по выполнению задания}\\
+        \textbf{\large <<Построение выпуклой оболочки для компонент бинарного изображения с использованием MPI>>}\\[3cm]
+
+        \vspace{3cm}
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПМоп3 \\
+        \textit{Порошин Владислав Сергеевич}\\[1cm]
+
+        \textbf{Преподаватель:}\\
+        \textit{Сысоев Александр Владимирович, доцент}\\[2cm]
+
+        \vfill
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Задача построения выпуклой оболочки для компонент бинарного изображения с использованием MPI имеет важное значение в различных областях, включая обработку больших данных, машинную графику и обработку изображений. Для повышения эффективности вычислений используются методы параллельной обработки данных с использованием библиотеки Boost.MPI, обеспечивающей высокую гибкость и производительность решения.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\begin{itemize}
+    \item \textbf{Цель работы:}
+        \begin{itemize}
+            \item Разработка программы для построения выпуклой оболочки для компонент бинарного изображения.
+        \end{itemize}
+    \item \textbf{Формат представления изображений:}
+        \begin{itemize}
+            \item Использование бинарного формата (бинарной матрицы), где <<1>> - фрагмент изображения, <<0>> - фрагмент фона.
+        \end{itemize}
+    \item \textbf{Инструменты разработки:}
+        \begin{itemize}
+             \item Использование библиотеки Boost.MPI для параллельной реализации.
+        \end{itemize}
+    \item \textbf{Сравнение производительности:}
+         \begin{itemize}
+            \item Проведение сравнительного анализа производительности.
+            \item Сравнение последовательной реализации с параллельной.
+         \end{itemize}
+\end{itemize}
+\newpage
+
+% Описание алгоритма
+\section*{Алгоритм построения выпуклой оболочки для компонент бинарного изображения}
+\addcontentsline{toc}{section}{Алгоритм построения выпуклой оболочки для компонент бинарного изображения}
+
+\begin{itemize}
+    \item[] \textbf{Входные данные:} Матрица, представленная в бинарном формате.
+    \item[] \textbf{Выходные данные:} Вектор, состоящий из координат элементов матрицы, находящихся в узлах выпуклых оболочек, оболочки для разных компонент - разные, разделяющий символ - (-1, -1), нужен, чтобы различать оболочки компонент.
+\end{itemize}
+
+\textbf{Алгоритм:}
+
+\begin{enumerate}
+    \item \textbf{Инициализация:}
+        \begin{itemize}
+            \item Создать вектор, проинициализированный нулями, достаточной размерности для хранения результата.
+            \item Задать саму бинарную матрицу (изображение).
+        \end{itemize}
+
+    \item \textbf{Маркировка изображения:}
+        \begin{itemize}
+            \item Для каждого элемента матрицы:
+            \begin{itemize}
+                \item Определить, является он фоном или нет, если нет - поместить в стек (все помеченные элементы пропустить (помеченные - их значение больше 1)), найти всех его соседей (два элемента являются соседними, если стоят подряд (в строке/столбце/диагонали, т.е. С-8)), для них проделать то же самое. Такие же действия проделать для соседей элемента, для соседей соседей элемента и так далее, пока вся компонента не будет содержаться в специальной структуре (стек), затем все элементы, находящиеся в стеке, пометить каким-либо числом (большим 1), так можно показать, что найдена новая компонента, ее номер - число, которым обозначены ее элементы. Номера разных компонент не могут совпадать, значит, нужно увеличивать номер, которым обозначать элементы новой компоненты, на единицу, если найдена очередная компонента изображения.
+            \end{itemize}
+        \end{itemize}
+
+    \item \textbf{Вычисление координат элементов компонент:}
+        \begin{itemize}
+            \item Для каждого элемента, входящего в какую-либо компоненту:
+                \begin{itemize}
+                    \item  Получить координату по <<x>> - номер строки и по <<y>> - номер столбца (начало координат в левом вверхнем углу (0, 0)).
+                \end{itemize}
+         \end{itemize}
+
+    \item \textbf{Построение выпуклых оболочек для каждой компоненты:}
+        \begin{itemize}
+            \item Для каждой компоненты (набора точек):
+                \begin{itemize}
+                   \item Алгоритм Грэхема:
+                    \begin{itemize}
+                        \item Найти точку с наименьшей координатой y (в случае равенства - с наименьшей координатой x). Эта точка будет опорной (называется "опорной точкой").
+                        \item Отсортировать остальные точки по углу, образованному с опорной точкой, относительно горизонтальной оси. Использовать полярные координаты для сортировки.
+                        \item Проинициализировать пустой вектор для хранения вершин выпуклой оболочки. Добавить опорную точку и первые две отсортированные точки.
+Пройти по отсортированным точкам и добавить их в оболочку. Для каждой новой точки проверить, образует ли она левый или правый поворот с последними двумя точками в оболочке:
+Если происходит правый поворот, удалить последнюю точку оболочки.
+Если левый поворот или коллинеарность, добавить точку в оболочку (если следующая точка тоже коллинеарна предыдущим двум - заменить ею последнюю точку в оболочке).
+Продолжать этот процесс, пока не будут обработаны все точки.
+                        \item В результате получить последовательность вершин, образующих выпуклую оболочку.
+                    \end{itemize}
+                 \end{itemize}
+        \end{itemize}
+
+    \item \textbf{Завершение:}
+       \begin{itemize}
+           \item Для каждой выпуклой оболочки:
+            \begin{itemize}
+                \item Записать данные в результирующий вектор, разделить данные точкой (-1, -1).
+            \end{itemize}
+       \end{itemize}
+
+\end{enumerate}
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Для повышения производительности используется библиотека Boost.MPI.
+
+\subsection*{Основные отличия от последовательной версии}
+Для распараллеливания задачи построения выпуклой оболочки для компонент бинарного изображения использован подход деления на подзадачи. Входная матрица \( Image \) маркируется (здесь последовательный алгоритм лучше параллельного, т.к. цена слияния и перемаркировки слишком высока (требует больше времени)), затем вектор из координат точек компонент делится между процессами. Каждому процессу назначается определённое количество элементов (если количество процессов избыточно - некоторые из них могут не использоваться). Каждый процесс строит оболочку (происходит отсечение лишних точек), затем данные подаются на корневой процесс, который строит повторно оболочку (уже из значительно меньшего количества точек). Этот алгоритм повторяется, пока не будут обработаны все компоненты. В итоге получаем выпуклые оболочки для каждой компоненты.
+
+\subsection*{О передаче данных}
+Вычисляется единица \( epsilon\), которая является квантом данных (для всех процессов, за исключением последнего). Корневой процесс передает данные на остальные, затем получает результаты вычислений и объединяет их в единый вектор, который является результатом работы алгоритма. Стоит отметить, что в случае избытка процессов рассчитывается максимальное число процессов, всегда значение  \( max\_rank\) передается остальным процессам, чтобы избыточные не использовались в вычислениях и не замедляли работу программы.
+
+\subsection*{О локальных вычислениях}
+Каждый процесс строит оболочку из тех точек, что ему передали. Не рекомендуется передавать менее 5-ти точек, большая эффективность достигается, если точек много, тогда они отбрасываются на меньшем наборе данных, после чего корневой процесс собирает (еще раз строит оболочку) результирующую оболочку за время, соразмерное работе еще одного процесса (с локальными данными), в этом случае хорошо заметно, как улучшается скорость работы программы.
+
+\subsection*{Механизмы параллелизма}
+В данной реализации используются лишь 3 механизма - это send/recv/broadcast.
+
+\subsection*{Завершение}
+Программа завершается, когда корневой процесс записал результат и передал его в специальную структуру (TaskData) на вывод. Результат совпадает с последовательной версией, как и входные данные.
+
+\newpage
+
+\subsection*{Тесты производительности}
+\label{subsec:performance_tests}
+
+\begin{itemize}
+    \item Операционная система: Windows 10
+    \item Процессор: Intel Core i5-13400F (10 ядер x 3,5 ГГц)
+    \item Оперативная память: 16 ГБ.
+\end{itemize}
+
+Эксперименты проводились на различном количестве процессов для оценки производительности параллельной реализации построения выпуклой оболочки для компонент бинарного изображения. Были измерены времена выполнения: \textit{pipeline\_run} и \textit{task\_run}.
+
+\begin{itemize}
+    \item \textbf{1 процесс:}
+        \begin{itemize}
+            \item \textit{pipeline\_run}: 8.5138645000
+            \item \textit{task\_run}:  8.9220231000
+        \end{itemize}
+    \item \textbf{2 процесса:}
+        \begin{itemize}
+            \item \textit{pipeline\_run}: 7.2177631000
+            \item \textit{task\_run}: 7.3780911000
+        \end{itemize}
+     \item \textbf{3 процесса:}
+        \begin{itemize}
+            \item \textit{pipeline\_run}: 7.0688211000
+             \item \textit{task\_run}: 7.2044525000
+        \end{itemize}
+     \item \textbf{4 процесса:}
+        \begin{itemize}
+             \item \textit{pipeline\_run}: 6.8975442000
+            \item \textit{task\_run}: 7.0569798000
+        \end{itemize}
+\end{itemize}
+
+\subsection*{Подтверждение корректности}
+\label{subsec:correctness_verification}
+Корректность разработанного алгоритма подтверждается посредством сравнения результатов, полученных параллельной реализацией с результатами, полученными последовательной реализацией на тех же входных данных. Данные результаты были сравнены, и их полная идентичность говорит о правильности работы алгоритма построения выпуклой оболочки для компонент бинарного изображения.
+
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+Разработанная программа использует библиотеку Boost.MPI для реализации построения выпуклой оболочки для компонент бинарного изображения. Результаты экспериментов показывают, что время выполнения алгоритма уменьшается с увеличением числа процессов, что свидетельствует об эффективности распараллеливания.
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+Ниже приведены ключевые фрагменты кода реализации:
+
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_seq.hpp}}
+\addcontentsline{toc}{subsection}{Файл ops\_seq.hpp}
+\begin{verbatim}
+#pragma once
+
+#include <algorithm>
+#include <stack>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace poroshin_v_cons_conv_hull_for_bin_image_comp_seq {
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+  static std::vector<int> gen(int m, int n);  // generate vector (matrix = image)
+  static int label_connected_components(std::vector<std::vector<int>>& image);
+  static std::vector<std::vector<std::pair<int, int>>> coordinates_connected_components(
+      std::vector<std::vector<int>>& labeled_image, int count_components);
+  static std::vector<std::pair<int, int>> convex_hull(std::vector<std::pair<int, int>>& points);
+
+ private:
+  std::vector<int> input_;
+  std::vector<std::pair<int, int>> res;
+};
+
+}  // namespace poroshin_v_cons_conv_hull_for_bin_image_comp_seq
+
+\end{verbatim}
+\newpage
+
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_sec.cpp}}
+\addcontentsline{toc}{subsection}{Файл ops\_sec.cpp}
+\begin{verbatim}
+#include "seq/poroshin_v_cons_conv_hull_for_bin_image_comp/include/ops_seq.hpp"
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::validation() {
+  internal_order_test();
+  // Check count elements of output
+  return ((!(taskData->inputs[0] == nullptr) && !(taskData->outputs[0] == nullptr)) &&
+          (taskData->inputs_count.size() >= 2 && taskData->inputs_count[0] != 0 && taskData->inputs_count[1] != 0));
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::run() {
+  internal_order_test();
+  // Init value for input and output
+  int m = taskData->inputs_count[0];
+  int n = taskData->inputs_count[1];
+  int size = m * n;
+
+  input_.resize(size);
+
+  for (int i = 0; i < size; i++) {
+    input_[i] = reinterpret_cast<int*>(taskData->inputs[0])[i];
+  }
+
+  std::vector<std::vector<int>> image(m);
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      image[i].push_back(input_[i * n + j]);
+    }
+  }
+
+  int count_components =
+      poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::label_connected_components(image);
+  std::vector<std::vector<std::pair<int, int>>> coords =
+      poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::coordinates_connected_components(
+          image, count_components);
+  for (std::vector<std::pair<int, int>>& t : coords) {
+    t = poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::convex_hull(t);
+  }
+
+  res.clear();
+
+  for (size_t i = 0; i < coords.size(); i++) {
+    for (size_t j = 0; j < coords[i].size(); j++) {
+      res.push_back(coords[i][j]);
+    }
+    res.emplace_back(-1, -1);  // The separating symbol for convex hulls of the connectivity component
+  }
+
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::post_processing() {
+  internal_order_test();
+  for (size_t i = 0; i < res.size(); i++) {
+    reinterpret_cast<std::pair<int, int>*>(taskData->outputs[0])[i] = res[i];
+  }
+  return true;
+}
+
+std::vector<std::vector<std::pair<int, int>>>
+poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::coordinates_connected_components(
+    std::vector<std::vector<int>>& labeled_image, int count_components) {
+  std::vector<std::vector<std::pair<int, int>>> coords(count_components - 1);
+  for (size_t i = 0; i < labeled_image.size(); i++) {
+    for (size_t j = 0; j < labeled_image[0].size(); j++) {
+      if (labeled_image[i][j] != 0) {
+        coords[labeled_image[i][j] - 2].emplace_back(i, j);
+      }
+    }
+  }
+
+  return coords;
+}
+
+int poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::label_connected_components(
+    std::vector<std::vector<int>>& image) {
+  int label = 2;  // Start with 2 to avoid confusion with pixels 0 and 1
+  for (size_t i = 0; i < image.size(); i++) {
+    for (size_t j = 0; j < image[0].size(); j++) {
+      if (image[i][j] == 1) {
+        std::stack<std::pair<int, int>> pixelStack;
+        pixelStack.emplace(i, j);
+
+        while (!pixelStack.empty()) {
+          int x = pixelStack.top().first;
+          int y = pixelStack.top().second;
+          pixelStack.pop();
+
+          if (x < 0 || x >= static_cast<int>(image.size()) || y < 0 || y >= static_cast<int>(image[0].size()) ||
+              image[x][y] != 1) {
+            continue;
+          }
+
+          image[x][y] = label;
+
+          pixelStack.emplace(x + 1, y);      // Down
+          pixelStack.emplace(x - 1, y);      // Up
+          pixelStack.emplace(x, y + 1);      // Right
+          pixelStack.emplace(x, y - 1);      // Left
+          pixelStack.emplace(x - 1, y + 1);  // Top left corner
+          pixelStack.emplace(x + 1, y + 1);  // Top right corner
+          pixelStack.emplace(x - 1, y - 1);  // Lower left corner
+          pixelStack.emplace(x + 1, y - 1);  // Lower right corner
+        }
+        label++;
+      }
+    }
+  }
+
+  return --label;
+}
+
+std::vector<std::pair<int, int>> poroshin_v_cons_conv_hull_for_bin_image_comp_seq::TestTaskSequential::convex_hull(
+    std::vector<std::pair<int, int>>& inputPoints) {
+  auto crossProduct = [](const std::pair<int, int>& origin, const std::pair<int, int>& pointA,
+                         const std::pair<int, int>& pointB) {
+    return (pointA.first - origin.first) * (pointB.second - origin.second) -
+           (pointA.second - origin.second) * (pointB.first - origin.first);
+  };
+
+  std::vector<std::pair<int, int>> convexHull;
+
+  if (inputPoints.empty()) {
+    return convexHull;
+  }
+
+  std::pair<int, int> minPoint = *std::min_element(
+      inputPoints.begin(), inputPoints.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.first == b.first ? a.second < b.second : a.first < b.first;
+      });
+
+  std::sort(inputPoints.begin(), inputPoints.end(),
+            [minPoint, crossProduct](const std::pair<int, int>& pointA, const std::pair<int, int>& pointB) {
+              if (crossProduct(minPoint, pointA, pointB) != 0) return crossProduct(minPoint, pointA, pointB) > 0;
+
+              return (pointA.first - minPoint.first) * (pointA.first - minPoint.first) +
+                         (pointA.second - minPoint.second) * (pointA.second - minPoint.second) <
+                     (pointB.first - minPoint.first) * (pointB.first - minPoint.first) +
+                         (pointB.second - minPoint.second) * (pointB.second - minPoint.second);
+            });
+
+  convexHull.push_back(minPoint);
+
+  for (size_t i = 1; i < inputPoints.size(); i++) {
+    while (convexHull.size() > 1 &&
+           crossProduct(convexHull[convexHull.size() - 2], convexHull[convexHull.size() - 1], inputPoints[i]) <= 0) {
+      convexHull.pop_back();
+    }
+    convexHull.push_back(inputPoints[i]);
+  }
+
+  convexHull.push_back(convexHull[0]);
+  return convexHull;
+}
+\end{verbatim}
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_mpi.hpp}}
+
+\begin{verbatim}
+// Copyright 2023 Nesterov Alexander
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <stack>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace poroshin_v_cons_conv_hull_for_bin_image_comp_mpi {
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+  static std::vector<int> gen(int m, int n);  // generate vector (matrix = image)
+  static int label_connected_components(std::vector<std::vector<int>>& image);
+  static std::vector<std::vector<std::pair<int, int>>> coordinates_connected_components(
+      std::vector<std::vector<int>>& labeled_image, int count_components);
+  static std::vector<std::pair<int, int>> convex_hull(std::vector<std::pair<int, int>>& points);
+
+ private:
+  std::vector<int> input_;
+  std::vector<std::pair<int, int>> res;
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<std::vector<std::pair<int, int>>> local_input_;
+  std::vector<std::pair<int, int>> res;
+  boost::mpi::communicator world;
+};
+
+}  // namespace poroshin_v_cons_conv_hull_for_bin_image_comp_mpi
+\end{verbatim}
+
+%-------------------------------------------------------------------
+\subsection*{Файл \texttt{ops\_mpi.cpp}}
+
+\begin{verbatim}
+// Copyright 2023 Nesterov Alexander
+#include "mpi/poroshin_v_cons_conv_hull_for_bin_image_comp/include/ops_mpi.hpp"
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+  // Check count elements of output
+  return ((!(taskData->inputs[0] == nullptr) && !(taskData->outputs[0] == nullptr)) &&
+          (taskData->inputs_count.size() >= 2 && taskData->inputs_count[0] != 0 && taskData->inputs_count[1] != 0));
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+  // Init value for input and output
+  int m = taskData->inputs_count[0];
+  int n = taskData->inputs_count[1];
+  int size = m * n;
+
+  input_.resize(size);
+
+  for (int i = 0; i < size; i++) {
+    input_[i] = reinterpret_cast<int*>(taskData->inputs[0])[i];
+  }
+
+  std::vector<std::vector<int>> image(m);
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      image[i].push_back(input_[i * n + j]);
+    }
+  }
+
+  int count_components =
+      poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::label_connected_components(image);
+  std::vector<std::vector<std::pair<int, int>>> coords =
+      poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::coordinates_connected_components(
+          image, count_components);
+  for (std::vector<std::pair<int, int>>& t : coords) {
+    t = poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::convex_hull(t);
+  }
+
+  res.clear();
+
+  for (size_t i = 0; i < coords.size(); i++) {
+    for (size_t j = 0; j < coords[i].size(); j++) {
+      res.push_back(coords[i][j]);
+    }
+    res.emplace_back(-1, -1);  // The separating symbol for convex hulls of the connectivity component
+  }
+
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  for (size_t i = 0; i < res.size(); i++) {
+    reinterpret_cast<std::pair<int, int>*>(taskData->outputs[0])[i] = res[i];
+  }
+  return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    // Check count elements of output
+    return ((!(taskData->inputs[0] == nullptr) && !(taskData->outputs[0] == nullptr)) &&
+            (taskData->inputs_count.size() >= 2 && taskData->inputs_count[0] != 0 && taskData->inputs_count[1] != 0));
+  }
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+  // Init value for input and output
+  int m = 0;
+  int n = 0;
+  int epsilon = 0;
+  int size = 0;
+  int local_size = 0;
+  int max_rank = 0;
+
+  if (world.rank() == 0) {
+    m = taskData->inputs_count[0];
+    n = taskData->inputs_count[1];
+    size = m * n;
+
+    input_.resize(size);
+
+    for (int i = 0; i < size; i++) {
+      input_[i] = reinterpret_cast<int*>(taskData->inputs[0])[i];
+    }
+  }
+
+  boost::mpi::broadcast(world, m, 0);
+  boost::mpi::broadcast(world, n, 0);
+
+  // part 1
+
+  if (world.rank() == 0) {
+    std::vector<std::vector<int>> image(m);
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < n; j++) {
+        image[i].push_back(input_[i * n + j]);
+      }
+    }
+
+    int count_components =
+        poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::label_connected_components(image);
+    local_input_ =
+        poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::coordinates_connected_components(
+            image, count_components);
+  }
+
+  // part 2
+
+  if (world.rank() == 0) {
+    size = static_cast<int>(local_input_.size());
+  }
+
+  boost::mpi::broadcast(world, size, 0);
+
+  for (int s = 0; s < size; s++) {
+    std::vector<std::pair<int, int>> coords;
+
+    if (world.rank() == 0) {
+      local_size = static_cast<int>(local_input_[s].size());
+    }
+
+    boost::mpi::broadcast(world, local_size, 0);
+
+    if (world.rank() != 0) {
+      if (local_size < 5) continue;
+    }
+
+    if (world.rank() == 0) {
+      std::vector<std::pair<int, int>>& t = local_input_[s];
+      int tmp_size = static_cast<int>(t.size());
+      if (tmp_size < 5) {
+        t = poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::convex_hull(t);
+        continue;
+      }
+
+      if (4 * world.size() >= tmp_size) {
+        epsilon = 4;
+      } else {
+        epsilon = tmp_size / world.size();
+      }
+      coords.resize(epsilon);
+      std::copy(t.begin(), t.begin() + epsilon, coords.begin());
+      max_rank = 0;
+      int rank = 1;
+      for (int i = epsilon; i < tmp_size; i += epsilon) {
+        if ((i + epsilon >= tmp_size) || (max_rank == world.size() - 2)) {
+          max_rank++;
+          world.send(rank, 0, max_rank);
+          world.send(rank, 0, tmp_size - epsilon * rank);
+          world.send(rank, 0, t.data() + i, tmp_size - epsilon * rank);
+          rank++;
+          break;
+        }
+        max_rank++;
+        world.send(rank, 0, max_rank);
+        world.send(rank, 0, epsilon);
+        world.send(rank, 0, t.data() + i, epsilon);
+        rank++;
+      }
+      while (rank < world.size()) {
+        world.send(rank, 0, max_rank);
+        rank++;
+      }
+    }
+
+    if (world.rank() != 0) {
+      world.recv(0, 0, max_rank);
+      if (world.rank() <= max_rank) {
+        int len_of_data = 0;
+        world.recv(0, 0, len_of_data);
+        coords.resize(len_of_data);
+        world.recv(0, 0, coords.data(), len_of_data);
+      }
+    }
+
+    coords = poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::convex_hull(coords);
+
+    if (world.rank() == 0) {
+      int rank = 1;
+      while (rank <= max_rank) {
+        std::vector<std::pair<int, int>> tmp;
+        world.recv(rank, 0, tmp);
+        rank++;
+        coords.insert(coords.end(), tmp.begin(), tmp.end());
+      }
+
+      coords = poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::convex_hull(coords);
+      local_input_[s] = coords;
+
+    } else if (world.rank() <= max_rank) {
+      world.send(0, 0, coords);
+    }
+  }
+
+  if (world.rank() == 0) {
+    res.clear();
+
+    for (size_t i = 0; i < local_input_.size(); i++) {
+      for (size_t j = 0; j < local_input_[i].size(); j++) {
+        res.push_back(local_input_[i][j]);
+      }
+      res.emplace_back(-1, -1);  // The separating symbol for convex hulls of the connectivity component
+    }
+  }
+
+  return true;
+}
+
+bool poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    for (size_t i = 0; i < res.size(); i++) {
+      reinterpret_cast<std::pair<int, int>*>(taskData->outputs[0])[i] = res[i];
+    }
+  }
+  return true;
+}
+
+std::vector<std::vector<std::pair<int, int>>>
+poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::coordinates_connected_components(
+    std::vector<std::vector<int>>& labeled_image, int count_components) {
+  std::vector<std::vector<std::pair<int, int>>> coords(count_components - 1);
+  for (size_t i = 0; i < labeled_image.size(); i++) {
+    for (size_t j = 0; j < labeled_image[0].size(); j++) {
+      if (labeled_image[i][j] != 0) {
+        coords[labeled_image[i][j] - 2].emplace_back(i, j);
+      }
+    }
+  }
+
+  return coords;
+}
+
+int poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::label_connected_components(
+    std::vector<std::vector<int>>& image) {
+  int label = 2;  // Start with 2 to avoid confusion with pixels 0 and 1
+  for (size_t i = 0; i < image.size(); ++i) {
+    for (size_t j = 0; j < image[0].size(); ++j) {
+      if (image[i][j] == 1) {
+        std::stack<std::pair<int, int>> pixelStack;
+        pixelStack.emplace(i, j);
+
+        while (!pixelStack.empty()) {
+          int x = pixelStack.top().first;
+          int y = pixelStack.top().second;
+          pixelStack.pop();
+
+          if (x < 0 || x >= static_cast<int>(image.size()) || y < 0 || y >= static_cast<int>(image[0].size()) ||
+              image[x][y] != 1) {
+            continue;
+          }
+
+          image[x][y] = label;
+
+          pixelStack.emplace(x + 1, y);      // Down
+          pixelStack.emplace(x - 1, y);      // Up
+          pixelStack.emplace(x, y + 1);      // Right
+          pixelStack.emplace(x, y - 1);      // Left
+          pixelStack.emplace(x - 1, y + 1);  // Top left corner
+          pixelStack.emplace(x + 1, y + 1);  // Top right corner
+          pixelStack.emplace(x - 1, y - 1);  // Lower left corner
+          pixelStack.emplace(x + 1, y - 1);  // Lower right corner
+        }
+        label++;
+      }
+    }
+  }
+
+  return --label;
+}
+
+std::vector<std::pair<int, int>> poroshin_v_cons_conv_hull_for_bin_image_comp_mpi::TestMPITaskSequential::convex_hull(
+    std::vector<std::pair<int, int>>& inputPoints) {
+  auto crossProduct = [](const std::pair<int, int>& origin, const std::pair<int, int>& pointA,
+                         const std::pair<int, int>& pointB) {
+    return (pointA.first - origin.first) * (pointB.second - origin.second) -
+           (pointA.second - origin.second) * (pointB.first - origin.first);
+  };
+
+  std::vector<std::pair<int, int>> convexHull;
+
+  if (inputPoints.empty()) {
+    return convexHull;
+  }
+
+  std::pair<int, int> minPoint = *std::min_element(
+      inputPoints.begin(), inputPoints.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.first == b.first ? a.second < b.second : a.first < b.first;
+      });
+
+  std::sort(inputPoints.begin(), inputPoints.end(),
+            [minPoint, crossProduct](const std::pair<int, int>& pointA, const std::pair<int, int>& pointB) {
+              if (crossProduct(minPoint, pointA, pointB) != 0) return crossProduct(minPoint, pointA, pointB) > 0;
+
+              return (pointA.first - minPoint.first) * (pointA.first - minPoint.first) +
+                         (pointA.second - minPoint.second) * (pointA.second - minPoint.second) <
+                     (pointB.first - minPoint.first) * (pointB.first - minPoint.first) +
+                         (pointB.second - minPoint.second) * (pointB.second - minPoint.second);
+            });
+
+  convexHull.push_back(minPoint);
+
+  for (size_t i = 1; i < inputPoints.size(); i++) {
+    while (convexHull.size() > 1 &&
+           crossProduct(convexHull[convexHull.size() - 2], convexHull[convexHull.size() - 1], inputPoints[i]) <= 0) {
+      convexHull.pop_back();
+    }
+    convexHull.push_back(inputPoints[i]);
+  }
+
+  convexHull.push_back(convexHull[0]);
+  return convexHull;
+}
+\end{verbatim}
+
+\end{document}
