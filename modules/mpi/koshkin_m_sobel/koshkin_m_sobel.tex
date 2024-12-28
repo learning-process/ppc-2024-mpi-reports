@@ -1,0 +1,378 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\usepackage{float}
+\usepackage{multirow}
+
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет по проекту},
+    pdfauthor={Зайцев Артём},
+    pdfsubject={Построение выпуклой оболочки. Проход Джарвиса}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{<<Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского>>}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\
+\vspace*{\fill}
+{\Huge \textbf{Отчет по лабораторной работе}}
+
+\vspace{0.5cm}
+{\Huge \textbf{Выделение рёбер на изображении с использованием оператора Собеля}}
+
+\vspace*{\fill}
+
+{\large Нижний Новгород\\ 2024}
+\end{titlepage}
+
+\newpage
+\section*{Введение}
+В данной работе рассматривается задача выделения рёбер на изображении с использованием оператора Собеля. Этот оператор является базовым инструментом для выделения границ на изображениях, так как позволяет определять резкие изменения интенсивности пикселей в горизонтальном и вертикальном направлениях. Для увеличения производительности обработка изображений была распараллелена с использованием MPI.
+
+\newpage
+\section*{Постановка задачи}
+Необходимо реализовать последовательную и параллельную версии алгоритма выделения рёбер с использованием оператора Собеля. Цель работы — сравнение производительности и корректности обеих версий. Основные этапы работы включают:
+\begin{itemize}
+    \item Разработка последовательной версии оператора Собеля.
+    \item Распараллеливание вычислений с помощью библиотеки MPI.
+    \item Проведение экспериментов для оценки ускорения параллельной версии.
+\end{itemize}
+
+\newpage
+\section*{Описание алгоритма}
+Оператор Собеля использует два свёрточных ядра для вычисления градиентов:
+\begin{equation}
+\text{Sobel Kernel X} = \begin{bmatrix}
+-1 & 0 & 1 \\
+-2 & 0 & 2 \\
+-1 & 0 & 1
+\end{bmatrix}, \quad
+\text{Sobel Kernel Y} = \begin{bmatrix}
+-1 & -2 & -1 \\
+ 0 &  0 &  0 \\
+ 1 &  2 &  1
+\end{bmatrix}.
+\end{equation}
+
+Для каждого пикселя изображения вычисляется градиент:
+\begin{equation}
+G = \sqrt{G_x^2 + G_y^2},
+\end{equation}
+где $G_x$ и $G_y$ — результаты свёртки с ядрами X и Y соответственно.
+
+\newpage
+\section*{Описание схемы распараллеливания}
+Для повышения производительности была реализована параллельная версия алгоритма с использованием MPI. Основная идея распараллеливания:
+\begin{itemize}
+    \item Изображение делится на части (по строкам) между процессами.
+    \item Каждый процесс обрабатывает свою часть изображения.
+    \item Результаты объединяются в финальное изображение с помощью MPI.
+\end{itemize}
+Синхронизация между процессами выполняется с помощью функций \texttt{scatterv} и \texttt{gatherv}.
+
+\newpage
+\section*{MPI-версия - описание программной реализации}
+Параллельная версия алгоритма состоит из следующих этапов:
+\begin{enumerate}
+    \item \textbf{Инициализация:} Главный процесс читает изображение, делит его на части и отправляет другим процессам.
+    \item \textbf{Обработка:} Каждый процесс выполняет свёртку с ядрами Собеля для своей части изображения.
+    \item \textbf{Сбор результатов:} Части обработанного изображения собираются главным процессом.
+\end{enumerate}
+Пример фрагмента кода распределения данных:
+\begin{lstlisting}[language=C++,caption={Распределение данных между процессами}]
+boost::mpi::scatterv(world, image, sendcounts, senddispls, locimg.data(), locimg.size(), 0);
+\end{lstlisting}
+
+\newpage
+\section*{Результаты экспериментов}
+Эксперименты проводились на изображении размером $1024 \times 1024$ пикселя. Были измерены следующие параметры:
+\begin{itemize}
+    \item Время выполнения последовательной версии.
+    \item Время выполнения параллельной версии на разном количестве процессов.
+    \item Ускорение параллельной версии.
+\end{itemize}
+
+Результаты представлены в таблице:
+\begin{table}[H]
+\begin{tabular}{|l|l|ll|l|}
+\hline
+\multirow{2}{*}{N}      & \multirow{2}{*}{Seq}       & \multicolumn{2}{l|}{MPI}          & \multirow{2}{*}{$\frac{\text{MPI}}{\text{Seq}}$} \\ \cline{3-4}
+                        &                            & \multicolumn{1}{l|}{n} & time     &                           \\ \hline
+\multirow{2}{*}{$10^4$} & \multirow{2}{*}{0.005021}  & \multicolumn{1}{l|}{2} & 0.004227 & 0.841864                   \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.003992 & 0.795060                 \\ \hline
+\multirow{2}{*}{$10^5$} & \multirow{2}{*}{0.055782}  & \multicolumn{1}{l|}{2} & 0.047529 & 0.852049                 \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.046559 & 0.834660                  \\ \hline
+\multirow{2}{*}{$10^6$} & \multirow{2}{*}{0.599623}  & \multicolumn{1}{l|}{2} & 0.498934 & 0,832079                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.485892 & 0,810329                  \\ \hline
+\end{tabular}
+\end{table}
+
+
+\newpage
+\section*{Выводы из результатов}
+Параллельная версия алгоритма оператора Собеля показала значительное ускорение при увеличении числа процессов. Однако эффективность параллелизации снижается из-за накладных расходов на передачу данных между процессами. Для больших изображений параллельная версия становится более выгодной.
+
+\newpage
+\section*{Заключение}
+В работе был реализован алгоритм выделения рёбер на изображении с использованием оператора Собеля. Реализация включала последовательную и параллельную версии. Эксперименты подтвердили корректность работы обеих версий и показали преимущество параллельной реализации для больших изображений.
+
+\newpage
+\section*{Литература}
+\begin{enumerate}
+    \item Gonzalez, R. C., Woods, R. E. \textit{Digital Image Processing}. Pearson, 2018.
+    \item Boost MPI Documentation: \texttt{https://www.boost.org/doc/libs/release/doc/html/mpi.html}
+\end{enumerate}
+
+\newpage
+\section*{Приложение}
+\subsection{ops\_mpi.hpp}
+\begin{lstlisting}
+#pragma once
+
+#include <array>
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace koshkin_m_sobel_mpi {
+
+// clang-format off
+static inline const std::array<std::array<int8_t, 3>, 3> SOBEL_KERNEL_X = {{
+  {{-1, 0, 1}},
+  {{-2, 0, 2}},
+  {{-1, 0, 1}}
+}};
+static inline const std::array<std::array<int8_t, 3>, 3> SOBEL_KERNEL_Y = {{
+  {{-1, -2, -1}},
+  {{ 0,  0,  0}},
+  {{ 1,  2,  1}}
+}};
+// clang-format on
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::pair<size_t, size_t> imgsize;
+  std::vector<uint8_t> image;
+  std::vector<uint8_t> resimg;
+};
+
+class TestTaskParallel : public ppc::core::Task {
+ public:
+  explicit TestTaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::pair<size_t, size_t> imgsize;
+  std::vector<uint8_t> image;
+  std::vector<uint8_t> resimg;
+
+  boost::mpi::communicator world;
+};
+
+}  // namespace koshkin_m_sobel_mpi
+\end{lstlisting}
+\subsection{ops\_mpi.cpp}
+\begin{lstlisting}
+#include "../include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/utility.hpp>
+#include <climits>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <utility>
+
+int16_t conv_kernel3(const std::array<std::array<int8_t, 3>, 3>& kernel, const std::vector<uint8_t>& img, size_t i,
+                     size_t j, size_t height) {
+  // clang-format off
+  return kernel[0][0] * img[(i - 1) * height + (j - 1)]
+       + kernel[0][1] * img[(i - 1) * height + j]
+       + kernel[0][2] * img[(i - 1) * height + (j + 1)]
+       + kernel[1][0] * img[i * height + (j - 1)]
+       + kernel[1][1] * img[i * height + j]
+       + kernel[1][2] * img[i * height + (j + 1)]
+       + kernel[2][0] * img[(i + 1) * height + (j - 1)]
+       + kernel[2][1] * img[(i + 1) * height + j]
+       + kernel[2][2] * img[(i + 1) * height + (j + 1)];
+  // clang-format on
+}
+
+bool koshkin_m_sobel_mpi::TestTaskSequential::pre_processing() {
+  internal_order_test();
+
+  imgsize = {taskData->inputs_count[0], taskData->inputs_count[1]};
+  auto& [width, height] = imgsize;
+  const int padding = 2;
+  image.resize((width + padding) * (height + padding));
+  resimg.resize(width * height, 0);
+
+  const auto* in = reinterpret_cast<uint8_t*>(taskData->inputs[0]);
+  for (size_t row = 0; row < height; row++) {
+    std::copy(in + (row * width), in + ((row + 1) * width), image.begin() + ((row + 1) * (width + padding) + 1));
+  }
+
+  return true;
+}
+
+bool koshkin_m_sobel_mpi::TestTaskSequential::validation() {
+  internal_order_test();
+  return taskData->inputs_count[0] > 0 && taskData->inputs_count[1] > 0 &&
+         taskData->outputs_count[0] == taskData->inputs_count[0] &&
+         taskData->outputs_count[1] == taskData->inputs_count[1];
+}
+
+bool koshkin_m_sobel_mpi::TestTaskSequential::run() {
+  internal_order_test();
+
+  const auto [width, height] = imgsize;
+
+  for (size_t i = 1; i < (width + 2) - 1; i++) {
+    for (size_t j = 1; j < (height + 2) - 1; j++) {
+      const auto accX = conv_kernel3(SOBEL_KERNEL_X, image, i, j, (height + 2));
+      const auto accY = conv_kernel3(SOBEL_KERNEL_Y, image, i, j, (height + 2));
+      resimg[(i - 1) * height + (j - 1)] = std::clamp(std::sqrt(std::pow(accX, 2) + std::pow(accY, 2)), 0., 255.);
+    }
+  }
+
+  return true;
+}
+
+bool koshkin_m_sobel_mpi::TestTaskSequential::post_processing() {
+  internal_order_test();
+  std::copy(resimg.begin(), resimg.end(), reinterpret_cast<uint8_t*>(taskData->outputs[0]));
+  return true;
+}
+
+bool koshkin_m_sobel_mpi::TestTaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    imgsize = {taskData->inputs_count[0], taskData->inputs_count[1]};
+    auto& [width, height] = imgsize;
+
+    image.resize((width + 2) * (height + 2));
+    resimg.resize(width * height, 0);
+
+    const auto* in = reinterpret_cast<uint8_t*>(taskData->inputs[0]);
+    for (size_t row = 0; row < height; row++) {
+      std::copy(in + (row * width), in + ((row + 1) * width), image.begin() + ((row + 1) * (width + 2) + 1));
+    }
+  }
+
+  return true;
+}
+
+bool koshkin_m_sobel_mpi::TestTaskParallel::validation() {
+  internal_order_test();
+  return world.rank() != 0 || (taskData->inputs_count[0] > 0 && taskData->inputs_count[1] > 0 &&
+                               taskData->outputs_count[0] == taskData->inputs_count[0] &&
+                               taskData->outputs_count[1] == taskData->inputs_count[1]);
+}
+
+bool koshkin_m_sobel_mpi::TestTaskParallel::run() {
+  internal_order_test();
+
+  const int pad = 2;
+
+  boost::mpi::broadcast(world, imgsize, 0);
+  const auto [width, height] = imgsize;
+  const auto [pwidth, pheight] = std::make_pair(width + pad, height + pad);
+
+  const int perproc = width / world.size();
+  const int leftover = width % world.size();
+
+  std::vector<int> sendcounts(world.size(), 0);
+  std::vector<int> senddispls(world.size(), 0);
+  std::vector<int> recvcounts(world.size(), 0);
+  std::vector<int> recvdispls(world.size(), 0);
+
+  for (int i = 0; i < world.size(); i++) {
+    const int extra = i < leftover ? 1 : 0;
+    sendcounts[i] = (perproc + extra + pad) * pheight;
+    recvcounts[i] = (perproc + extra) * height;
+  }
+  for (int i = 1; i < world.size(); i++) {
+    senddispls[i] = senddispls[i - 1] + sendcounts[i - 1] - pheight * pad;
+    recvdispls[i] = recvdispls[i - 1] + recvcounts[i - 1];
+  }
+
+  std::vector<uint8_t> locimg(sendcounts[world.rank()]);
+  boost::mpi::scatterv(world, image, sendcounts, senddispls, locimg.data(), locimg.size(), 0);
+
+  const int actw = sendcounts[world.rank()] / pheight;
+  std::vector<uint8_t> locres(recvcounts[world.rank()]);
+  for (int i = 1; i < actw - 1; i++) {
+    for (size_t j = 1; j < (height + 2) - 1; j++) {
+      const auto accX = conv_kernel3(SOBEL_KERNEL_X, locimg, i, j, (height + 2));
+      const auto accY = conv_kernel3(SOBEL_KERNEL_Y, locimg, i, j, (height + 2));
+      locres[(i - 1) * height + (j - 1)] = std::clamp(std::sqrt(std::pow(accX, 2) + std::pow(accY, 2)), 0., 255.);
+    }
+  }
+
+  boost::mpi::gatherv(world, locres, resimg.data(), recvcounts, recvdispls, 0);
+
+  return true;
+}
+
+bool koshkin_m_sobel_mpi::TestTaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    std::copy(resimg.begin(), resimg.end(), reinterpret_cast<uint8_t*>(taskData->outputs[0]));
+  }
+  return true;
+}
+\end{lstlisting}
+
+\end{document}
