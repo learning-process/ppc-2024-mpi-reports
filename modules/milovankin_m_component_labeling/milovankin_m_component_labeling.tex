@@ -1,0 +1,327 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{enumitem}
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=black]{hyperref}
+
+
+\title{Отчет по заданию маркировка компонент на бинарном изображении. Вариант 31.}
+\author{Выполнил: Милованкин Максим, 
+Группа: 3822Б1ПР1}
+\begin{document}
+\lstset{frame=tb,
+  language=C++,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\maketitle
+
+\newpage
+\section*{Актуальность задачи}
+Обработка изображений является важной задачей в компьютерном зрении и анализе данных. Распознавание связанных компонент на бинарных изображениях используется в таких областях, как медицинская диагностика, автоматическое управление и анализ спутниковых данных.
+
+Последовательные алгоритмы, реализующие данный процесс, могут быть вычислительно затратными, особенно при работе с изображениями большого размера. Для повышения производительности используют параллельные алгоритмы, распределяющие нагрузку между процессами или потоками.
+
+Реализация параллельного подхода к задаче распознавания компонент позволяет значительно сократить время выполнения, особенно на многопроцессорных системах, что делает исследование и разработку таких решений актуальными.
+
+\newpage
+\section*{Постановка задачи}
+Целью работы является разработка последовательной и параллельной версий алгоритма распознавания компонент на бинарных изображениях. Для достижения этой цели необходимо выполнить следующие этапы:
+\begin{enumerate}
+\item Реализовать последовательный алгоритм с использованием подхода последовательной маркировки пикселей.
+\item Реализовать параллельную версию алгоритма с использованием технологии MPI для распределения вычислений между процессами.
+\item Провести тестирование и сравнение производительности обеих версий алгоритмов на наборе изображений разного размера.
+\end{enumerate}
+
+Ожидаемый результат: последовательный и параллельный алгоритмы, корректно выполняющие маркировку компонент. Параллельный алгоритм должен демонстрировать ускорение по сравнению с последовательным на больших изображениях.
+
+\newpage
+\section*{Описание алгоритма последовательной версии}
+Последовательный алгоритм распознавания компонент выполняется следующим образом:
+\begin{enumerate}
+\item Задается начальное изображение и выделяется память для хранения меток компонент.
+\item Выполняется проход по каждому пикселю изображения. Если пиксель принадлежит объекту (значение 1), то:
+\begin{itemize}
+\item Определяются метки соседних пикселей (слева, сверху, слева-сверху).
+\item Если все соседние пиксели фона (значение 0), то пикселю присваивается новая метка.
+\item Если метка одного из соседей уже существует, то используется она.
+\item Если метки соседей различны, фиксируется их эквивалентность.
+\end{itemize}
+\item После завершения прохода выполняется объединение эквивалентных меток.
+\end{enumerate}
+
+Этот алгоритм обеспечивает корректную маркировку всех компонент, но его вычислительная сложность увеличивается с размером изображения, что ограничивает его применение для больших данных.
+
+\newpage
+\section*{Описание алгоритма параллельной версии}
+Параллельная версия алгоритма реализована с использованием MPI и включает следующие шаги:
+\begin{enumerate}
+\item Исходное изображение передается нулевому процессу, который распределяет его строки между процессами.
+\item Каждый процесс выполняет маркировку своих строк:
+\begin{itemize}
+\item Пиксели маркируются локально, и фиксируются локальные эквивалентности меток.
+\item Пограничные строки обмениваются между соседними процессами для согласования меток.
+\end{itemize}
+\item На нулевом процессе выполняется объединение меток всех процессов и устранение глобальных эквивалентностей.
+\item Итоговые метки собираются на нулевом процессе и формируют выходное изображение.
+\end{enumerate}
+
+Параллельный подход позволяет эффективно использовать ресурсы многопроцессорных систем, сокращая время выполнения алгоритма для больших изображений. Однако синхронизация между процессами требует дополнительных затрат, что может снижать производительность на небольших изображениях.
+
+\newpage
+\section*{Описание эксперимента}
+Для оценки эффективности разработанных алгоритмов проводилось тестирование на наборе бинарных изображений разного размера. Были измерены:
+\begin{itemize}
+\item Время выполнения последовательной и параллельной версий алгоритмов.
+\item Корректность маркировки компонент для обоих алгоритмов.
+\item Ускорение, достигаемое параллельной версией.
+\end{itemize}
+
+\subsection*{Результаты}
+Эксперименты проводились на изображениях размеров от $256 \times 256$ и $1920 \times 1080$. Ниже представлены результаты тестирования:
+\begin{itemize}
+\item Для изображения $256 \times 256$:
+\begin{itemize}
+\item Последовательная версия - pipeline: 30 мс, task: 26 мс
+\item Параллельная версия (4 процесса) - pipeline  18 мс, task: 12 мс
+\end{itemize}
+\item Для изображения $1920 \times 1080$:
+\begin{itemize}
+\item Последовательная версия - pipeline: 997 мс, task: 970 мс
+\item Параллельная версия (4 процесса) - pipeline  431 мс, task: 344 мс
+\end{itemize}
+\end{itemize}
+Результаты показали, что параллельная версия демонстрирует ускорение в 2-3 раза, сохраняя корректность маркировки.
+
+\newpage
+\section*{Заключение}
+В ходе работы были разработаны последовательная и параллельная версии алгоритма распознавания компонент на бинарных изображениях. Параллельный алгоритм показал значительное ускорение по сравнению с последовательным на изображениях большого размера благодаря распределению вычислений между процессами.
+
+Основной сложностью при реализации параллельного алгоритма стала синхронизация данных между процессами, что потребовало дополнительных вычислительных затрат. Однако на больших изображениях эти затраты компенсируются общим ускорением алгоритма.
+
+Полученные результаты подтверждают эффективность использования параллельных вычислений для решения задач обработки изображений и открывают возможности для дальнейшего исследования в этой области.
+
+\section{Приложение}
+\subsection{ops\_mpi.cpp (Функция run() в параллельной реализации)}
+\begin{lstlisting}
+bool ComponentLabelingPar::run() {
+    internal_order_test();
+    
+    boost::mpi::broadcast(world, rows, 0);
+    boost::mpi::broadcast(world, cols, 0);
+    
+    int rank = world.rank();
+    int world_size = world.size();
+    
+    std::vector<int> send_counts(world_size, 0);
+    std::vector<int> offsets(world_size, 0);
+    
+    // Each segment starts at the beginning of a row
+    int row_offset = 0;
+    for (int i = 0; i < world_size; ++i) {
+        int rows_for_proc = rows / world_size;
+        send_counts[i] = rows_for_proc * cols;
+        offsets[i] = row_offset * cols;
+        row_offset += rows_for_proc;
+    
+        if (i == world_size - 1) send_counts[i] += (cols * rows - (rows / world_size) * cols * world_size);
+    }
+    
+    // Determine the local size for the current process
+    int local_size = send_counts[rank];
+    local_image_.resize(local_size);
+    
+    // Scatter the data
+    boost::mpi::scatterv(world, input_image_.data(), send_counts, offsets, local_image_.data(), local_size, 0);
+    
+    // auto linear_index = [this](std::size_t row, std::size_t col) -> std::size_t { return row * cols + col; };
+    auto coord_index = [this](std::size_t index) -> std::pair<std::size_t, std::size_t> {
+        return std::make_pair(index / cols, index % cols);
+    };  // row; column
+    
+    //
+    // Run algorithm for each segment
+    //
+    
+    uint32_t next_label = 1 + offsets[rank];
+    std::vector<uint32_t> local_labels_(local_size);
+    
+    // Assign labels and record equivalences
+    std::unordered_map<uint32_t, uint32_t> local_label_equivalences;
+    for (std::size_t i = 0; i < (size_t)local_size; ++i) {
+        if (local_image_[i] == 0) continue;
+    
+        std::pair<std::size_t, std::size_t> coord_r_c = coord_index(i);
+        size_t row = coord_r_c.first;
+        size_t col = coord_r_c.second;
+    
+        // D C
+        // B A
+        uint32_t label_B = (col > 0) ? local_labels_[i - 1] : 0;
+        uint32_t label_C = (row > 0) ? local_labels_[i - cols] : 0;
+        uint32_t label_D = (row > 0 && col > 0) ? local_labels_[i - cols - 1] : 0;
+    
+        if (label_B == 0 && label_C == 0 && label_D == 0) {
+        local_labels_[i] = next_label++;
+        } else {
+        uint32_t min_label = std::min({label_B, label_C, label_D}, [](uint32_t a, uint32_t b) {
+            if (a == 0) {
+            return false;
+            }
+            if (b == 0) {
+            return true;
+            }
+            return a < b;  // min higher than 0
+        });
+        local_labels_[i] = min_label;
+    
+        for (uint32_t lbl : {label_B, label_C, label_D}) {
+            if (lbl != 0 && lbl != min_label) {
+            local_label_equivalences[std::max(lbl, min_label)] = std::min(lbl, min_label);
+            }
+        }
+        }
+    }
+    // Update table according to equivalences
+    for (auto& label : local_labels_) {
+        while (local_label_equivalences.contains(label)) {
+        label = local_label_equivalences[label];
+        }
+    }
+    
+    if (rank == 0) labels_.resize(rows * cols);
+    boost::mpi::gatherv(world, local_labels_, labels_.data(), send_counts, offsets, 0);
+    
+    // Merge labels from nearby sections
+    if (rank == 0) {
+        std::unordered_map<uint32_t, uint32_t> label_equivalences;
+    
+        for (int section = 1; section < world_size; ++section) {
+        int border = offsets[section];
+    
+        for (int lbl = border; (size_t)lbl < border + cols; ++lbl) {
+            if (labels_[lbl] == 0) continue;
+    
+            std::pair<std::size_t, std::size_t> coord_r_c = coord_index(lbl);
+            size_t row = coord_r_c.first;
+            size_t col = coord_r_c.second;
+    
+            // D C
+            // B A
+            uint32_t label_B = (col > 0) ? labels_[lbl - 1] : 0;
+            uint32_t label_C = (row > 0) ? labels_[lbl - cols] : 0;
+            uint32_t label_D = (row > 0 && col > 0) ? labels_[lbl - cols - 1] : 0;
+    
+            if (label_B != 0 || label_C != 0 || label_D != 0) {
+            uint32_t min_label = std::min({label_B, label_C, label_D}, [](uint32_t a, uint32_t b) {
+                if (a == 0) {
+                return false;
+                }
+                if (b == 0) {
+                return true;
+                }
+                return a < b;  // min higher than 0
+            });
+            labels_[lbl] = min_label;
+    
+            for (uint32_t lbl_ : {label_B, label_C, label_D}) {
+                if (lbl_ != 0 && lbl_ != min_label) {
+                label_equivalences[std::max(lbl_, min_label)] = std::min(lbl_, min_label);
+                }
+            }
+            }
+        }
+        }
+        // Update table according to equivalences
+        for (auto& label : labels_) {
+        while (label_equivalences.contains(label)) {
+            label = label_equivalences[label];
+        }
+        }
+    }
+    
+    return true;
+}
+\end{lstlisting}
+\subsection{ops\_mpi.cpp (Функция run() в последовательной реализации)}
+\begin{lstlisting}
+bool ComponentLabelingSeq::run() {
+    internal_order_test();
+    
+    std::unordered_map<uint32_t, uint32_t> label_equivalences;
+    uint32_t next_label = 1;
+    
+    labels_.resize(rows * cols, 0);
+    
+    auto linear_index = [&cols = this->cols](std::size_t row, std::size_t col) -> std::size_t {
+        return row * cols + col;
+    };
+    
+    // Assign labels and record equivalences
+    for (std::size_t row = 0; row < rows; ++row) {
+        for (std::size_t col = 0; col < cols; ++col) {
+        if (input_image_[linear_index(row, col)] == 0) {
+            continue;
+        }
+    
+        uint32_t label_B = (col > 0) ? labels_[linear_index(row, col - 1)] : 0;
+        uint32_t label_C = (row > 0) ? labels_[linear_index(row - 1, col)] : 0;
+        uint32_t label_D = (row > 0 && col > 0) ? labels_[linear_index(row - 1, col - 1)] : 0;
+    
+        if (label_B == 0 && label_C == 0 && label_D == 0) {
+            labels_[linear_index(row, col)] = next_label++;
+        } else {
+            uint32_t min_label = std::min({label_B, label_C, label_D}, [](uint32_t a, uint32_t b) {
+            if (a == 0) {
+                return false;
+            }
+            if (b == 0) {
+                return true;
+            }
+            return a < b;  // min higher than 0
+            });
+    
+            labels_[linear_index(row, col)] = min_label;
+    
+            for (uint32_t lbl : {label_B, label_C, label_D}) {
+            if (lbl != 0 && lbl != min_label) {
+                label_equivalences[std::max(lbl, min_label)] = std::min(lbl, min_label);
+            }
+            }
+        }
+        }
+    }
+    
+    // Resolve label equivalences
+    for (auto& label : labels_) {
+        while (label_equivalences.contains(label)) {
+        label = label_equivalences[label];
+        }
+    }
+    
+    return true;
+}
+\end{lstlisting}
+\end{document}
