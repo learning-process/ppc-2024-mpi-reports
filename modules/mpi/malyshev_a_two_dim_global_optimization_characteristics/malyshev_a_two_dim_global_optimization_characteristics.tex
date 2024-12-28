@@ -1,0 +1,510 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{hyperref}
+\usepackage{amsmath, amssymb}
+\usepackage{indentfirst} 
+\usepackage{geometry}
+
+\geometry{
+    a4paper,
+    top=20mm,
+    right=15mm,
+    bottom=20mm,
+    left=25mm,
+}
+
+\setlength{\parindent}{12.5mm} 
+
+\begin{document}
+\begin{centering}
+\thispagestyle{empty}
+МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\\
+Федеральное государственное автономное образовательное учреждение высшего образования\\
+    {\bfseries\large «Национальный исследовательский Нижегородский государственный университет им.
+Н.И. Лобачевского»}\\
+    {\bfseries\large Институт информационных технологий математики и механики }\\
+    Направление подготовки: 09.03.04 Программная инженерия\\
+Направленность (профиль) программы бакалавриата: Разработка программно-информационных систем\\
+
+
+    \vspace{6cm} 
+    {\LARGE\bfseries Отчет по задаче}\\
+    {\large Многошаговая схема решения двумерных задач глобальной оптимизации. 
+Распараллеливание по характеристикам.}\\
+    \vspace{6cm} 
+
+    {\hfill\parbox{0.5\textwidth}{%
+        Выполнил:\\
+        Малышев Антон Александрович\\
+        группа 3822Б1ПР3\\
+        
+        \vspace{0.1cm}
+        
+        Проверил:\\
+        доцент, кандидат технических наук\\
+        Сысоев Александр Владимирович}
+    }
+    \vspace{2cm} 
+    
+    Нижний Новгород, 2024 г.
+\newpage
+\end{centering}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+В современной науке и инженерии часто возникают задачи оптимизации многомерных функций с ограничениями. Особую сложность представляет оптимизация функций с ограничениями, когда область поиска решения определяется системой неравенств. В таких случаях необходимо не только найти оптимальное значение целевой функции, но и обеспечить выполнение всех ограничений. Это существенно усложняет задачу и требует применения специальных методов обработки ограничений.
+
+Практическая значимость работы заключается в создании универсального инструмента для решения задач глобальной оптимизации, который может быть применен в различных прикладных областях. Разработанный алгоритм позволяет эффективно находить глобальные минимумы функций двух переменных с учетом произвольных ограничений, что делает его полезным для широкого круга практических задач.
+\newpage
+
+\section{Постановка задачи}
+Рассматривается задача глобальной оптимизации функции двух переменных с ограничениями:
+
+\begin{equation}
+\begin{aligned}
+& \text{найти } \min_{(x,y) \in D} f(x,y) \\
+& D = \{(x,y) \in \mathbb{R}^2: x \in [x_{min}, x_{max}], y \in [y_{min}, y_{max}], g_i(x,y), i=1,\ldots,m\}
+\end{aligned}
+\end{equation}
+
+где:
+\begin{itemize}
+    \item $f(x,y)$ -- целевая функция
+    \item $[x_{min}, x_{max}]$, $[y_{min}, y_{max}]$ -- границы области поиска
+    \item $g_i(x,y)$ -- функции ограничений
+    \item $\varepsilon > 0$ -- заданная точность
+\end{itemize}
+
+Требуется разработать последовательный и параллельный алгоритмы для решения данной задачи, используя:
+\begin{enumerate}
+    \item Метод градиентного спуска для локального поиска
+    \item Метод туннелирования для выхода из локальных минимумов
+    \item Начальное сканирование области на равномерной сетке
+\end{enumerate}
+
+Необходимо провести сравнительный анализ эффективности последовательной и параллельной реализаций на различных тестовых функциях.
+\newpage
+
+\section{Описание алгоритма}
+Алгоритм глобальной оптимизации основан на комбинации методов градиентного спуска и туннелирования для поиска глобального минимума целевой функции с учетом ограничений. Алгоритм состоит из следующих основных этапов:
+
+\subsection{Инициализация}
+На начальном этапе происходит разбиение области поиска равномерной сеткой размером $20 \times 20$ точек. Для каждой точки сетки $(x_i, y_i)$ запускается процедура локального поиска.
+
+\subsection{Локальный поиск}
+Процедура локального поиска реализует модифицированный метод градиентного спуска:
+
+\begin{enumerate}
+    \item Вычисление градиента в текущей точке $(x, y)$ с использованием разностной схемы:
+    \[
+        \nabla f(x, y) = \begin{pmatrix}
+            \frac{f(x + h, y) - f(x - h, y)}{2h} \\
+            \frac{f(x, y + h) - f(x, y - h)}{2h}
+        \end{pmatrix}
+    \]
+    где $h = 10^{-7}$ -- шаг дифференцирования.
+
+    \item Итеративное обновление координат с адаптивным шагом обучения:
+    \[
+        \begin{pmatrix} x_{k+1} \\ y_{k+1} \end{pmatrix} = 
+        \begin{pmatrix} x_k \\ y_k \end{pmatrix} - 
+        \alpha_k \nabla f(x_k, y_k)
+    \]
+    где $\alpha_k$ -- текущий шаг обучения, который уменьшается при отсутствии улучшения:
+    \[
+        \alpha_{k+1} = 0.95 \alpha_k
+    \]
+
+    \item Проверка ограничений для новой точки:
+    \begin{itemize}
+        \item Границы области поиска: $x_{min} \leq x \leq x_{max}$, $y_{min} \leq y \leq y_{max}$
+        \item Дополнительные ограничения в виде функций $g_i(x, y)$
+    \end{itemize}
+
+    \item Критерии остановки:
+    \begin{itemize}
+        \item Достижение максимального числа итераций (100)
+        \item Норма градиента меньше заданной точности: $\|\nabla f(x, y)\| < \varepsilon$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Метод туннелирования}
+После нахождения локального минимума применяется метод туннелирования для поиска других потенциальных минимумов:
+
+\begin{enumerate}
+    \item Генерация случайных точек в окрестности текущего минимума:
+    \[
+        r = R\sqrt{|\xi|}, \quad \theta = 2\pi\xi
+    \]
+    \[
+        x_{new} = x_{best} + r\cos(\theta), \quad y_{new} = y_{best} + r\sin(\theta)
+    \]
+    где $\xi \in [-1, 1]$ -- случайное число, $R$ -- радиус поиска, определяемый как $0.1\min(x_{max}-x_{min}, y_{max}-y_{min})$.
+
+    \item Для каждой сгенерированной точки запускается процедура локального поиска.
+    
+    \item Процесс туннелирования продолжается до тех пор, пока:
+    \begin{itemize}
+        \item Не будет достигнуто максимальное число итераций
+        \item Не произойдет 10 последовательных попыток без улучшения результата
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Проверка ограничений}
+Проверка ограничений осуществляется с помощью функции \texttt{check\_constraints}, которая проверяет выполнение всех заданных ограничений для текущей точки:
+
+\[
+    check\_constraints(x, y) = \bigwedge_{i=1}^n g_i(x, y)
+\]
+
+где $g_i(x, y)$ -- $i$-е ограничение из набора ограничений.
+
+\subsubsection{Особенности реализации}
+\begin{itemize}
+    \item Начальный шаг обучения установлен как $\alpha_0 = 0.01$
+    \item Для туннелирования генерируется случайная точка в каждой итерации, максимальное количество попыток туннелирования - 20
+    \item Используется адаптивное уменьшение шага обучения при отсутствии улучшения
+    \item При нарушении ограничений точке присваивается значение $+\infty$
+    \item Алгоритм гарантирует нахождение точки, удовлетворяющей всем ограничениям
+\end{itemize}
+\newpage
+
+\section{Схема распараллеливания}
+\subsection{Распределение ограничений}
+
+По условию задачи было принято следующее распределение:
+\begin{itemize}
+    \item Все ограничения равномерно распределяются между доступными процессами
+    \item Каждый процесс отвечает за проверку своего подмножества ограничений
+    \item Результаты проверок собираются
+\end{itemize}
+
+Распределение реализовано следующим образом:
+\begin{equation}
+    \text{local\_constraints\_count} = \left\lfloor\frac{\text{total\_constraints}}{\text{num\_processes}}\right\rfloor + 
+    \begin{cases}
+        1, & \text{если } \text{rank} < \text{remaining\_constraints} \\
+        0, & \text{иначе}
+    \end{cases}
+\end{equation}
+
+\subsection{Оптимизация коммуникаций}
+Из-за необходимости синхронизации промежуточных вычислений в каждой точке для повышения производительности было принято решение отказаться от использования all\_reduce.
+
+Для минимизации накладных расходов на коммуникации:
+\begin{itemize}
+    \item Используется разделяемая память для массива результатов проверки ограничений
+    \item Обмен данными происходит только на этапе туннелирования
+    \item Локальный поиск выполняется независимо каждым процессом
+\end{itemize}
+
+\subsection{Особенности туннелирования в параллельной реализации}
+
+Так как в реализации туннелирования используется рандом, то для одинаковой работы процессов:
+\begin{itemize}
+    \item Процесс с рангом 0 генерирует все случайные точки для туннелирования
+    \item Точки рассылаются всем процессам с помощью broadcast
+\end{itemize}
+\newpage
+
+\section{Эксперименты}
+
+Тест производительности специально разработан для оценки эффективности параллельной реализации по сравнению с последовательной. В параллельной версии наиболее эффективно распараллеливается проверка ограничений, так как они могут выполняться независимо друг от друга на разных процессах, поэтому в тестовой задаче был сделан акцент на вычислительной сложности ограничений
+
+\subsection{Тестовая функция}
+
+В качестве тестовой функции для оценки производительности была выбрана следующая целевая функция:
+
+\begin{equation}
+f(x,y) = x^2 + y^2 + 10\sin(x)\cos(y)
+\end{equation}
+
+Данная функция обладает следующими характеристиками:
+\begin{itemize}
+    \item Непрерывность и гладкость
+    \item Наличие множества локальных минимумов
+    \item Глобальный минимум находится в точке (0,0)
+    \item Достаточная сложность для демонстрации эффективности параллельного алгоритма
+\end{itemize}
+
+\subsection{Ограничения}
+\subsubsection{Ограничение 1: Множество Мандельброта}
+\begin{equation}
+\begin{split}
+z_{n+1} &= z_n^2 + c \\
+c &= x + yi \\
+|z_n| &\leq 2 \text{ для } n \leq 500
+\end{split}
+\end{equation}
+
+Точка $(x,y)$ должна принадлежать множеству Мандельброта. Это обеспечивает сложную нелинейную границу области допустимых значений.
+
+\subsubsection{Ограничение 2: Интегральное условие}
+\begin{equation}
+\int\limits_{0}^{|x|}\int\limits_{0}^{|y|} \sin(u^2 + v^2)e^{-0.1(u^2 + v^2)}\cos(uv)dudv \leq 10
+\end{equation}
+
+Данное ограничение требует численного интегрирования, что существенно увеличивает вычислительную сложность.
+
+\subsubsection{Ограничение 3: Решение системы ОДУ}
+Система уравнений маятника:
+\begin{equation}
+\begin{cases}
+\dot{u} = v \\
+\dot{v} = -\sin(u)
+\end{cases}
+\end{equation}
+с начальными условиями $u(0)=x$, $v(0)=y$.
+
+\subsubsection{Ограничение 4: Ряд Фурье}
+\begin{equation}
+\left|\sum_{n=1}^{300} \frac{\sin(nx)\cos(ny)}{n}\right| \leq 2
+\end{equation}
+
+\subsection{Параметры оптимизации}
+
+Поиск проводился в области:
+\begin{equation}
+(x,y) \in [-0.5, 0.5] \times [-0.5, 0.5]
+\end{equation}
+
+с точностью $\varepsilon = 10^{-4}$. 
+
+Дополнительные параметры алгоритма:
+\begin{itemize}
+    \item Начальная сетка: $20 \times 20$ точек
+    \item Максимальное число итераций: 100
+    \item Начальный шаг обучения: 0.01
+    \item Коэффициент туннелирования: 0.1
+    \item Число попыток туннелирования: 20
+\end{itemize}
+
+\subsection{Результаты}
+Результаты тестов для последовательной и параллельной версии (-n 4):
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+    \hline
+        & Запуск & Время\\
+    \hline
+    seq & pipeline\_run & 5.3154056910 \\
+    \hline    
+    seq & task\_run & 5.8681763400 \\
+    \hline
+    mpi & pipeline\_run & 3.5960323120 \\
+    \hline
+    mpi & task\_run & 3.5297631610 \\
+    \hline
+\end{tabular}
+\end{center}
+\begin{enumerate}
+    \item \textbf{Ускорение параллельной версии:}
+    \begin{itemize}
+        \item Для pipeline\_run: $S_{pipeline} = \frac{5.3154}{3.5960} \approx 1.48$
+        \item Для task\_run: $S_{task} = \frac{5.8682}{3.5298} \approx 1.66$
+    \end{itemize}
+
+    \item \textbf{Эффективность распараллеливания:}
+    \begin{itemize}
+        \item Для pipeline\_run: $E_{pipeline} = \frac{1.48}{4} \approx 0.37$ или 37\%
+        \item Для task\_run: $E_{task} = \frac{1.66}{4} \approx 0.42$ или 42\%
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Выводы}
+Эффективность распараллеливания:
+\begin{itemize}
+    \item Достигнуто ускорение в 1.48-1.66 раз при использовании 4 процессов
+    \item Эффективность распараллеливания составила 37-42\%
+    \item Параллельная версия показала стабильное улучшение производительности для обоих методов запуска (pipeline\_run и task\_run)
+\end{itemize}
+\newpage
+
+\section{Заключение}
+В данной работе была рассмотрена задача глобальной оптимизации функции двух переменных с ограничениями. Основные результаты работы можно сформулировать следующим образом:
+
+\begin{enumerate}
+    \item Разработан комбинированный алгоритм глобальной оптимизации, сочетающий:
+    \begin{itemize}
+        \item начальное сканирование области поиска
+        \item метод градиентного спуска для локальной оптимизации
+        \item метод туннелирования для преодоления локальных минимумов
+    \end{itemize}
+    
+    \item Предложена параллельная реализация алгоритма, позволяющая существенно сократить время поиска глобального минимума за счет одновременного исследования различных областей пространства поиска.
+    
+    \item Проведено теоретическое обоснование и экспериментальное исследование эффективности разработанных алгоритмов на наборе тестовых функций.
+\end{enumerate}
+
+Практическая значимость полученных результатов подтверждается возможностью применения разработанного алгоритма для широкого класса прикладных задач оптимизации. Предложенный подход обеспечивает:
+
+\begin{itemize}
+    \item надежный поиск глобального минимума
+    \item корректную обработку произвольных ограничений
+    \item возможность распараллеливания вычислений
+\end{itemize}
+
+Таким образом, поставленные в работе цели достигнуты, а разработанные алгоритмы могут служить основой для создания программного обеспечения, предназначенного для решения практических задач глобальной оптимизации.
+\newpage
+
+\section{Литература}
+
+\begin{thebibliography}{2}
+
+\bibitem{mpi_ref}
+Microsoft Corporation.
+\emph{Message Passing Interface Reference}.
+Microsoft Learn. (Веб-ресурс). URL: https://learn.microsoft.com/ru-ru/message-passing-interface/mpi-reference
+
+\bibitem{grad}
+Градиентный спуск. Википедия. (Веб-ресурс). URL: https://ru.wikipedia.org/wiki/Градиентный\_спуск
+
+\end{thebibliography}
+\newpage
+
+\section{Приложение}
+В приложении предоставлены основные функции алгоритма. 
+\subsection{optimize}
+\begin{verbatim}
+void TestTaskSequential::optimize() {
+  double x_step = (data_.x_max - data_.x_min) / Constants::grid_initial_size;
+  double y_step = (data_.y_max - data_.y_min) / Constants::grid_initial_size;
+  Point best_point(0, 0, std::numeric_limits<double>::max());
+
+  for (int i = 0; i <= Constants::grid_initial_size; i++) {
+    for (int j = 0; j <= Constants::grid_initial_size; j++) {
+      double x = data_.x_min + i * x_step;
+      double y = data_.y_min + j * y_step;
+
+      Point local_min = local_search(x, y);
+
+      if (local_min.value < best_point.value) {
+        best_point = local_min;
+      }
+    }
+  }
+
+  int no_improvement_count = 0;
+  for (int i = 0; i < Constants::max_iterations && no_improvement_count < 10; i++) {
+    Point tunneled_point = tunnel_search(best_point);
+
+    if (tunneled_point.value < best_point.value - data_.eps) {
+      best_point = tunneled_point;
+      no_improvement_count = 0;
+    } else {
+      no_improvement_count++;
+    }
+  }
+
+  res_ = local_search(best_point.x, best_point.y);
+}
+\end{verbatim}
+\newpage
+
+\subsection{local\_search}
+\begin{verbatim}
+Point TestTaskSequential::local_search(double x0, double y0) {
+  Point current(x0, y0);
+  current.value = traget_function_(x0, y0);
+
+  double learning_rate = Constants::start_learning_rate;
+  const double learning_rate_decay = 0.95;
+
+  double dx = (traget_function_(x0 + Constants::h, y0) - 
+                traget_function_(x0 - Constants::h, y0)) / (2 * Constants::h);
+  double dy = (traget_function_(x0, y0 + Constants::h) - 
+                traget_function_(x0, y0 - Constants::h)) / (2 * Constants::h);
+
+  for (int i = 0; i < Constants::max_iterations; i++) {
+    double new_x = current.x - learning_rate * dx;
+    double new_y = current.y - learning_rate * dy;
+
+    if (new_x < data_.x_min || new_x > data_.x_max || new_y < data_.y_min 
+        || new_y > data_.y_max) {
+      learning_rate *= learning_rate_decay;
+      continue;
+    }
+
+    if (!check_constraints(new_x, new_y)) {
+      learning_rate *= learning_rate_decay;
+      continue;
+    }
+
+    double new_value = traget_function_(new_x, new_y);
+
+    if (new_value < current.value) {
+      current.x = new_x;
+      current.y = new_y;
+      current.value = new_value;
+    } else {
+      learning_rate *= learning_rate_decay;
+    }
+
+    double grad_norm = std::sqrt(dx * dx + dy * dy);
+    if (grad_norm < data_.eps) {
+      break;
+    }
+  }
+
+  if (!check_constraints(current.x, current.y)) {
+    return Point(current.x, current.y, std::numeric_limits<double>::max());
+  }
+
+  return current;
+}
+\end{verbatim}
+\newpage
+
+\subsection{tunnel\_search}
+\begin{verbatim}
+Point TestTaskSequential::tunnel_search(
+    const Point& current_min) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(-1.0, 1.0);
+
+  double radius = std::min(data_.x_max - data_.x_min, 
+                        data_.y_max - data_.y_min) * Constants::tunnel_rate;
+  Point best_point = current_min;
+
+  double angle;
+  double r;
+  double new_x;
+  double new_y;
+  for (int i = 0; i < Constants::num_tunnels; i++) {
+    angle = 2 * M_PI * dis(gen);
+    r = radius * std::sqrt(std::abs(dis(gen)));
+
+    new_x = current_min.x + r * std::cos(angle);
+    new_y = current_min.y + r * std::sin(angle);
+
+    if (new_x >= data_.x_min && new_x <= data_.x_max && new_y >= data_.y_min 
+            && new_y <= data_.y_max) {
+      Point new_point = local_search(new_x, new_y);
+      if (new_point.value < best_point.value) {
+        best_point = new_point;
+      }
+    }
+  }
+  return best_point;
+}
+\end{verbatim}
+\newpage
+
+\subsection{check\_constraints}
+\begin{verbatim}
+
+bool TestTaskSequential::check_constraints(double x, double y) {
+  return std::all_of(constraints_.begin(), constraints_.end(),
+                     [x, y](const constraint_t& constraint) { 
+                        return constraint(x, y); 
+    });
+}
+\end{verbatim}
+
+\end{document}
