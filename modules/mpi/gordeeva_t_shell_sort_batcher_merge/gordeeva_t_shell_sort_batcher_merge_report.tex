@@ -1,0 +1,511 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+    \large
+    \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+    \vspace{4cm}
+    \textbf{\Large Отчёт по выполнению задания}\\
+    \textbf{\large «Сортировка Шелла с четно-нечетным слиянием Бэтчера»}\\[3cm]
+
+    \vspace{3cm}
+    \textbf{Выполнила:}\\
+    студент группы 3822Б1ПМоп3 \\
+    \textit{Гордеева Таисия Сергеевна}\\[1cm]
+
+    \textbf{Преподаватель:}\\
+    \textit{Сысоев Александр Владимирович, доцент}\\[2cm]
+
+    Нижний Новгород, 2024 г.
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+Сортировка Шелла является одним из известных алгоритмов сортировки, который улучшает скорость сортировки за счёт использования различных интервалов для сравнения элементов. В данной работе алгоритм сортировки Шелла используется в сочетании с алгоритмом четно-нечетного слияния Бэтчера, что позволяет эффективно распараллелить выполнение задачи с использованием MPI.
+
+\section{Постановка задачи}
+Целью данной работы является разработка и реализация алгоритма сортировки Шелла с использованием метода четно-нечетного слияния Бэтчера в параллельной среде с применением MPI.
+
+Задача состоит из следующих этапов:
+\begin{itemize}
+    \item Разработка алгоритма сортировки Шелла с четно-нечетным слиянием Бэтчера.
+    \item Распараллеливание алгоритма с использованием MPI для достижения высокой производительности.
+    \item Оценка эффективности алгоритма на основе времени работы для различных объёмов данных с помощью сравнения параллельной версии с последовательной.
+    \item Проведение экспериментов для оценки корректности работы алгоритма и его производительности.
+\end{itemize}
+\newpage
+
+\section{Описание алгоритма}
+
+Алгоритм сортировки Шелла с четно-нечетным слиянием Бэтчера состоит из нескольких ключевых этапов: сортировка с использованием интервалов, распараллеливание вычислений с помощью MPI и слияние отсортированных данных с применением метода Бэтчера. В этой секции мы детально рассмотрим каждый из этих этапов.
+
+\subsection{Сортировка Шелла}
+Сортировка Шелла является улучшением стандартной сортировки вставками. В стандартной сортировке вставками элементы массива сравниваются и меняются местами попарно, что приводит к большому количеству перестановок. Сортировка Шелла улучшает этот процесс, позволяя сначала сортировать элементы, которые находятся далеко друг от друга, и затем постепенно сокращать расстояние между сравниваемыми элементами.
+
+Алгоритм работает следующим образом:
+\begin{enumerate}
+    \item Для начала выбирается шаг — интервал, по которому будут сравниваться элементы. Начальный шаг равен половине длины массива.
+    \item Затем массив сортируется с использованием этого шага. Элементы, которые находятся на расстоянии шага друг от друга, сравниваются и меняются местами, если это необходимо.
+    \item После того, как сортировка завершена для текущего шага, шаг уменьшается вдвое, и процесс повторяется, пока шаг не станет равным 1.
+    \item На последнем шаге выполняется обычная сортировка вставками, что приводит к окончательной сортировке массива.
+\end{enumerate}
+
+Основная идея заключается в том, что сначала упорядочиваются элементы на больших интервалах, что ускоряет процесс сортировки, а затем сортировка становится более точной при уменьшении интервала.
+
+\subsection{Четно-нечетное слияние Бэтчера}
+Алгоритм четно-нечетного слияния Бэтчера используется для объединения двух отсортированных массивов в один. Он представляет собой параллельную версию обычного алгоритма слияния, который используется в сортировке слиянием.
+
+Процесс четно-нечетного слияния Бэтчера заключается в следующем:
+\begin{enumerate}
+    \item Два отсортированных массива (или части массива) сливаются попарно.
+    \item Сначала элементы, расположенные на чётных позициях, сливаются между собой, а элементы на нечётных позициях — между собой.
+    \item После этого, на каждом шаге, происходит слияние больших частей массива, пока весь массив не будет объединён в один отсортированный массив.
+\end{enumerate}
+
+Данный алгоритм эффективен для параллельной обработки данных, поскольку слияние происходит между чётными и нечётными позициями, что позволяет эффективно использовать несколько потоков или процессов для выполнения работы.
+
+\section{Распараллеливание с использованием MPI}
+Для распараллеливания алгоритма используется библиотека MPI (Message Passing Interface), которая позволяет организовать обмен данными между различными процессами, выполняющимися на разных вычислительных узлах или ядрах.
+
+Основная идея распараллеливания заключается в следующем:
+\begin{enumerate}
+    \item Разбиение массива данных на части, которые будут обрабатываться отдельными процессами. Количество частей зависит от количества доступных процессов в системе.
+    \item Каждый процесс выполняет сортировку своей части массива с использованием алгоритма сортировки Шелла.
+    \item После того как все части массива отсортированы, используется алгоритм четно-нечетного слияния Бэтчера для объединения отсортированных частей. Процесс слияния также параллелизуется с помощью MPI.
+    \item В процессе слияния происходит обмен данными между соседними процессами, что позволяет ускорить операцию слияния.
+    \item В конечном итоге отсортированные данные собираются в один массив, используя коллективные операции MPI, такие как \texttt{gatherv} или \texttt{scatterv}.
+\end{enumerate}
+
+\subsection{Схема распараллеливания}
+Рассмотрим пошагово, как происходит выполнение алгоритма с распараллеливанием:
+
+\begin{enumerate}
+    \item \textbf{Инициализация и разбиение данных}: На первом этапе весь массив данных делится на несколько частей, которые будут обрабатываться разными процессами. Количество частей определяется числом процессов, доступных в вычислительном кластере. Каждый процесс получает свою часть массива.
+    
+    \item \textbf{Сортировка с использованием Шелла}: Каждый процесс выполняет сортировку своей части массива с использованием алгоритма сортировки Шелла. На каждом шаге интервал, по которому выполняется сортировка, уменьшается.
+    
+    \item \textbf{Объединение данных}: После сортировки частей массива каждый процесс начинает объединять свои данные с соседними процессами с помощью алгоритма четно-нечетного слияния Бэтчера. Обмен данными между процессами происходит через операции передачи сообщений в MPI, такие как \texttt{send} и \texttt{recv}.
+    
+    \item \textbf{Финальное слияние}: После выполнения нескольких шагов слияния между процессами, массивы, находящиеся в разных процессах, начинают объединяться, пока весь массив не окажется отсортированным.
+    
+    \item \textbf{Сборка результата}: После того как все части массива объединены, данные собираются в главный процесс с помощью коллективной операции \texttt{gatherv}.
+\end{enumerate}
+
+
+\section{Описание MPI-реализации в файле \texttt{ops\_mpi.cpp}}
+
+В данном разделе рассмотрим описание работы каждой функции в файле \texttt{ops\_mpi.cpp}. Все функции, описанные ниже, являются частью реализации параллельного алгоритма сортировки Шелла с использованием библиотеки MPI.
+
+\subsection{Функция \texttt{shellSort}}
+Функция реализует алгоритм сортировки Шелла, который является улучшением сортировки вставками. Вместо того, чтобы выполнять сравнение и перестановку соседних элементов, алгоритм использует шаги сортировки, которые уменьшаются с каждым проходом, чтобы ускорить процесс сортировки.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Начинается с выбора начального шага, который равен половине длины массива.
+  \item Далее выполняется сортировка с использованием уменьшения шага (по принципу алгоритма Шелла). Для каждого шага элементы массива сравниваются с теми, которые находятся на расстоянии шага.
+  \item Если текущий элемент меньше предыдущего, происходит их обмен.
+  \item Алгоритм повторяется, пока шаг не станет равным единице.
+\end{enumerate}
+
+\subsection{Функция \texttt{pre\_processing}}
+Функция выполняет предварительную обработку данных перед выполнением основного алгоритма. Она используется для подготовки данных для теста в последовательном режиме.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Вначале вызывается функция \texttt{internal\_order\_test()} для выполнения дополнительных проверок или подготовки.
+  \item Из входных данных извлекаются значения и сохраняются в локальный вектор \texttt{input\_}.
+  \item Создаётся вектор \texttt{res\_} для хранения результатов.
+\end{enumerate}
+
+\subsection{Функция \texttt{validation}}
+Функция выполняет проверку входных данных перед запуском основного алгоритма. Она проверяет, что входные и выходные данные корректны, а также что размер входных данных положительный.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Проверяется, что входные и выходные данные не пусты.
+  \item Проверяется, что количество входных элементов больше нуля.
+  \item Проверяется, что количество выходных данных равно 1.
+\end{enumerate}
+
+\subsection{Функция \texttt{run}}
+Функция выполняет саму сортировку, вызывая функцию \texttt{shellSort} для сортировки данных. После сортировки данные сохраняются в результирующий вектор \texttt{res\_}.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Вначале вызывается функция \texttt{internal\_order\_test()} для дополнительных проверок.
+  \item Затем сортируются данные с помощью алгоритма Шелла.
+  \item Результаты сортировки сохраняются в \texttt{res\_}.
+\end{enumerate}
+
+\subsection{Функция \texttt{post\_processing}}
+Функция выполняет финальную обработку данных после выполнения алгоритма сортировки. Она передаёт отсортированные данные в выходной массив.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Вначале вызывается функция \texttt{internal\_order\_test()} для дополнительных проверок.
+  \item Результаты сортировки копируются в выходной массив.
+\end{enumerate}
+
+\subsection{Функция \texttt{batcher\_merge}}
+Функция реализует этап слияния двух отсортированных частей массива с использованием алгоритма четно-нечетного слияния Бэтчера. Эта функция используется для обмена и слияния данных между двумя процессами.
+
+Основные этапы работы:
+\begin{enumerate}
+  \item Процессы обмениваются данными между собой.
+  \item После обмена данные сливаются с использованием алгоритма Бэтчера.
+  \item После слияния часть массива перезаписывается в исходный вектор каждого процесса.
+\end{enumerate}
+
+\section{Экспериментальная часть}
+В ходе экспериментов были проведены замеры времени работы алгоритма при различных размерах входных данных. Результаты показали, что использование параллельных вычислений значительно ускоряет процесс сортировки, особенно при больших объёмах данных.
+
+\section{Результаты экспериментов}
+
+В данном разделе представлены результаты экспериментов, проведённых для алгоритма сортировки Шелла с использованием четно-нечетного слияния Бэтчера при различных количествах процессов. Все тесты проводились на одном и том же наборе данных.
+
+\subsection{Четыре процесса}
+Для 4 процессов вывод тестов следующий:
+\begin{verbatim}
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:pipeline:1.2619778000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run (1410 ms)
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:task_run:1.2620021000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run (1535 ms)
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi (2947 ms total)
+\end{verbatim}
+
+Общее время выполнения: 2947 мс.
+
+\subsection{Два процесса}
+Для 2 процессов вывод тестов следующий:
+\begin{verbatim}
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:pipeline:1.9478376000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run (2157 ms)
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:task_run:1.8953400000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run (2316 ms)
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi (4474 ms total)
+\end{verbatim}
+
+Общее время выполнения: 4474 мс.
+
+\subsection{Один процесс}
+Для 1 процесса вывод тестов следующий:
+\begin{verbatim}
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:pipeline:3.8968765000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_pipeline_run (4297 ms)
+[ RUN      ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run
+pc-2024-autumn\tasks\mpi\gordeeva_t_shell_sort_batcher_merge:task_run:3.7008473000
+[       OK ] gordeeva_t_shell_sort_batcher_merge_mpi.test_task_run (4465 ms)
+[----------] 2 tests from gordeeva_t_shell_sort_batcher_merge_mpi (8763 ms total)
+\end{verbatim}
+
+Общее время выполнения: 8763 мс.
+
+\subsection{Анализ}
+С увеличением числа процессов время выполнения тестов уменьшается, что подтверждает эффективность параллельной реализации алгоритма. При использовании 4 процессов время выполнения почти в 3 раза меньше, чем при использовании одного процесса, что демонстрирует значительное ускорение при масштабировании на многопроцессорных системах.
+
+\section{Выводы}
+В ходе работы была реализована параллельная версия алгоритма сортировки Шелла с использованием четно-нечетного слияния Бэтчера и библиотеки MPI. К основным результатам можно отнести следующие:
+
+\begin{enumerate}
+  \item Был разработан алгоритм сортировки Шелла с использованием четно-нечетного слияния Бэтчера, который улучшает производительность при работе с большими данными.
+  \item Реализована параллельная версия алгоритма с использованием MPI, что позволяет ускорить процесс сортировки на многопроцессорных системах.
+  \item Программная реализация включает функции для обработки данных, валидации и корректной работы алгоритма в распределённой среде.
+  \item Параллельная версия алгоритма продемонстрировала улучшение производительности, что подтверждается результатами экспериментов.
+  \item Алгоритм прошёл тесты на корректность и обеспечил правильность сортировки данных.
+\end{enumerate}
+
+Таким образом, разработанная параллельная версия алгоритма эффективно решает задачу сортировки больших массивов данных в распределённых вычислительных системах.
+
+\section{Литература}
+\begin{itemize}
+    \item А. К. Чепурков, «Методы параллельных вычислений», М.: Наука, 2015.
+    \item B. Batcher, «Sorting Networks and Their Applications», 1968.
+    \item Лекции по MPI, доступные на сайте \url{https://www.mpi-forum.org/}.
+\end{itemize}
+
+\section{Приложение}
+
+\subsection{Файл \texttt{ops\_seq.hpp}}
+\begin{verbatim}
+#pragma once
+
+#include <vector>
+#include "core/task/include/task.hpp"
+
+namespace gordeeva_t_shell_sort_batcher_merge_seq {
+
+void shellSort(std::vector<int>& arr, int arr_length);
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_)
+      : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> res_;
+};
+
+}  // namespace gordeeva_t_shell_sort_batcher_merge_seq
+\end{verbatim}
+
+\subsection{Файл \texttt{ops\_seq.cpp}}
+\begin{verbatim}
+#include "seq/gordeeva_t_shell_sort_batcher_merge/include/ops_seq.hpp"
+
+using namespace std::chrono_literals;
+
+void gordeeva_t_shell_sort_batcher_merge_seq::shellSort(std::vector<int>& arr,
+                                                        int arr_length) {
+  for (int step = arr_length / 2; step > 0; step /= 2) {
+    for (int i = step; i < arr_length; i++) {
+      int j = i;
+      while (j >= step && arr[j - step] > arr[j]) {
+        std::swap(arr[j], arr[j - step]);
+        j -= step;
+      }
+    }
+  }
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_seq::TestTaskSequential::pre_processing() {
+  internal_order_test();
+
+  int sz = taskData->inputs_count[0];
+  auto* input_tmp = reinterpret_cast<int32_t*>(taskData->inputs[0]);
+  input_.resize(sz);
+  std::copy(input_tmp, input_tmp + sz, input_.begin());
+
+  res_.resize(sz);
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_seq::TestTaskSequential::validation() {
+  internal_order_test();
+
+  if (taskData->inputs.empty() || taskData->outputs.empty()) return false;
+  if (taskData->inputs_count[0] <= 0) return false;
+  if (taskData->outputs_count.size() != 1) return false;
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_seq::TestTaskSequential::run() {
+  internal_order_test();
+
+  shellSort(input_, input_.size());
+  for (size_t i = 0; i < input_.size(); i++) {
+    res_[i] = input_[i];
+  }
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_seq::TestTaskSequential::post_processing() {
+  internal_order_test();
+
+  int* output_matr = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res_.begin(), res_.end(), output_matr);
+
+  return true;
+}
+\end{verbatim}
+
+\subsection{Файл \texttt{ops\_mpi.cpp}}
+\begin{verbatim}
+#include "mpi/gordeeva_t_shell_sort_batcher_merge/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <vector>
+
+using namespace std::chrono_literals;
+
+void gordeeva_t_shell_sort_batcher_merge_mpi::shellSort(std::vector<int>& arr) {
+  size_t arr_length = arr.size();
+  for (size_t step = arr_length / 2; step > 0; step /= 2) {
+    for (size_t i = step; i < arr_length; i++) {
+      size_t j = i;
+      while (j >= step && arr[j - step] > arr[j]) {
+        std::swap(arr[j], arr[j - step]);
+        j -= step;
+      }
+    }
+  }
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+
+  size_t sz = taskData->inputs_count[0];
+  auto* input_tmp = reinterpret_cast<int32_t*>(taskData->inputs[0]);
+  input_.assign(input_tmp, input_tmp + sz);
+  res_.resize(sz);
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+
+  if (taskData->inputs.empty() || taskData->outputs.empty()) return false;
+  if (taskData->inputs_count[0] <= 0) return false;
+  if (taskData->outputs_count.size() != 1) return false;
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+
+  shellSort(input_);
+  res_ = input_;
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+
+  int* output_matr = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res_.begin(), res_.end(), output_matr);
+
+  return true;
+}
+
+void gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskParallel::batcher_merge(
+    size_t rank1, size_t rank2, std::vector<int>& local_input_local) {
+  size_t rank = world.rank();
+  std::vector<int> received_data;
+
+  if (rank == rank1) {
+    world.send(rank2, 0, local_input_local);
+    world.recv(rank2, 0, received_data);
+  } else if (rank == rank2) {
+    world.recv(rank1, 0, received_data);
+    world.send(rank1, 0, local_input_local);
+  }
+
+  if (!received_data.empty()) {
+    std::vector<int> merged_data(local_input_local.size() + received_data.size());
+    std::merge(local_input_local.begin(), local_input_local.end(),
+               received_data.begin(), received_data.end(),
+               merged_data.begin());
+
+    if (rank == rank1) {
+      local_input_local.assign(merged_data.begin(),
+                               merged_data.begin() + local_input_local.size());
+    } else if (rank == rank2) {
+      local_input_local.assign(merged_data.end() - local_input_local.size(),
+                               merged_data.end());
+    }
+  }
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    sz_mpi = taskData->inputs_count[0];
+    auto* input_tmp = reinterpret_cast<int32_t*>(taskData->inputs[0]);
+    input_.assign(input_tmp, input_tmp + sz_mpi);
+    res_.resize(sz_mpi);
+  }
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    if (taskData->inputs.empty() || taskData->outputs.empty()) return false;
+    if (taskData->inputs_count[0] <= 0) return false;
+    if (taskData->outputs_count.size() != 1) return false;
+  }
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  size_t rank = world.rank();
+  size_t size = world.size();
+
+  boost::mpi::broadcast(world, sz_mpi, 0);
+  size_t sz_mpi_local = sz_mpi;
+
+  size_t delta = sz_mpi_local / size;
+  size_t ost = sz_mpi_local % size;
+  std::vector<int> sz_rk(size, static_cast<int>(delta));
+  for (size_t i = 0; i < ost; ++i) {
+    sz_rk[i]++;
+  }
+
+  if (rank != 0) {
+    input_.resize(sz_mpi_local);
+  }
+  boost::mpi::broadcast(world, input_.data(), sz_mpi_local, 0);
+
+  std::vector<int> local_input(sz_rk[rank]);
+  boost::mpi::scatterv(world, input_, sz_rk, local_input.data(), 0);
+
+  // Сортируем локальный участок
+  shellSort(local_input);
+
+  // Четно-нечетный алгоритм слияния
+  for (size_t i = 0; i < size; ++i) {
+    if (rank % 2 == i % 2 && rank + 1 < size) {
+      batcher_merge(rank, rank + 1, local_input);
+    } else if (rank % 2 != i % 2 && rank > 0) {
+      batcher_merge(rank - 1, rank, local_input);
+    }
+  }
+
+  // Собираем данные обратно
+  if (rank == 0) {
+    res_.resize(sz_mpi_local);
+  }
+  boost::mpi::gatherv(world, local_input.data(), local_input.size(),
+                      res_.data(), sz_rk, 0);
+
+  return true;
+}
+
+bool gordeeva_t_shell_sort_batcher_merge_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0 && !taskData->outputs.empty()) {
+    std::copy(res_.begin(), res_.end(),
+              reinterpret_cast<int*>(taskData->outputs[0]));
+  }
+  return true;
+}
+\end{verbatim}
+
+\end{document}
