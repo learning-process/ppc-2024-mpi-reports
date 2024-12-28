@@ -1,0 +1,437 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{setspace}
+
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=2cm}
+
+% Оформление
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  keywordstyle=\color{blue}\bfseries,
+  stringstyle=\color{red},
+  commentstyle=\color{gray},
+}
+
+% Установка межстрочного интервала
+\renewcommand{\baselinestretch}{1.5}
+
+% Изменение кегля текста
+\renewcommand{\normalsize}{\fontsize{14}{16.8}\selectfont}
+\renewcommand{\large}{\fontsize{16}{19.2}\selectfont}
+
+\begin{document}
+% Титульная страница
+\thispagestyle{empty} % Убирает стили нумерации для титульного листа
+\begin{center}
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.1cm]
+    \textbf{Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского}\\[0.1cm]
+    Институт информационных технологий, математики и механики\\[2.5cm]
+
+    \Huge
+    \textbf{Отчет по лабораторной работе №3}\\[0.5cm]
+    \LARGE
+    \textbf{«Сортировка Шелла»}\\[2cm]
+
+    \normalsize
+    \begin{flushright}
+        \textbf{Выполнила:}\\
+        студент группы 3822Б1ПР1\\
+        Ермилова Д.С.\\[1cm]
+
+        \textbf{Преподаватель:}\\
+        Доцент кафедры ВВиСП, к.т.н.,\\
+        Сысоев А.В.\\
+    \end{flushright}
+    \vfill
+    Нижний Новгород\\
+    2024
+\end{center}
+\newpage % Переход на следующую страницу
+
+% Содержание
+\tableofcontents
+\newpage
+
+\section{Введение}
+Сортировка Шелла является расширением метода сортировки вставками и представляет собой эффективный алгоритм для упорядочивания элементов в массиве. В силу своей простоты и производительности сортировка Шелла находит применение в различных задачах. В этом отчете рассматривается реализация сортировки Шелла с использованием технологии параллельных вычислений MPI, что позволяет эффективно распределить нагрузку на несколько вычислительных узлах, ускоряя процесс обработки больших объемов данных.
+
+\section{Цель и задачи проекта}
+Цель проекта: разработать параллельную версию алгоритма сортировки Шелла в сочетании с алгоритмом слияния, используя библиотеки MPI, протестировать и оптимизировать алгоритм.
+
+Задачи:
+\begin{itemize}
+    \item Реализация сортировки Шелла на языке C++;
+    \item Разработка функции для слияния отсортированных массивов;
+    \item Тестирование корректности работы алгоритмов.
+\end{itemize}
+\newpage
+
+\section{Описание алгоритма}
+Алгоритм сортировки Шелла — это улучшение сортировки вставками, в котором элементы массива сортируются с использованием промежуточных шагов. Сначала выбирается большой шаг, и элементы массива сортируются на большем расстоянии, после чего шаг постепенно уменьшается, пока не достигнет 1 (где алгоритм сводится к обычной сортировке вставками).
+
+Алгоритм реализован следующим образом:
+\begin{enumerate}
+    \item Инициализируется начальный шаг, равный половине длины массива.
+    \item Для каждого шага массива выполняется сортировка элементов, находящихся на расстоянии данного шага друг от друга.
+    \item После завершения сортировки с использованием текущего шага, шаг уменьшается в два раза и процесс повторяется.
+    \item Алгоритм завершается, когда шаг достигает 1, и сортировка становится эквивалентной сортировке вставками.
+\end{enumerate}
+
+В данной реализации, предусмотрена возможность выбора порядка сортировки (по возрастанию или по убыванию), который задается с помощью функции сравнения.
+
+Для слияния отсортированных частей массива используется std::merge. Функция сливает два отсортированных массива в третий, сохраняя сортировку в результирующем массиве.
+
+\begin{lstlisting}[language=C++,caption={Функция ShellSort}]
+std::vector<int> ermilova_d_Shell_sort_simple_merge_mpi::ShellSort(std::vector<int>& vec, const std::function<bool(int, int)>& comp) {
+    size_t n = vec.size();
+    for (size_t gap = n / 2; gap > 0; gap /= 2) {
+        for (size_t i = gap; i < n; i++) {
+            int temp = vec[i];
+            size_t j;
+            for (j = i; j >= gap && comp(vec[j - gap], temp); j -= gap) {
+                vec[j] = vec[j - gap];
+            }
+            vec[j] = temp;
+        }
+    }
+    return vec;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++,caption={Функция merge}]
+std::vector<int> ermilova_d_Shell_sort_simple_merge_mpi::merge(std::vector<int>& vec1, std::vector<int>& vec2, const std::function<bool(int, int)>& comp) {
+    std::vector<int> result;
+    std::merge(vec1.begin(), vec1.end(), vec2.begin(), vec2.end(), std::back_inserter(result), comp);
+    return result;
+}
+\end{lstlisting}
+\newpage
+
+\section{Описание схемы распараллеливания}
+Исходный массив делится на части, которые распределяются между процессами, выполняющими сортировку на своих локальных данных. Для каждого процесса выполняется сортировка Шелла на части массива, а затем отсортированные данные собираются обратно на основном процессе для финального слияния в результирующий массив.
+\newpage
+
+\section{Описание MPI версии}
+\subsection{Передача параметров и инициализация данных}
+На первом этапе алгоритм выполняет передачу параметров между процессами. Передаются следующие данные:
+\begin{itemize}
+    \item Размер входного массива;
+    \item Параметр, указывающий, нужно ли сортировать массив по возрастанию или убыванию.
+\end{itemize}
+
+Это делается с помощью функции broadcast, которая передает данные всем процессам из процесса с рангом 0.
+Далее, на главном процессе, создается вектор с размерами частей массива, которые будут переданы каждому процессу.
+
+
+\begin{lstlisting}[language=C++,caption={Передача параметров и инициализация данных}]
+std::vector<int> sizes_vec;
+delta = size / world.size(); 
+extra = size % world.size(); 
+
+if (world.rank() == 0) {
+    sizes_vec.resize(world.size(), delta);
+    for (int i = 0; i < extra; i++) {
+        sizes_vec[i] += 1;
+    }
+}
+
+}
+\end{lstlisting}
+
+\subsection{Распределение данных между процессами}
+После инициализации данных, массив разбивается и передается каждому процессу с помощью функции \texttt{scatterv}. Эта функция позволяет неравномерно распределять данные между процессами, учитывая остаток от деления данных на количество процессов.
+
+\begin{lstlisting}[language=C++,caption={Распределение данных между процессами}]
+local_input_.resize(delta + (rank < extra ? 1 : 0)); 
+if (world.rank() == 0) {
+    scatterv(world, input_, sizes_vec, local_input_.data(), 0);
+} else {
+    scatterv(world, local_input_.data(), local_input_.size(), 0);
+}
+\end{lstlisting}
+
+\subsection{Локальная сортировка}
+Каждый процесс выполняет сортировку на своей части массива с помощью алгоритма сортировки Шелла. Если сортировка должна быть выполнена по убыванию, используется компаратор \texttt{std::greater}, если по возрастанию — \texttt{std::less}.
+
+\begin{lstlisting}[language=C++,caption={Локальная сортировка}]
+if (is_descending) {
+    local_input_ = ShellSort(local_input_, std::less());
+} else {
+    local_input_ = ShellSort(local_input_, std::greater());
+}
+\end{lstlisting}
+
+\subsection{Сбор отсортированных частей}
+После того как каждый процесс отсортирует свою часть массива, необходимо собрать все отсортированные части на главном процессе (с рангом 0). Для этого используется функция  \texttt{gather}, которая собирает данные с каждого процесса и объединяет их на главном процессе.
+\begin{lstlisting}[language=C++,caption={Сбор отсортированных частей}]
+std::vector<std::vector<int>> sorted_inputs;
+gather(world, local_input_, sorted_inputs, 0);
+
+\end{lstlisting}
+
+\subsection{Финальное слияние}
+После сбора всех отсортированных частей, 0 процесс выполняет их слияние в единую отсортированную последовательность. Для этого используется стандартная функция слияния  \texttt{std::merge}.Результат сортировки записывается в res.
+\begin{lstlisting}[language=C++,caption={Финальное слияние}]
+std::vector<int> merge_vec;
+if (is_descending) {
+    for (int i = 0; i < world.size(); i++) {
+        merge_vec = ermilova_d_Shell_sort_simple_merge_mpi::merge(merge_vec, sorted_inputs[i], std::greater());
+    }
+} else {
+    for (int i = 0; i < world.size(); i++) {
+        merge_vec = ermilova_d_Shell_sort_simple_merge_mpi::merge(merge_vec, sorted_inputs[i], std::less());
+    }
+}
+
+res = merge_vec;
+\end{lstlisting}
+\newpage
+
+\section{Результаты экспериментов}
+Тесты проводились на устройстве с характеристиками:
+\begin{itemize}
+    \item AMD Ryzen 5 5600H (6 ядер, 12 потоков, 3.3 ГГц);
+    \item Оперативная память: 16 ГБ.
+\end{itemize}
+
+Для экспериментов использовался вектор из 10000 случайных элементов.
+
+Результаты тестирования:
+\begin{center}
+    \begin{tabular}{|c|c|c|}
+    \hline
+    Количество процессов & test\_pipeline\_run & test\_task\_run \\
+    \hline
+    1 & 22 & 24 \\
+    2 & 16 & 17 \\
+    3 & 15 & 14 \\
+    4 & 8 & 8 \\
+    \hline
+    \end{tabular}
+\end{center}
+\newpage
+
+\section{Вывод из результатов}
+\begin{itemize}
+\item С увеличением количества процессов время выполнения уменьшается, что подтверждает эффективность параллельной обработки данных.
+\item Время выполнения не продолжает уменьшаться пропорционально увеличению числа процессов, что свидетельствует о  наличии накладных расходов, связанных с передачей данных и синхронизацией между процессами.
+\item Для оптимальной производительности важно правильно подобрать количество процессов в зависимости от размера данных и накладных расходов на синхронизацию.
+\end{itemize}
+\newpage
+
+\section{Заключение}
+В результате работы была реализована параллельная версия алгоритма сортировки Шелла с простым слиянием, с использованием MPI. Параллельная реализация улучшает производительность при работе с большими объемами данных, что делает алгоритм подходящим для применения в распределенных вычислительных системах.
+\newpage
+
+\section{Литература}
+\begin{enumerate}
+    \item Кормен Т., Лейзерсон Ч., Ривест Р. "Алгоритмы. Построение и анализ". М.: Вильямс, 2005.
+    \item Седжвик Р. "Алгоритмы на C++". М.: Бином, 2011.
+    \item Хабр: "Сортировка Шелла". URL: \url{https://habr.com/ru/articles/335920/}
+    \item Википедия: "Сортировка Шелла". URL: \url{https://ru.wikipedia.org/wiki/Сортировка_Шелла}
+\end{enumerate}
+\newpage
+
+\section{Приложение}
+\begin{lstlisting}[language=C++,caption={заголовочный файл параллельной версии}]
+
+namespace ermilova_d_Shell_sort_simple_merge_mpi {
+
+std::vector<int> ShellSort(std::vector<int> &vec, const std::function<bool(int, int)> &comp);
+std::vector<int> merge(std::vector<int> &vec1, std::vector<int> &vec2, const std::function<bool(int, int)> &comp);
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_;
+  std::vector<int> res;
+  bool is_descending{};
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_, local_input_;
+  std::vector<int> res;
+  bool is_descending{};
+  boost::mpi::communicator world;
+};
+
+}  
+\end{lstlisting}
+
+\begin{lstlisting}[language=C++,caption={Параллельная версия }]
+// Copyright 2023 Nesterov Alexander
+#include "mpi/ermilova_d_Shell_sort_simple_merge/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/vector.hpp>
+#include <functional>
+#include <thread>
+#include <vector>
+
+std::vector<int> ermilova_d_Shell_sort_simple_merge_mpi::ShellSort(std::vector<int>& vec, const std::function<bool(int, int)>& comp) {
+  size_t n = vec.size();
+  for (size_t gap = n / 2; gap > 0; gap /= 2) {
+    for (size_t i = gap; i < n; i++) {
+      int temp = vec[i];
+      size_t j;
+      for (j = i; j >= gap && comp(vec[j - gap], temp); j -= gap) {
+        vec[j] = vec[j - gap];
+      }
+      vec[j] = temp;
+    }
+  }
+  return vec;
+}
+
+std::vector<int> ermilova_d_Shell_sort_simple_merge_mpi::merge(std::vector<int>& vec1, std::vector<int>& vec2,
+ const std::function<bool(int, int)>& comp) {
+  std::vector<int> result;
+  std::merge(vec1.begin(), vec1.end(), vec2.begin(), vec2.end(), std::back_inserter(result), comp);
+
+  return result;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  is_descending = *reinterpret_cast<bool*>(taskData->inputs[1]);
+  input_ = std::vector<int>(taskData->inputs_count[0]);
+  auto* data = reinterpret_cast<int*>(taskData->inputs[0]);
+  std::copy(data, data + taskData->inputs_count[0], input_.begin());
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+  return taskData->outputs_count[0] == taskData->inputs_count[0] && taskData->inputs_count[0] > 0;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+  if (is_descending) {
+    res = ShellSort(input_, std::less());
+  } else {
+    res = ShellSort(input_, std::greater());
+  }
+
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  auto* data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(res.begin(), res.end(), data);
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    is_descending = *reinterpret_cast<bool*>(taskData->inputs[1]);
+    input_.resize(taskData->inputs_count[0]);
+    auto* data = reinterpret_cast<int*>(taskData->inputs[0]);
+    std::copy(data, data + taskData->inputs_count[0], input_.begin());
+    res.resize(taskData->inputs_count[0]);
+  }
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    return taskData->outputs_count[0] == taskData->inputs_count[0] && taskData->inputs_count[0] > 0;
+  }
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+  int rank = world.rank();
+  int delta = 0;
+  int extra = 0;
+  int size = input_.size();
+  broadcast(world, size, 0);
+  broadcast(world, is_descending, 0);
+
+  std::vector<int> sizes_vec;
+
+  delta = size / world.size();
+  extra = size % world.size();
+
+  if (world.rank() == 0) {
+    sizes_vec.resize(world.size(), delta);
+    for (int i = 0; i < extra; i++) {
+      sizes_vec[i] += 1;
+    }
+  }
+
+  local_input_.resize(delta + (rank < extra ? 1 : 0));
+  if (world.rank() == 0) {
+    scatterv(world, input_, sizes_vec, local_input_.data(), 0);
+  } else {
+    scatterv(world, local_input_.data(), local_input_.size(), 0);
+  }
+  if (is_descending) {
+    local_input_ = ShellSort(local_input_, std::less());
+  } else {
+    local_input_ = ShellSort(local_input_, std::greater());
+  }
+
+  std::vector<std::vector<int>> sorted_inputs;
+
+  gather(world, local_input_, sorted_inputs, 0);
+
+  if (world.rank() == 0) {
+    std::vector<int> merge_vec;
+    if (is_descending) {
+      for (int i = 0; i < world.size(); i++) {
+        merge_vec = ermilova_d_Shell_sort_simple_merge_mpi::merge(merge_vec, sorted_inputs[i], std::greater());
+      }
+    } else {
+      for (int i = 0; i < world.size(); i++) {
+        merge_vec = ermilova_d_Shell_sort_simple_merge_mpi::merge(merge_vec, sorted_inputs[i], std::less());
+      }
+    }
+
+    res = merge_vec;
+  }
+
+  return true;
+}
+
+bool ermilova_d_Shell_sort_simple_merge_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(res.begin(), res.end(), data);
+  }
+  return true;
+}
+
+\end{lstlisting}
+\end{document}
