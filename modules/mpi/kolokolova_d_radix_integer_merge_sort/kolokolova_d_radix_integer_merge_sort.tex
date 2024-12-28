@@ -1,0 +1,643 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  tabsize=2,
+  language=C++,
+  numbers=left,
+  numberstyle=\tiny
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \vspace*{1cm}
+
+        \Large
+        \textbf{«Национальный исследовательский  
+        Нижегородский государственный университет им. Н.И. Лобачевского» (ННГУ)} 
+
+        \vspace{1.5cm}
+
+        \large
+        \textbf {Институт:} {Институт информационных технологий, математики и механики}
+
+        \vspace{0.5cm}
+
+        \textbf {Направление подготовки:} {Программная инженерия}
+
+        \vspace{1.5cm}
+
+        \textbf{Тема отчёта:} \\ 
+        {Поразрядная сортировка для целых чисел с четно-нечетным слиянием Бэтчера}
+
+        \vspace{1.5cm}
+
+        \textbf{Выполнила:} \\ 
+        студентка группы 3822Б1ПР4 \\ 
+        Колоколова Д. А. 
+
+        \vspace{0.5cm}
+
+        \textbf{Преподаватель:} \\ 
+        доцент \\ 
+        Сысоев А. В.
+
+        \vfill
+
+        \Large
+        Нижний Новгород \\
+
+        2024
+
+    \end{center}
+\end{titlepage}
+
+\section{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+ В данном отчёте рассматривается задача поразрядной сортировки целых чисел с использованием четно-нечетного слияния Бэтчера. Основная цель работы заключается в реализации алгоритма сортировки, который эффективным образом обрабатывает как положительные, так и отрицательные числа, обеспечивая корректное и упорядоченное представление данных в итоговом массиве. Алгоритм должен учитывать разряды чисел, что позволяет достигать высокой производительности при сортировке больших объемов данных.
+\section{Постановка задачи}
+
+В рамках данной работы необходимо:
+
+\begin{enumerate}
+
+    \item Реализовать последовательный алгоритм поразрядной сортировки целых чисел, который будет включать в себя этапы нахождения максимального и минимального значений для определения диапазона разрядов и сортировки по разрядам с использованием вспомогательной функции.
+
+    \item Разработать MPI-версию алгоритма, использующую четно-нечетное слияние Бэтчера, для параллельной обработки данных, чтобы обеспечить более высокую производительность при сортировке больших массивов целых чисел.
+
+    \item Провести валидацию корректности полученных результатов путем сравнения с результатами последовательной реализации алгоритма.
+
+    \item Проанализировать и сравнить производительность:
+
+        \begin{itemize}
+
+            \item последовательного варианта алгоритма;
+
+            \item параллельных вариантов (2, 3, 4 и более процессов).
+
+        \end{itemize}
+
+\end{enumerate}
+
+\section{Описание алгоритма}
+
+В данной работе реализован алгоритм поразрядной сортировки целых чисел с использованием функции \texttt{radix\_sort}. Этот алгоритм работает по принципу сортировки на основе разрядов, что позволяет избежать недостатков сравнимых алгоритмов сортировки, таких как quicksort или mergesort, в случаях, когда массив состоит исключительно из чисел. 
+
+Изначально в алгоритме выполняется поиск максимального и минимального значений в массиве, что позволяет установить диапазон разрядов, которые будут применяться для сортировки. Затем алгоритм использует цикл для вызова функции \texttt{counting\_sort\_radix}, которая выполняет сортировку по каждому разряду, начиная с наименьшего. Это гарантирует, что числа сортируются корректно, поскольку позиции разрядов учитываются в процессе. После обработки всех разрядов массив делится на два вектора, что позволяет отдельно обрабатывать отрицательные и положительные числа. Отрицательные числа сортируются по возрастанию, тогда как положительные остаются в уже отсортированном порядке. Такой подход минимизирует количество дополнительных операций и упрощает итоговое объединение. Заключительный этап состоит в объединении двух векторов для получения окончательного отсортированного массива, что позволяет достичь высокой производительности и точности алгоритма.
+
+\section{Описание схемы распараллеливания}
+
+Для распараллеливания алгоритма использован подход с четно-нечетным слиянием Бэтчера, реализованный с помощью MPI. Четно-нечетное слияние позволяет каждому процессу взаимодействовать только с соседними процессами, что улучшает локальность данных и уменьшает объем необходимой передачи информации.
+
+Сначала на вход подается вектор целых чисел, который делится между доступными процессами. Каждый процесс выполняет определенные итерации, обмениваться данными с соседним процессом по заранее определённой логике. В четных итерациях процессы с четными рангами отправляют свои части вектора, которые затем сортируются с использованием функции \texttt{radix\_sort}. В нечетных итерациях происходит аналогичный обмен данными, но уже между процессами с нечетными рангами. 
+
+Преимущество данной схемы заключается в ее способности эффективно масштабироваться при увеличении числа процессов. Таким образом, при увеличении количества процессов сократится общее время выполнения алгоритма за счет параллельной обработки данных. Итоговые результаты собираются с помощью функции \texttt{gather}, что позволяет обеспечить завершенность задачи, объединив все отсортированные части в итоговый отсортированный массив. Этот метод распараллеливания идеально подходит для задач, где необходимо обрабатывать большие объемы данных, что делает его актуальным для современных вычислительных задач.
+
+\section{Описание MPI-версии}
+
+Данная MPI-задача реализует поразрядную сортировку целых чисел с использованием алгоритма четно-нечетного слияния Бэтчера. Рабочий процесс программы организован в несколько стадий: предварительная обработка (preprocessing), валидация (validation), выполнение (run) и постобработка (postprocessing). Ниже подробно описан каждый из этапов.
+
+\subsection{Предварительная обработка (preprocessing)}
+
+На стадии предварительной обработки происходит инициализация и подготовка необходимых данных. Если текущий процесс является главным (с рангом 0), он выделяет память под массив входных данных и копирует данные, полученные от внешнего источника (например, файла или другого процесса) в локальный вектор \texttt{input\_vector}. Эта ситуация гарантирует, что каждый процесс получает необходимый объем данных для дальнейшей обработки. Важно отметить, что на этом этапе происходит нормализация входных данных и их разделение подготовленным образом, чтобы впоследствии облегчить дальнейшее выполнение алгоритма.
+
+\subsection{Валидация (validation)}
+
+На стадии валидации проверяется корректность входных данных. Главный процесс (с рангом 0) осуществляет проверку того, что количество элементов во входных данных и выходных данных больше нуля. Это необходимо для обеспечения того, чтобы алгоритм имел данные для обработки. Валидация служит критическим шагом для выявления возможных ошибок до выполнения основной логики алгоритма, что позволяет избежать непредвиденных ситуаций.
+
+\subsection{Выполнение (run)}
+
+На стадии выполнения происходит основная логика работы алгоритма. Каждый процесс, имеющий определённый ранг, распределяет объём входных данных, деля общий вектор на более мелкие части для каждого отдельного процесса. Этот этап включает несколько ключевых шагов:
+
+\begin{enumerate}
+    \item \textbf{Разделение данных}: Входной вектор делится на равные части между всеми процессами. Если количество входных элементов не делится на количество процессов нацело, остаток добавляется к отдельному вектору (переменная \texttt{remaind\_vector}). Таким образом, каждый процесс получает свой локальный вектор (\texttt{local\_vector}) для обработки. В случае, если главный процесс (с рангом 0) отправляет части данных другим процессам, он сам будет иметь свою долю данных, находящихся в \texttt{local\_vector}.
+
+    \item \textbf{Сортировка локальных данных}: Каждый процесс выполняет поразрядную сортировку на своём локальном векторе с использованием функции \texttt{radix\_sort}. Это позволяет каждому процессу отсортировать свою часть данных независимо, минимизируя необходимость обмена данных на этом этапе и увеличивая общую эффективность вычислений.
+
+    \item \textbf{Четно-нечетное слияние}: После завершения локальной сортировки начинается процесс очередного слияния результатов. Здесь происходит обмен отсортированными результатами между соседними процессами. Сначала выполняется обмен между четными процессами, а затем между нечетными. Суть процесса заключается в том, что каждый процесс отправляет свои данные соседнему процессу и одновременно получает данные от другого. Этот этап запускается в цикле, продолжающемся на протяжении заданного количества итераций, равного количеству процессов. Таким образом, происходит последовательное слияние отсортированных данных, что позволяет увеличить степень упорядочивания массива на каждом шаге.
+
+    \item \textbf{Сбор результатов}: После завершения обмена процессами все отсортированные результаты собираются в главном процессе (с рангом 0). Для этого используется функция \texttt{gather}, которая накапливает все отсортированные данные и помещает их в итоговый массив (вектор \texttt{res}). Если есть остатки в \texttt{remaind\_vector}, они также объединяются с итоговым массивом и сортируются на данном этапе.
+\end{enumerate}
+
+Таким образом, представленный алгоритм обеспечивает высокую эффективность сортировки больших массивов за счёт распараллеливания процесса и оптимизации обмена данными между процессами.
+
+
+\subsection{Постобработка (postprocessing)}
+
+На этапе постобработки происходит финальная корректировка и подготовка выходных данных. В главном процессе (с рангом 0) результаты сортировки записываются в выходной массив, предоставленный предыдущими вызовами. Этот этап является завершающим, и здесь внимание уделяется корректной записи отсортированных данных в память, которая затем будет возвращена пользователю или записана в файл.
+
+На этом этапе производится финальная проверка корректности данных (например, их упорядоченности). Если все проверки пройдены успешно, система завершает работу.
+
+Таким образом, MPI-задача реализует мощный подход к сортировке, позволяя эффективно распределять и обрабатывать данные в параллельной среде, что значительно увеличивает производительность алгоритма при работе с большими объемами информации.
+
+\section{Результаты экспериментов}
+
+В данном разделе представлены результаты тестов, проведенных для алгоритма поразрядной сортировки с использованием MPI на различных количествах процессов: 1, 2 и 4. Каждый тест включает две основные категории: \texttt{test\_pipeline\_run} и \texttt{test\_task\_run}. 
+
+\subsection{Результаты тестирования}
+
+\textbf{Для 1 процесса:}  
+Общая продолжительность тестирования составила 180 мс:
+\begin{itemize}
+    \item \texttt{test\_pipeline\_run}: 83 мс
+    \item \texttt{test\_task\_run}: 97 мс
+\end{itemize}
+
+\textbf{Для 2 процессов:}  
+Общая продолжительность тестов возросла до 231 мс:
+\begin{itemize}
+    \item \texttt{test\_pipeline\_run}: 116 мс
+    \item \texttt{test\_task\_run}: 115 мс
+\end{itemize}
+
+\textbf{Для 4 процессов:}  
+Общая продолжительность тестов составила 206 мс:
+\begin{itemize}
+    \item \texttt{test\_pipeline\_run}: 100 мс
+    \item \texttt{test\_task\_run}: 106 мс
+\end{itemize}
+
+\subsection{Результаты тестирования}
+
+\textbf{Для 1 процесса:}  
+Общая продолжительность тестирования составила 180 мс, из которых на \texttt{test\_pipeline\_run} было затрачено 83 мс, а на \texttt{test\_task\_run - }97 мс. Это указывает на то, что алгоритм работает достаточно эффективно при одиночном процессе, однако явного преимущества в скорости не достигается при использовании более сложной структуры для обработки данных.
+
+\textbf{Для 2 процессов:}  
+Общая продолжительность тестов возросла до 231 мс. Время, затраченное на \texttt{test\_pipeline\_run}, составило 116 мс, а на \texttt{test\_task\_run - }115 мс. Здесь наблюдается рост времени выполнения тестов, что может быть связано с накладными расходами на передачу данных между процессами, превышающими прирост производительности при параллельной обработке.
+
+\textbf{Для 4 процессов:}  
+Общая продолжительность тестов составила 206 мс. Стоит также обратить внимание, что \texttt{test\_pipeline\_run} заняла 100 мс, а \texttt{test\_task\_run - }106 мс. Интересно отметить, что при увеличении числа процессов до четырех тесты показали снижение общего времени выполнения по сравнению с двумя процессами, хотя все ещё превышают результаты, полученные с использованием одного процесса.
+
+\subsection{Выводы}
+
+На основе результатов проведённых тестов можно сделать несколько важных выводов:
+
+\begin{enumerate}
+    \item \textbf{Эффективность при одиночном процессе}: Использование одного процесса дало наилучшие результаты по времени выполнения, что указывает на высокую эффективность алгоритма. Однако в данной конфигурации не используются преимущества параллельной обработки данных.
+
+    \item \textbf{Накладные расходы на параллельную обработку}: Увеличение числа процессов до двух привело к значительному увеличению общего времени выполнения. Это подтверждает гипотезу о том, что накладные расходы на передачу и синхронизацию данных могут превышать преимущества от параллельного выполнения, особенно на незначительных объёмах данных.
+
+    \item \textbf{Оптимизация при использовании четырех процессов}: Увеличение числа процессов до четырех привело к снижению общего времени выполнения по сравнению с использованием двух процессов, что подсказывает о потенциальной выгоде от параллельной обработки при большем объёме данных. Однако время выполнения всё ещё превышает результаты, полученные при одном процессе, что указывает на необходимость оптимизации для достижения лучших результатов при необходимости использования параллельных вычислений.
+
+    \item \textbf{Необходимость баланса}: Результаты показывают важность стратегии оптимизации, при которой нужно тщательно балансировать между количеством задействованных процессов и объёмом обрабатываемых данных для достижения максимальной производительности алгоритма. Важно учитывать затраты на межпроцессное взаимодействие в системах с высоким параллелизмом.
+\end{enumerate}
+
+В целом, результаты показывают, что, хотя распараллеливание может обеспечить преимущества в производительности, оно требует оптимизации для достижения наиболее эффективных результатов, особенно при работе с малыми объемами данных или в системах с высоким накладными расходами на межпроцессное взаимодействие.
+
+\section{Заключение}
+
+В ходе работы над реализацией алгоритма поразрядной сортировки с использованием MPI были достигнуты следующие результаты:
+
+\begin{itemize}
+    \item Разработан алгоритм поразрядной сортировки целых чисел с использованием последовательной и параллельной реализаций (MPI).
+    
+    \item Проведено функциональное тестирование обеих версий, что подтвердило их корректность в обработке входных данных.
+    
+    \item Изучена производительность алгоритма при использовании 1, 2 и 4 процессов. Результаты тестов показали, что при применении одного процесса была достигнута наивысшая эффективность, но добавление процессов в некоторых случаях также увеличивало общее время выполнения из-за накладных расходов на коммуникацию.
+\end{itemize}
+
+Основные направления для улучшения алгоритма включают:
+
+\begin{itemize}
+    \item Оптимизацию процесса передачи данных и уменьшение накладных расходов на межпроцессное взаимодействие.
+    
+    \item Изменение стратегии разделения данных с целью повышения эффективности распределения работы между процессами, например, с использованием блочной схемы разбиения.
+    
+    \item Исследование других алгоритмов сортировки и форматов данных для увеличения производительности, таких как использование более оптимизированных подходов к параллельной сортировке.
+\end{itemize}
+
+
+\section{Список литературы}
+\begin{enumerate}
+    \item Документация по MPI: \url{https://parallel.ru/vvv/mpi.html#p1}
+    \item Лекции: \url{https://disk.yandex.ru/d/LxDwnOlUo3Eqfg}
+\end{enumerate}
+\appendix
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\subsection*{Файл \texttt{ops\_seq.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace kolokolova_d_radix_integer_merge_sort_seq {
+
+std::vector<int> radix_sort(std::vector<int>& array);
+void counting_sort_radix(std::vector<int>& array, int exp);
+
+class TestTaskSequential : public ppc::core::Task {
+ public:
+  explicit TestTaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_vector;
+  std::vector<int> res;
+};
+
+}  // namespace kolokolova_d_radix_integer_merge_sort_seq
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_seq.cpp}}
+
+\begin{lstlisting}
+#include "seq/kolokolova_d_radix_integer_merge_sort/include/ops_seq.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <random>
+#include <string>
+#include <thread>
+#include <vector>
+
+using namespace std::chrono_literals;
+
+void kolokolova_d_radix_integer_merge_sort_seq::counting_sort_radix(std::vector<int>& array, int exp) {
+  int size_vector = int(array.size());
+  std::vector<int> func_res(size_vector);
+  std::vector<int> nums_of_digits(20, 0);
+
+  for (int i = 0; i < size_vector; i++) {
+    int index = (array[i] / exp) % 10;
+    if (array[i] < 0) {
+      index += 10;
+    }
+    nums_of_digits[index]++;
+  }
+
+  for (int i = 1; i < 20; i++) {
+    nums_of_digits[i] += nums_of_digits[i - 1];
+  }
+
+  for (int i = size_vector - 1; i >= 0; i--) {
+    int index = (array[i] / exp) % 10;
+    if (array[i] < 0) {
+      index += 10;
+    }
+    func_res[nums_of_digits[index] - 1] = array[i];
+    nums_of_digits[index]--;
+  }
+
+  for (int i = 0; i < size_vector; i++) {
+    array[i] = func_res[i];
+  }
+}
+
+std::vector<int> kolokolova_d_radix_integer_merge_sort_seq::radix_sort(std::vector<int>& array) {
+  int max_num = *max_element(array.begin(), array.end());
+  int min_num = *min_element(array.begin(), array.end());
+
+  for (int exp = 1; max_num / exp > 0 || min_num / exp < 0; exp *= 10) {
+    counting_sort_radix(array, exp);
+  }
+
+  std::vector<int> sorted_array;
+  std::vector<int> negatives;
+  std::vector<int> positives;
+
+  for (int num : array) {
+    if (num < 0) {
+      negatives.push_back(num);
+    } else {
+      positives.push_back(num);
+    }
+  }
+
+  sort(negatives.begin(), negatives.end());
+  sorted_array.insert(sorted_array.end(), negatives.begin(), negatives.end());
+  sorted_array.insert(sorted_array.end(), positives.begin(), positives.end());
+
+  return sorted_array;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_seq::TestTaskSequential::pre_processing() {
+  internal_order_test();
+  // Init value for input and output
+  input_vector = std::vector<int>(taskData->inputs_count[0]);
+  auto* tmp_ptr_input = reinterpret_cast<int*>(taskData->inputs[0]);
+  for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+    input_vector[i] = tmp_ptr_input[i];
+  }
+  res.resize(int(input_vector.size()));
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_seq::TestTaskSequential::validation() {
+  internal_order_test();
+  return (taskData->inputs_count[0] != 0 && taskData->outputs_count[0] != 0);
+}
+
+bool kolokolova_d_radix_integer_merge_sort_seq::TestTaskSequential::run() {
+  internal_order_test();
+  res = radix_sort(input_vector);
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_seq::TestTaskSequential::post_processing() {
+  internal_order_test();
+  int* output_ptr = reinterpret_cast<int*>(taskData->outputs[0]);
+  for (size_t i = 0; i < res.size(); ++i) {
+    output_ptr[i] = res[i];
+  }
+  return true;
+}
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.hpp}}
+
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace kolokolova_d_radix_integer_merge_sort_mpi {
+
+std::vector<int> radix_sort(std::vector<int>& array);
+void counting_sort_radix(std::vector<int>& array, int exp);
+std::vector<int> merge_and_sort(const std::vector<int>& vec1, const std::vector<int>& vec2);
+
+class TestMPITaskSequential : public ppc::core::Task {
+ public:
+  explicit TestMPITaskSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_vector;
+  std::vector<int> res;
+};
+
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  explicit TestMPITaskParallel(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<int> input_vector, local_vector;
+  std::vector<int> res, merge_vec;
+  std::vector<int> remaind_vector;
+  boost::mpi::communicator world;
+  int size_input_vector = 0;
+  int local_size = 0;
+  int remainder = 0;
+};
+
+}  // namespace kolokolova_d_radix_integer_merge_sort_mpi
+\end{lstlisting}
+
+\subsection*{Файл \texttt{ops\_mpi.cpp}}
+
+\begin{lstlisting}
+#include "mpi/kolokolova_d_radix_integer_merge_sort/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <functional>
+#include <random>
+#include <string>
+#include <thread>
+#include <vector>
+
+using namespace std::chrono_literals;
+
+void kolokolova_d_radix_integer_merge_sort_mpi::counting_sort_radix(std::vector<int>& array, int exp) {
+  int size_vector = int(array.size());
+  std::vector<int> func_res(size_vector);
+  std::vector<int> nums_of_digits(20, 0);
+
+  for (int i = 0; i < size_vector; i++) {
+    int index = (array[i] / exp) % 10;
+    if (array[i] < 0) {
+      index += 10;
+    }
+    nums_of_digits[index]++;
+  }
+
+  for (int i = 1; i < 20; i++) {
+    nums_of_digits[i] += nums_of_digits[i - 1];
+  }
+
+  for (int i = size_vector - 1; i >= 0; i--) {
+    int index = (array[i] / exp) % 10;
+    if (array[i] < 0) {
+      index += 10;
+    }
+    func_res[nums_of_digits[index] - 1] = array[i];
+    nums_of_digits[index]--;
+  }
+
+  for (int i = 0; i < size_vector; i++) {
+    array[i] = func_res[i];
+  }
+}
+
+std::vector<int> kolokolova_d_radix_integer_merge_sort_mpi::merge_and_sort(const std::vector<int>& vec1, const std::vector<int>& vec2) {
+  std::vector<int> sort_vector(vec1);
+  sort_vector.insert(sort_vector.end(), vec2.begin(), vec2.end());
+  sort_vector = radix_sort(sort_vector);
+  for (int i = 0; i < int(sort_vector.size()); i++) {
+  }
+  return sort_vector;
+}
+
+std::vector<int> kolokolova_d_radix_integer_merge_sort_mpi::radix_sort(std::vector<int>& array) {
+  int max_num = *max_element(array.begin(), array.end());
+  int min_num = *min_element(array.begin(), array.end());
+
+  for (int exp = 1; max_num / exp > 0 || min_num / exp < 0; exp *= 10) {
+    counting_sort_radix(array, exp);
+  }
+
+  std::vector<int> sorted_array;
+  std::vector<int> negatives;
+  std::vector<int> positives;
+
+  for (int num : array) {
+    if (num < 0) {
+      negatives.push_back(num);
+    } else {
+      positives.push_back(num);
+    }
+  }
+
+  sort(negatives.begin(), negatives.end());
+  sorted_array.insert(sorted_array.end(), negatives.begin(), negatives.end());
+  sorted_array.insert(sorted_array.end(), positives.begin(), positives.end());
+
+  return sorted_array;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskSequential::pre_processing() {
+  internal_order_test();
+  // Init value for input and output
+  input_vector = std::vector<int>(taskData->inputs_count[0]);
+  auto* tmp_ptr_input = reinterpret_cast<int*>(taskData->inputs[0]);
+  for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+    input_vector[i] = tmp_ptr_input[i];
+  }
+  res.resize(int(input_vector.size()));
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskSequential::validation() {
+  internal_order_test();
+  // Check count elements of output
+  return (taskData->inputs_count[0] != 0 && taskData->outputs_count[0] != 0);
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskSequential::run() {
+  internal_order_test();
+  res = radix_sort(input_vector);
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskSequential::post_processing() {
+  internal_order_test();
+  int* output_ptr = reinterpret_cast<int*>(taskData->outputs[0]);
+  for (size_t i = 0; i < res.size(); ++i) {
+    output_ptr[i] = res[i];
+  }
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    input_vector = std::vector<int>(taskData->inputs_count[0]);
+    size_input_vector = taskData->inputs_count[0];
+    auto* tmp_ptr_input = reinterpret_cast<int*>(taskData->inputs[0]);
+    for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+      input_vector[i] = tmp_ptr_input[i];
+    }
+  }
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    // Check count elements of output and input
+    return (taskData->inputs_count[0] != 0 && taskData->outputs_count[0] != 0);
+  }
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+
+  int proc_rank = world.rank();
+  int proc_size = world.size();
+
+  broadcast(world, size_input_vector, 0);
+  local_size = size_input_vector / proc_size;
+  local_vector = std::vector<int>(local_size);
+  merge_vec = std::vector<int>(local_size);
+  remainder = size_input_vector % proc_size;
+  if (remainder == 0)
+    res.resize(size_input_vector);
+  else
+    res.resize(proc_size * local_size);
+
+  // Send parts of vector for each proc
+  if (proc_rank == 0) {
+    for (int proc = 1; proc < world.size(); proc++) {
+      world.send(proc, 0, input_vector.data() + proc * local_size, local_size);
+    }
+    if (remainder != 0) {
+      std::copy(input_vector.begin() + proc_size * local_size, input_vector.end(), std::back_inserter(remaind_vector));
+    }
+  }
+  if (proc_rank == 0) {
+    local_vector = std::vector<int>(input_vector.begin(), input_vector.begin() + local_size);
+  } else {
+    world.recv(0, 0, local_vector.data(), local_size);
+  }
+
+  local_vector = radix_sort(local_vector);
+
+  // Odd even merge sort
+  for (int i = 0; i < proc_size; i++) {
+    if (i % 2 == 0) {
+      if (proc_rank % 2 == 0 && proc_rank + 1 < proc_size) {
+        world.isend(proc_rank + 1, proc_rank, local_vector.data(), local_size);
+      } else if (proc_rank % 2 != 0) {
+        world.irecv(proc_rank - 1, proc_rank - 1, merge_vec.data(), local_size);
+        std::vector<int> sort_vector = merge_and_sort(local_vector, merge_vec);
+        std::copy(sort_vector.begin() + local_size, sort_vector.end(), local_vector.begin());
+        world.isend(proc_rank - 1, proc_rank, sort_vector.data(), local_size);
+      }
+      if (proc_rank % 2 == 0 && proc_rank + 1 < proc_size) {
+        world.irecv(proc_rank + 1, proc_rank + 1, local_vector.data(), local_size);
+      }
+    }
+    if (i % 2 != 0) {
+      if (proc_rank % 2 != 0 && proc_rank + 1 < proc_size) {
+        world.isend(proc_rank + 1, proc_rank, local_vector.data(), local_size);
+      } else if (proc_rank % 2 == 0 && proc_rank > 0) {
+        world.irecv(proc_rank - 1, proc_rank - 1, merge_vec.data(), local_size);
+        std::vector<int> sort_vector = merge_and_sort(local_vector, merge_vec);
+        std::copy(sort_vector.begin() + local_size, sort_vector.end(), local_vector.begin());
+        world.isend(proc_rank - 1, proc_rank, sort_vector.data(), local_size);
+      }
+      if (proc_rank % 2 != 0 && proc_rank + 1 < proc_size) {
+        world.irecv(proc_rank + 1, proc_rank + 1, local_vector.data(), local_size);
+      }
+    }
+  }
+
+  gather(world, local_vector.data(), local_size, res, 0);
+
+  if (proc_rank == 0 && remainder != 0) {
+    res = merge_and_sort(res, remaind_vector);
+  }
+
+  return true;
+}
+
+bool kolokolova_d_radix_integer_merge_sort_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int* output_ptr = reinterpret_cast<int*>(taskData->outputs[0]);
+    for (size_t i = 0; i < res.size(); ++i) {
+      output_ptr[i] = res[i];
+    }
+  }
+  return true;
+}
+\end{lstlisting}
+
+\end{document}
