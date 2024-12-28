@@ -1,0 +1,475 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{hyperref} 
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{xcolor}
+
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{cppstyle}{
+backgroundcolor=\color{backcolour}, 
+commentstyle=\color{codegreen},
+keywordstyle=\color{magenta},
+numberstyle=\tiny\color{codegray},
+stringstyle=\color{codepurple},
+basicstyle=\ttfamily\footnotesize,
+breakatwhitespace=false, 
+breaklines=true, 
+captionpos=b, 
+keepspaces=true, 
+numbers=left, 
+numbersep=5pt, 
+showspaces=false, 
+showstringspaces=false,
+showtabs=false, 
+tabsize=2
+}
+
+\lstset{style=cppstyle}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+
+\title{}
+\author{}
+\date{}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\large
+\textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\[6cm]
+
+{\Large \textbf{Отчёт по лабораторной работе № 3}}\\[0.5cm]
+{\Large \textbf{Вычисление многомерных интегралов с использованием многошаговой схемы (метод прямоугольников)}}\\[0.5cm]
+{\Large \textbf{Вариант 7}}\\[1.5cm]
+
+{ \textbf{Выполнила:} Корнеева Е.М. (группа 3822Б1ПР1)}\\[0.2cm]
+{\textbf{Преподаватель:} Сысоев А.В., доцент кафедры ВВСП}\\[9cm]
+
+{\large Нижний Новгород\\ 2024}
+\end{titlepage}
+
+\newpage
+\section*{Введение}
+
+В данной работе рассматривается метод прямоугольников для численного вычисления многомерных интегралов. Этот метод является одним из наиболее простых и широко используемых способов численного интегрирования многомерных функций. Он основан на аппроксимации функции прямыми, которые представляют собой прямоугольники, заполняющие область под графиком функции в многомерном пространстве. Метод предполагает разбиение области интегрирования по каждой из переменных на несколько частей, после чего вычисляется сумма значений функции в этих точках с учетом ширины каждого прямоугольника.
+
+\section*{Постановка задачи}
+
+Целью данной работы является разработка и реализация метода численного вычисления многомерных интегралов с использованием метода прямоугольников и параллельных вычислений с использованием библиотеки MPI. Для достижения этой цели необходимо выполнить следующие задачи:
+
+\begin{enumerate}
+\item \textbf{Реализация последовательной версии метода:} необходимо разработать базовую реализацию метода прямоугольников для вычисления многомерных интегралов. Для этого потребуется разделить область интегрирования на равные части, вычислить сумму значений функции в этих точках и оценить погрешность интегрирования в зависимости от выбранного шага.
+\item \textbf{Реализация параллельной версии метода с использованием MPI:} необходимо адаптировать последовательную реализацию метода для многозадачности с помощью MPI. Для этого нужно организовать распределение вычислений между несколькими процессами и синхронизацию результатов, что позволит значительно сократить время вычислений при решении сложных многомерных задач.
+\item \textbf{Сравнение производительности и точности:} необходимо провести анализ точности и времени работы последовательной и параллельной версий метода на различных примерах многомерных интегралов. Важно оценить, насколько применение параллельных вычислений ускоряет процесс при больших объемах данных и повышенной размерности интегралов.
+\end{enumerate}
+
+\newpage
+\section*{Реализация последовательной версии метода}
+
+Для решения задачи численного интегрирования многомерных функций методом прямоугольников была реализована последовательная версия алгоритма. В данной версии интегрирование выполняется поэтапно: область интегрирования разбивается на равномерные подинтервалы, затем вычисляется сумма значений функции в этих точках. Алгоритм итеративно увеличивает количество подинтервалов до тех пор, пока разница между текущими и предыдущими значениями интеграла не станет меньше заданной погрешности.
+
+\subsection*{Алгоритм}
+
+Основная идея метода заключается в вычислении многомерного интеграла путём разбиения каждого измерения на несколько интервалов и суммирования значений функции в этих точках. Интеграл приближенно вычисляется как сумма произведений значения функции на шаг интегрирования. В процессе работы алгоритм увеличивает количество разбиений, пока разница между текущими и предыдущими значениями интеграла не станет достаточно малой.
+
+Алгоритм состоит из следующих этапов:
+
+\begin{enumerate}
+\item \textbf{Инициализация}: Задание пределов интегрирования для каждой переменной и погрешности \(\epsilon\), с которой будет выполнено интегрирование.
+\item \textbf{Разбиение области интегрирования}: На каждом шаге область интегрирования для каждой переменной делится на несколько равных частей (начально на 2 подинтервала).
+\item \textbf{Вычисление интеграла}: Для каждого подинтервала вычисляется значение функции, после чего результаты суммируются. Количество разбиений увеличивается, пока разница между текущими и предыдущими значениями интеграла не станет меньше заданной погрешности.
+\item \textbf{Остановка}: Процесс продолжается до тех пор, пока разница между значениями интеграла не окажется меньше порога погрешности.
+\end{enumerate}
+
+\subsection*{Основные структуры данных}
+
+Для реализации последовательной версии метода использованы следующие основные структуры данных:
+
+\begin{itemize}
+\item \textbf{Функция интегрирования}: Представлена через тип \texttt{Function}, который принимает вектор аргументов и возвращает значение функции.
+\item \textbf{Пределы интегрирования}: Хранятся в виде вектора пар \texttt{std::pair<double, double>}, где каждый элемент — пара значений минимального и максимального предела для соответствующей переменной.
+\item \textbf{Вектор аргументов}: Используется для хранения текущих значений точек в каждой из размерностей (\texttt{std::vector<double>}).
+\end{itemize}
+
+\subsection*{Описание кода}
+
+Основной класс \texttt{RectangularIntegrationSeq} реализует метод прямоугольников для многомерных интегралов. Он включает следующие методы:
+
+\begin{itemize}
+\item \textbf{pre\_processing}: Подготовка данных и инициализация переменных.
+\item \textbf{validation}: Проверка корректности входных данных, таких как пределы интегрирования и погрешность.
+\item \textbf{run}: Основной метод для вычисления интеграла с использованием функции \texttt{calculateIntegral}.
+\item \textbf{post\_processing}: Сохранение результатов вычислений.
+\item \textbf{calculateIntegral}: Основная функция вычислений, которая рекурсивно вызывает себя для вычисления интеграла по каждому измерению.
+\end{itemize}
+
+\section*{Реализация параллельной версии метода}
+
+В этой части работы реализована параллельная версия метода численного интегрирования многомерных функций с использованием библиотеки MPI. Основная цель — ускорить вычисления за счёт распределения работы между несколькими процессами. Алгоритм параллельной версии основывается на разбиении области интегрирования между процессами и сборе результатов с помощью операций редукции и синхронизации.
+
+\subsection*{Алгоритм распараллеливания}
+
+Идея параллельной версии заключается в разбиении области интегрирования на несколько частей, каждая из которых обрабатывается отдельным процессом. Каждый процесс вычисляет свою локальную часть интеграла, а затем отправляет результат главному процессу для агрегации итогового значения интеграла. Для взаимодействия между процессами используются операции MPI: \texttt{broadcast} для передачи данных и \texttt{reduce} для сбора результатов.
+
+\noindent Алгоритм распараллеливания состоит из следующих шагов:
+
+\begin{enumerate}
+\item \textbf{Инициализация}: Главный процесс (с рангом 0) инициализирует пределы интегрирования и погрешность, после чего данные передаются всем процессам с помощью операции \texttt{broadcast}.
+\item \textbf{Разбиение области интегрирования}: Каждый процесс с рангом \(i\) обрабатывает свою локальную часть, которая соответствует интервалу от \texttt{localStart} до \texttt{localEnd}. Разбиение осуществляется пропорционально числу процессов, обеспечивая равномерное распределение работы.
+\item \textbf{Вычисление локальных сумм}: Каждый процесс вычисляет локальную сумму для своей части области с использованием метода прямоугольников. Эти вычисления аналогичны последовательной версии, но с учётом локальных интервалов.
+\item \textbf{Агрегация результатов и синхронизация}: После вычисления локальных сумм все процессы отправляют результаты главному процессу с помощью операции \texttt{reduce}. Главный процесс суммирует все локальные суммы и обновляет итоговый результат.
+\item \textbf{Условие окончания}: Процесс продолжается до тех пор, пока разница между текущим и предыдущим значением интеграла не станет меньше заданной погрешности.
+\end{enumerate}
+
+\subsection*{Основные структуры данных}
+
+В параллельной версии используются следующие структуры данных:
+
+\begin{itemize}
+\item \textbf{Функция интегрирования}: Как и в последовательной версии, представлена типом \texttt{Function}, который принимает вектор аргументов и возвращает значение функции.
+\item \textbf{Пределы интегрирования}: Хранятся в виде вектора \texttt{std::vector<std::pair<double, double>>}, где каждый элемент представляет пару значений минимального и максимального предела для соответствующего измерения.
+\item \textbf{MPI-коммуникатор}: Объект \texttt{boost::mpi::communicator} используется для взаимодействия между процессами и выполнения параллельных операций (рассылка данных и редукция).
+\item \textbf{Локальные и глобальные суммы}: Переменные для хранения локальных сумм интегралов, которые вычисляются каждым процессом, и глобальной суммы, которая будет собрана с помощью операции редукции.
+\end{itemize}
+
+
+\subsection*{Описание кода}
+
+Основной класс \texttt{RectangularIntegrationMPI} реализует параллельную версию метода. Он включает следующие методы:
+
+\begin{itemize}
+\item \textbf{pre\_processing}: Подготовка данных и передача параметров всем процессам.
+\item \textbf{validation}: Проверка корректности входных данных.
+\item \textbf{run}: Основной метод для вычисления интеграла с использованием параллельного метода прямоугольников.
+\item \textbf{post\_processing}: Сохранение результатов вычислений.
+\end{itemize}
+
+\newpage
+\newpage
+\section*{Сравнение производительности}
+В этом разделе приведено сравнение производительности последовательной и параллельной версий метода прямоугольников для численного интегрирования многомерных функций. Мы оцениваем время выполнения, ускорение и эффективность для разных чисел процессов. Сравнение основано на результатах двух тестов: \texttt{pipeline} и \texttt{task\_run}.
+
+\noindent Тестирование проводилось для детерминированной многомерной функции \( f(x_1, x_2, \dots, x_n) = x_1 \), где \( x_1 \) — это первая компонента входного вектора. Эта функция была выбрана, чтобы упростить вычисления и сосредоточиться на производительности алгоритма, не усложняя сами вычисления. Область интегрирования имела размерность 10 и пределы от \(-1000\) до \(1000\) для каждой переменной. Погрешность \(\epsilon\) была установлена равной \(10^{-4}\).
+
+\subsection*{Тест 1: \texttt{pipeline}}
+
+Результаты тестирования для метода \texttt{pipeline} представлены в таблице 1. Здесь измеряются время выполнения, ускорение и эффективность для различных чисел процессов.
+
+\begin{table}[H] 
+\centering
+\setlength{\tabcolsep}{3pt} 
+\small
+\begin{tabular}{|c|c|c|c|} 
+\hline
+\textbf{Число процессов} & \textbf{Время (с)} & \textbf{Ускорение} & \textbf{Эффективность} \\ \hline
+1 & 0.628 & 1.00 & 1.00 \\ \hline
+2 & 0.384 & 1.635 & 0.8175 \\ \hline
+4 & 0.484 & 1.297 & 0.324 \\ \hline
+8 & 0.532 & 1.18 & 0.148 \\ \hline
+\end{tabular}
+\caption{Результаты тестирования для \texttt{pipeline}: время выполнения, ускорение и эффективность}
+\label{tab:pipeline}
+\end{table}
+
+\noindent Для метода \texttt{pipeline} наблюдаемое замедление производительности при увеличении числа процессов связано с тем, что эта модель, хотя и является параллельной, не предполагает полного распараллеливания задачи. Вместо этого данные передаются от одного процесса к другому, и каждый процесс выполняет свой этап работы, ожидая передачи результатов. В случае малых чисел процессов, например, при переходе от 1 к 2 процессам, происходит некоторое улучшение за счет распределения работы, но начиная с 4 и 8 процессов, накладные расходы на передачу данных и синхронизацию между процессами становятся более значимыми, что приводит к увеличению времени выполнения.
+
+\subsection*{Тест 2: \texttt{task\_run}}
+
+Результаты тестирования для метода \texttt{task\_run} представлены в таблице 2.
+
+\begin{table}[H] 
+\centering
+\setlength{\tabcolsep}{3pt} 
+\small
+\begin{tabular}{|c|c|c|c|} 
+\hline
+\textbf{Число процессов} & \textbf{Время (с)} & \textbf{Ускорение} & \textbf{Эффективность} \\ \hline
+1 & 0.597 & 1.00 & 1.00 \\ \hline
+2 & 0.47 & 1.27 & 0.635 \\ \hline
+4 & 0.056 & 10.6 & 2.65 \\ \hline
+8 & 0.067 & 8.91 & 1.11 \\ \hline
+\end{tabular}
+\caption{Результаты тестирования для \texttt{task\_run}: время выполнения, ускорение и эффективность}
+\label{tab:task_run}
+\end{table}
+
+\noindent Результаты \texttt{task\_run} показывают значительно лучшее поведение с увеличением числа процессов. На 4 процессах время выполнения значительно снижается, ускорение достигает 10.6, а эффективность — 2.65, что является хорошим индикатором того, что распараллеливание действительно эффективно. Однако при увеличении числа процессов до 8 наблюдается снижение ускорения и эффективности, что, вероятно, связано с ростом накладных расходов на обмен данными и синхронизацию между процессами. В отличие от метода \texttt{pipeline}, метод \texttt{task\_run} использует полное параллельное распределение работы между процессами, что позволяет существенно снизить время выполнения, особенно на 4 процессах. Каждый процесс работает над своей частью задачи, и это напрямую сокращает время обработки. 
+
+\section*{Заключение}
+
+В результате выполнения работы был реализован метод численного вычисления многомерных интегралов с использованием метода прямоугольников. В рамках лабораторной работы была реализована как последовательная, так и параллельная версия этого метода с использованием MPI. Проведенные эксперименты показали значительное улучшение производительности при использовании параллельных вычислений. Параллельная версия метода позволяет существенно сократить время вычислений при увеличении числа процессов.
+
+\newpage
+\section*{Список литературы}
+\addcontentsline{toc}{section}{Список литературы}
+\begin{enumerate}
+\item Вуст, Б. (2001). \textit{Программирование на C++ с использованием библиотеки Boost}. Издательство "Сентябрь".
+\item \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%9E_%D0%BC%D0%BD%D0%BE%D0%B3%D0%BE%D0%BA%D1%80%D0%B0%D1%82%D0%BD%D1%8B%D1%85_%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D0%BB%D0%B0%D1%85}{ Многомерные интегралы}.
+\item \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%9E%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D0%BB%D0%B0_%D0%A0%D0%B8%D0%BC%D0%B0%D0%BD%D0%B0,_%D0%BF%D1%80%D0%BE%D1%81%D1%82%D0%B5%D0%B9%D1%88%D0%B8%D0%B5_%D1%81%D0%B2%D0%BE%D0%B9%D1%81%D1%82%D0%B2%D0%B0}{ Интеграл Римена}.
+\item \url{https://www.youtube.com/watch?v=JXh9AQkKmsw}{ Defining Double Integration with Riemann Sums | Volume under a Surface}.
+\end{enumerate}
+
+\newpage
+\section*{Приложение: Код классов}
+
+\begin{lstlisting}[language=C++]
+#pragma once
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/serialization/utility.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cmath>
+#include <functional>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace korneeva_e_rectangular_integration_method_mpi {
+
+constexpr double MIN_EPSILON = 1e-6;
+using Function = std::function<double(std::vector<double>& args)>;
+
+class RectangularIntegrationSeq : public ppc::core::Task {
+public:
+explicit RectangularIntegrationSeq(std::shared_ptr<ppc::core::TaskData> taskData, Function& func)
+: Task(std::move(taskData)), integrandFunction(func) {}
+
+bool pre_processing() override;
+bool validation() override;
+bool run() override;
+bool post_processing() override;
+
+private:
+double result;
+double epsilon;
+Function integrandFunction;
+std::vector<std::pair<double, double>> limits;
+};
+
+class RectangularIntegrationMPI : public ppc::core::Task {
+public:
+explicit RectangularIntegrationMPI(std::shared_ptr<ppc::core::TaskData> taskData, Function& func)
+: Task(std::move(taskData)), integrandFunction(func) {}
+
+bool pre_processing() override;
+bool validation() override;
+bool run() override;
+bool post_processing() override;
+
+private:
+double result;
+double epsilon;
+Function integrandFunction;
+std::vector<std::pair<double, double>> limits;
+
+boost::mpi::communicator mpi_comm;
+};
+
+// Function for sequential integration (recursive)
+double calculateIntegral(const Function& func_, double epsilon_, std::vector<std::pair<double, double>>& limits_,
+std::vector<double>& args_);
+
+bool RectangularIntegrationSeq::pre_processing() {
+internal_order_test();
+
+auto* ptrInput = reinterpret_cast<std::pair<double, double>*>(taskData->inputs[0]);
+limits.assign(ptrInput, ptrInput + taskData->inputs_count[0]);
+result = 0.0;
+
+epsilon = *reinterpret_cast<double*>(taskData->inputs[1]);
+if (epsilon < MIN_EPSILON) {
+epsilon = MIN_EPSILON;
+}
+
+return true;
+}
+
+bool RectangularIntegrationSeq::validation() {
+internal_order_test();
+
+bool validInput = taskData->inputs_count[0] > 0 && taskData->inputs.size() == 2;
+bool validOutput = taskData->outputs_count[0] == 1 && !taskData->outputs.empty();
+
+size_t numDimensions = taskData->inputs_count[0];
+bool validLimits = true;
+auto* ptrInput = reinterpret_cast<std::pair<double, double>*>(taskData->inputs[0]);
+
+for (size_t i = 0; i < numDimensions; ++i) {
+if (ptrInput[i].first > ptrInput[i].second) {
+validLimits = false;
+break;
+}
+}
+return validInput && validOutput && validLimits;
+}
+
+bool RectangularIntegrationSeq::run() {
+internal_order_test();
+std::vector<double> args;
+result = calculateIntegral(integrandFunction, epsilon, limits, args);
+
+return true;
+}
+
+bool RectangularIntegrationSeq::post_processing() {
+internal_order_test();
+reinterpret_cast<double*>(taskData->outputs[0])[0] = result;
+return true;
+}
+
+bool RectangularIntegrationMPI::pre_processing() {
+internal_order_test();
+
+if (mpi_comm.rank() == 0) {
+auto* ptr = reinterpret_cast<std::pair<double, double>*>(taskData->inputs[0]);
+limits.assign(ptr, ptr + taskData->inputs_count[0]);
+
+epsilon = *reinterpret_cast<double*>(taskData->inputs[1]);
+if (epsilon < MIN_EPSILON) {
+epsilon = MIN_EPSILON;
+}
+}
+result = 0.0;
+return true;
+}
+
+bool RectangularIntegrationMPI::validation() {
+internal_order_test();
+
+if (mpi_comm.rank() == 0) {
+bool validInput = (taskData->inputs_count[0] > 0 && taskData->inputs.size() == 2);
+bool validOutput = (taskData->outputs_count[0] == 1 && !taskData->outputs.empty());
+
+size_t numDimensions = taskData->inputs_count[0];
+bool validLimits = true;
+auto* ptrInput = reinterpret_cast<std::pair<double, double>*>(taskData->inputs[0]);
+
+for (size_t i = 0; i < numDimensions; ++i) {
+if (ptrInput[i].first > ptrInput[i].second) {
+validLimits = false;
+break;
+}
+}
+return validInput && validOutput && validLimits;
+}
+return true;
+}
+
+bool RectangularIntegrationMPI::run() {
+internal_order_test();
+
+std::vector<double> params;
+bool refining = true;
+
+broadcast(mpi_comm, limits, 0);
+broadcast(mpi_comm, epsilon, 0);
+
+int numProcs = mpi_comm.size();
+double globalSum = 0.0;
+double prevGlobalSum = 0.0;
+double localSum = 0.0;
+
+auto [start, end] = limits.front();
+double stepSize = (end - start) / numProcs;
+
+double localStart = start + stepSize * mpi_comm.rank();
+double localEnd = localStart + stepSize;
+
+limits.erase(limits.begin());
+params.emplace_back(0.0);
+
+while (refining) {
+prevGlobalSum = globalSum;
+globalSum = 0.0;
+localSum = 0.0;
+
+int localSegments = numProcs / mpi_comm.size();
+double segmentStep = (localEnd - localStart) / localSegments;
+params.back() = localStart + segmentStep / 2.0;
+
+for (int i = 0; i < localSegments; i++) {
+if (limits.empty()) {
+localSum += integrandFunction(params) * segmentStep;
+} else {
+localSum += calculateIntegral(integrandFunction, epsilon, limits, params) * segmentStep;
+}
+params.back() += segmentStep;
+}
+
+reduce(mpi_comm, localSum, globalSum, std::plus<>(), 0);
+
+if (mpi_comm.rank() == 0) {
+refining = (std::abs(globalSum - prevGlobalSum) * (1.0 / 3.0) > epsilon);
+}
+
+broadcast(mpi_comm, refining, 0);
+
+numProcs *= 2;
+}
+
+result = (mpi_comm.rank() == 0) ? globalSum : 0.0;
+return true;
+}
+
+bool RectangularIntegrationMPI::post_processing() {
+internal_order_test();
+if (mpi_comm.rank() == 0) {
+reinterpret_cast<double*>(taskData->outputs[0])[0] = result;
+}
+return true;
+}
+
+double calculateIntegral(const Function& func_, double epsilon_, std::vector<std::pair<double, double>>& limits_,
+std::vector<double>& args_) {
+double integralValue = 0;
+double prevValue = 0;
+int subdivisions = 2;
+bool flag = true;
+
+auto [low, high] = limits_.front();
+limits_.erase(limits_.begin());
+args_.emplace_back(0.0);
+
+while (flag) {
+prevValue = integralValue;
+integralValue = 0.0;
+
+double step = (high - low) / subdivisions;
+args_.back() = low + step / 2.0;
+
+for (int i = 0; i < subdivisions; ++i) {
+if (limits_.empty()) {
+integralValue += func_(args_) * step; 
+} else {
+integralValue += calculateIntegral(func_, epsilon_, limits_, args_) * step;
+}
+args_.back() += step;
+}
+
+subdivisions *= 2;
+flag = (std::abs(integralValue - prevValue) * (1.0 / 3.0) > epsilon_);
+}
+
+args_.pop_back();
+limits_.insert(limits_.begin(), {low, high});
+
+return integralValue;
+}
+
+} // namespace korneeva_e_rectangular_integration_method_mpi
+\end{lstlisting}
+
+\end{document}
