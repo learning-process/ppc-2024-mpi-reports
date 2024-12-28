@@ -1,0 +1,330 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{xcolor} % Для поддержки \textcolor
+\geometry{top=2cm, bottom=2cm, left=2cm, right=2cm}
+\usepackage{lscape}
+
+% Настройки для отображения кода
+\lstset{
+    breaklines=true,
+    basicstyle=\ttfamily\small,
+    frame=single,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{5cm}
+    {\Huge \textbf{Отчет по 3 работе по курсу Параллельное программирование}}\\[1cm]
+    {\large Вариант 13}\\[2cm]
+    \textbf{Многошаговая схема решения двумерных задач глобальной оптимизации. Распараллеливание по характеристикам.}\\[4cm]
+    \textbf{Выполнил студент группы 3822Б1ПР1}\\[0.5cm]
+    \textbf{Одинцов Михаил}\\[1cm]
+    \textbf{2024}
+\end{titlepage}
+
+\newpage
+\section*{Актуальность задачи}
+Задачи глобальной оптимизации играют важную роль в различных прикладных областях, таких как проектирование, планирование, обработка данных и моделирование сложных систем. Особенно важным является их решение в многомерных пространствах, где традиционные методы часто сталкиваются с проблемами высокой вычислительной сложности и низкой эффективности.
+
+Распараллеливание вычислений представляет собой перспективный подход к повышению скорости и масштабируемости решения таких задач. Использование многошаговых схем, где расчеты ведутся параллельно по различным характеристикам, позволяет существенно снизить время выполнения вычислений, а также более эффективно использовать ресурсы современных многопроцессорных систем.
+
+Особую значимость задача приобретает в условиях растущих объемов данных и требований к точности решений. Параллельные алгоритмы не только обеспечивают ускорение выполнения, но и создают предпосылки для решения задач, ранее недоступных из-за ограничений вычислительных мощностей.
+
+Таким образом, разработка и исследование многошаговых схем распараллеливания при решении двумерных задач глобальной оптимизации является актуальной и востребованной задачей, способной внести существенный вклад в развитие вычислительных методов и технологий.
+
+\newpage
+\section*{Постановка задачи}
+Целью работы является разработка программного решения для двумерных задач глобальной оптимизации с использованием многошаговой схемы и распараллеливания вычислений.
+
+Для достижения этой цели необходимо выполнить следующие этапы:
+\begin{enumerate}
+    \item Разработать два класса, реализующих алгоритмы решения задачи:
+    \begin{itemize}
+        \item Последовательная версия алгоритма, предназначенная для выполнения всех вычислений на одном процессе без использования распараллеливания.
+        \item Параллельная версия алгоритма, реализующая распараллеливание по характеристикам с использованием технологий многопоточности или MPI для распределения ограничений между потоками или процессами.
+    \end{itemize}
+    \item Реализовать функциональные тесты для проверки корректности работы обеих версий алгоритма:
+    \begin{itemize}
+        \item Проверить, что последовательная и параллельная версии дают одинаковые результаты на одинаковых входных данных.
+        \item Оценить производительность параллельной версии в сравнении с последовательной.
+        \item Провести тестирование на граничных и нестандартных случаях (например, пустые входные данные, некорректные параметры).
+    \end{itemize}
+\end{enumerate}
+
+Разработка должна учитывать следующие требования:
+\begin{itemize}
+    \item Универсальность классов для применения к различным типам функций и ограничений.
+    \item Масштабируемость параллельной версии для работы на многопроцессорных системах.
+    \item Четкая структура и читаемость кода для последующей модификации и расширения функциональности.
+\end{itemize}
+
+Ожидаемый результат: создание двух классов с тестами, которые обеспечивают решение двумерных задач глобальной оптимизации. Решения должны быть сопоставимы по точности, а параллельная версия — превосходить последовательную по скорости выполнения на больших объемах данных.
+
+\newpage
+\section*{Описание алгоритма последовательной версии}
+В последовательной версии алгоритма задача решается на одном процессе без использования распараллеливания. Алгоритм работает следующим образом:
+\begin{enumerate}
+    \item Определяется начальная область поиска и задается шаг дискретизации.
+    \item Выполняется итерационный процесс:
+    \begin{itemize}
+        \item Для каждой точки области проверяется выполнение заданных ограничений.
+        \item Если точка удовлетворяет всем ограничениям, она сравнивается с текущим минимумом/максимумом целевой функции.
+        \item На основе найденного минимума/максимума область поиска уточняется, а шаг дискретизации уменьшается.
+    \end{itemize}
+    \item Процесс продолжается до достижения заданной точности.
+\end{enumerate}
+
+Этот подход обладает высокой точностью, но вычислительная сложность возрастает с увеличением числа точек в области, что делает его менее эффективным для задач с большими размерами пространства.
+
+\newpage
+\section*{Описание алгоритма параллельной версии}
+Параллельная версия алгоритма использует распараллеливание по характеристикам, где каждый поток обрабатывает собственный набор ограничений. Алгоритм включает следующие шаги:
+\begin{enumerate}
+    \item Начальная область поиска и шаг задаются на всех потоках.
+    \item Каждый поток:
+    \begin{itemize}
+        \item Проверяет выполнение своего набора ограничений для точек области.
+        \item Формирует список точек, которые проходят его ограничения.
+    \end{itemize}
+    \item На нулевом процессе выполняется объединение результатов всех потоков:
+    \begin{itemize}
+        \item Проверяется соответствие точки всем ограничениям.
+        \item Если точка удовлетворяет всем ограничениям, она сравнивается с текущим минимумом/максимумом.
+    \end{itemize}
+    \item После каждой итерации нулевой процесс уточняет область поиска и уменьшает шаг дискретизации.
+    \item Информация о новой области и шаге передается всем потокам для следующей итерации.
+    \item Алгоритм завершается, когда достигается заданная точность.
+\end{enumerate}
+
+Этот подход позволяет значительно ускорить вычисления за счет распараллеливания, однако требует дополнительных затрат на синхронизацию данных между потоками и процессами.
+\newpage
+\section*{Описание эксперимента}
+
+В данном разделе представлен эксперимент, целью которого является оценка эффективности разработанных алгоритмов решения задач глобальной оптимизации. Проводилось сравнение последовательной и параллельной версии алгоритмов, где основной метрикой была производительность (время выполнения) на разных объемах данных.
+
+Ниже представлены результаты эксперимента, проведенного для оценки времени выполнения алгоритмов при использовании двух MPI-процессов. Эксперимент демонстрирует ускорение параллельной версии по сравнению с последовательной, а также подтверждает корректность выполнения обеих версий.
+\subsection*{Результаты}
+В результате проведения экспериментов была проведена оценка времени выполнения для различных тестов производительности. Были измерены времена выполнения следующих тестов:
+\begin{itemize}
+    \item Тест производительности pipeline, который завершился за 1916 мс в первом случае и 348 мс во втором.
+    \item Тест производительности task, завершившийся за 2177 мс в первом случае и 370 мс во втором.
+\end{itemize}
+Общее время выполнения всех тестов составило 4813 мс, что включает выполнение тестов из двух различных наборов тестов. Итоги экспериментов показывают, что использование различных конфигураций MPI позволяет сократить время выполнения отдельных задач, но общая производительность зависит от тестового сценария.
+\newpage
+\section*{Заключение}
+В рамках работы была разработана и исследована многошаговая схема решения двумерных задач глобальной оптимизации. Реализация включала последовательную и параллельную версии алгоритма.
+
+Последовательная версия обеспечила высокую точность результатов за счет полного перебора точек в области поиска, однако показала низкую производительность при увеличении размерности задачи и объема вычислений.
+
+Параллельная версия продемонстрировала значительное ускорение за счет распараллеливания вычислений по характеристикам. Разделение ограничений между потоками позволило сократить время выполнения задачи, сохранив точность решений. Основным вызовом при реализации параллельного подхода стала синхронизация данных между потоками, что потребовало дополнительных вычислительных затрат.
+
+Сравнительный анализ показал, что использование параллельных вычислений целесообразно для задач, требующих обработки больших объемов данных или высокой точности решений.
+
+\newpage
+\section*{Приложение}
+\subsection*{Параллельная версия}
+\begin{lstlisting}[language=C++, caption=Код параллельной версии]
+bool Odintsov_M_GlobalOptimizationSpecifications_mpi::GlobalOptimizationSpecificationsMPIPa
+rallel::run() {
+    internal_order_test();
+    ans = (ver == 0) ? 999999999999999 : -999999999999999;
+
+    if (com.rank() == 0) {
+        loc_constr_size = std::max(1, (count_constraint + com.size() - 1) / com.size());
+    }
+
+    broadcast(com, count_constraint, 0);
+    broadcast(com, loc_constr_size, 0);
+    broadcast(com, step, 0);
+
+    if (com.rank() != 0) {
+        area.resize(4);
+    }
+
+    broadcast(com, area.data(), area.size(), 0);
+
+    if (com.rank() == 0) {
+        for (int pr = 1; pr < com.size(); pr++) {
+            if (pr * loc_constr_size < count_constraint) {
+                std::vector<double> send(3 * loc_constr_size, 0);
+                for (int i = 0; i < 3 * loc_constr_size; i++) {
+                    send[i] = constraint[pr * loc_constr_size * 3 + i];
+                }
+                com.send(pr, 0, send.data(), send.size());
+            }
+        }
+
+        for (int i = 0; i < 3 * loc_constr_size; i++) {
+            local_constraint.push_back(constraint[i]);
+        }
+    } else if (com.rank() < count_constraint) {
+        std::vector<double> buffer(loc_constr_size * 3, 0);
+        com.recv(0, 0, buffer.data(), buffer.size());
+        local_constraint.insert(local_constraint.end(), buffer.begin(), buffer.end());
+    }
+
+    double current_step = step;
+    double tolerance = 1e-6;
+    double previous_ans = std::numeric_limits<double>::max();
+    std::vector<double> loc_area(4, 0);
+    for (int i = 0; i < 4; i++) {
+        loc_area[i] = area[i];
+    }
+
+    while (current_step >= tolerance) {
+        double local_minX = loc_area[0];
+        double local_minY = loc_area[2];
+
+        int scale_factor = static_cast<int>(1.0 / current_step);
+        int int_minX = static_cast<int>(loc_area[0] * scale_factor);
+        int int_maxX = static_cast<int>(loc_area[1] * scale_factor);
+        int int_minY = static_cast<int>(loc_area[2] * scale_factor);
+        int int_maxY = static_cast<int>(loc_area[3] * scale_factor);
+
+        for (int x = int_minX; x < int_maxX; x++) {
+            for (int y = int_minY; y < int_maxY; y++) {
+                double real_x = x / static_cast<double>(scale_factor);
+                double real_y = y / static_cast<double>(scale_factor);
+
+                int loc_flag = 1;
+                int constr_sz = local_constraint.size() / 3;
+                for (int i = 0; i < constr_sz; i++) {
+                    if (!satisfies_constraints(real_x, real_y, i, local_constraint)) {
+                        loc_flag = 0;
+                        break;
+                    }
+                }
+
+                gather(com, loc_flag, is_corret, 0);
+
+                if (com.rank() == 0) {
+                    bool flag = true;
+                    int sz = is_corret.size();
+                    for (int i = 0; i < sz; i++) {
+                        if (is_corret[i] == 0) {
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag) {
+                        double value = calculate_function(real_x, real_y, funct);
+                        if (ver == 0) {
+                            if (value < ans) {
+                                ans = value;
+                                local_minX = real_x;
+                                local_minY = real_y;
+                            }
+                        } else if (ver == 1) {
+                            if (value > ans) {
+                                ans = value;
+                                local_minX = real_x;
+                                local_minY = real_y;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (com.rank() == 0) {
+            if ((std::abs(previous_ans - ans) < tolerance)) {
+                current_step = -1;
+            }
+            std::vector<double> new_area = loc_area;
+
+            new_area[0] = std::max(local_minX - 2 * current_step, area[0]);
+            new_area[1] = std::min(local_minX + 2 * current_step, area[1]);
+            new_area[2] = std::max(local_minY - 2 * current_step, area[2]);
+            new_area[3] = std::min(local_minY + 2 * current_step, area[3]);
+
+            loc_area = new_area;
+            previous_ans = ans;
+        }
+
+        broadcast(com, loc_area.data(), area.size(), 0);
+        broadcast(com, current_step, 0);
+    }
+
+    return true;
+}
+\end{lstlisting}
+
+\subsection*{Последовательная версия}
+\begin{lstlisting}[language=C++, caption=Код последовательной версии]
+bool Odintsov_M_GlobalOptimizationSpecifications_seq::GlobalOptimizationSpecificationsSequential::run() {
+    internal_order_test();
+    if (ver == 0)
+        ans = 999999999999999;
+    else
+        ans = -999999999999999;
+
+    double current_step = step;
+    double tolerance = 1e-6;
+    double previous_ans = std::numeric_limits<double>::max();
+    int scale_factor = static_cast<int>(1.0 / current_step);
+
+    while (current_step >= tolerance) {
+        double local_minX = area[0];
+        double local_minY = area[2];
+
+        int int_minX = static_cast<int>(area[0] * scale_factor);
+        int int_maxX = static_cast<int>(area[1] * scale_factor);
+        int int_minY = static_cast<int>(area[2] * scale_factor);
+        int int_maxY = static_cast<int>(area[3] * scale_factor);
+
+        for (int x = int_minX; x < int_maxX; x++) {
+            for (int y = int_minY; y < int_maxY; y++) {
+                double real_x = x / static_cast<double>(scale_factor);
+                double real_y = y / static_cast<double>(scale_factor);
+
+                bool is_point_correct = true;
+                for (int i = 0; i < count_constraint; i++) {
+                    is_point_correct = satisfies_constraints(real_x, real_y, i);
+                    if (!is_point_correct) break;
+                }
+
+                if (is_point_correct) {
+                    double value = calculate_function(real_x, real_y);
+                    if (ver == 0) {
+                        if (value < ans) {
+                            ans = value;
+                            local_minX = real_x;
+                            local_minY = real_y;
+                        }
+                    } else if (ver == 1) {
+                        if (value > ans) {
+                            ans = value;
+                            local_minX = real_x;
+                            local_minY = real_y;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (std::abs(previous_ans - ans) < tolerance) {
+            break;
+        }
+
+        area[0] = std::max(local_minX - 2 * current_step, area[0]);
+        area[1] = std::min(local_minX + 2 * current_step, area[1]);
+        area[2] = std::max(local_minY - 2 * current_step, area[2]);
+        area[3] = std::min(local_minY + 2 * current_step, area[3]);
+
+        current_step /= 2.0;
+        previous_ans = ans;
+    }
+
+    return true;
+}
+\end{lstlisting}
+
+\end{document}
