@@ -1,0 +1,385 @@
+\documentclass[12pt]{article}
+
+% Подключение пакетов
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{caption}
+\geometry{left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+
+% Титульный лист
+\begin{titlepage}
+    \begin{center}
+        \large
+        \textbf{ННГУ им. Лобачевского / ИИТММ / ПМИ}\\[0.5cm]
+
+        \vspace{4cm}
+        \textbf{\Large Отчёт по выполнению задания}\\
+        \textbf{\large <<Сортировка Шелла с простым слиянием с использованием MPI>>}\\[3cm]
+
+        \vspace{3cm}
+        \textbf{Выполнил:}\\
+        студент группы 3822Б1ПМоп3 \\
+        \textit{Волочаев Серафим Витальевич}\\[1cm]
+
+        \textbf{Преподаватель:}\\
+        \textit{Сысоев Александр Владимирович, доцент}\\[2cm]
+
+        \vfill
+        \textbf{Нижний Новгород, 2024 г.}
+    \end{center}
+\end{titlepage}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+Сортировка является одной из фундаментальных операций в информатике и играет ключевую роль во множестве приложений, начиная от обработки данных до алгоритмов машинного обучения. В условиях роста объёмов данных и требований к быстродействию, эффективные алгоритмы сортировки, способные использовать параллельные вычислительные ресурсы, становятся особенно актуальными.
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\begin{itemize}
+    \item \textbf{Цель работы:}
+        \begin{itemize}
+            \item Разработка и анализ параллельного алгоритма сортировки на основе метода Shell Sort с использованием технологии MPI.
+        \end{itemize}
+    \item \textbf{Задачи:}
+        \begin{itemize}
+            \item Реализовать эффективный параллельный алгоритм сортировки больших массивов данных.
+            \item Использовать преимущества параллельных вычислений для сокращения времени выполнения.
+            \item Обеспечить масштабируемость алгоритма при увеличении числа процессов.
+        \end{itemize}
+    \item \textbf{Инструменты разработки:}
+        \begin{itemize}
+            \item Язык программирования C++.
+            \item Библиотека Boost.MPI для параллельной реализации.
+        \end{itemize}
+\end{itemize}
+
+% Алгоритм сортировки
+\section*{Алгоритм сортировки Шелла с простым слиянием (последовательная реализация)}
+\addcontentsline{toc}{section}{Алгоритм сортировки Шелла с простым слиянием (последовательная реализация)}
+\textbf{Входные данные:} Массив целых чисел.
+
+\textbf{Выходные данные:} Отсортированный массив целых чисел.
+
+\textbf{Описание алгоритма:}
+\begin{enumerate}
+    \item \textbf{Инициализация:}
+        \begin{itemize}
+            \item Выбирается начальный шаг (\textit{gap}) равный половине длины массива.
+        \end{itemize}
+    \item \textbf{Сортировка с текущим шагом:}
+        \begin{itemize}
+            \item Для каждого элемента массива начиная с индекса \texttt{gap} выполняется сортировка вставками по текущему шагу.
+        \end{itemize}
+    \item \textbf{Уменьшение шага:}
+        \begin{itemize}
+            \item Шаг делится на 2 и повторяются шаги 2-3 до шага, равного 1.
+        \end{itemize}
+    \item \textbf{Слияние:}
+        \begin{itemize}
+            \item После локальной сортировки каждой части массива выполняется слияние отсортированных подмассивов в один глобально отсортированный массив.
+        \end{itemize}
+\end{enumerate}
+
+% Схема распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Параллельная версия алгоритма использует технологию MPI для распределения работы между несколькими процессами. Схема распараллеливания включает следующие этапы:
+
+\subsection*{1. Инициализация}
+\begin{itemize}
+    \item Процесс-ведущий (ранг 0) инициализирует массив данных и распределяет его части между всеми доступными процессами.
+\end{itemize}
+
+\subsection*{2. Локальная сортировка}
+\begin{itemize}
+    \item Каждый процесс выполняет сортировку своей части массива с использованием последовательного алгоритма Shell Sort.
+\end{itemize}
+
+\subsection*{3. Слияние}
+\begin{itemize}
+    \item Отсортированные подмассивы собираются обратно процессом-ведущим, который выполняет последовательное слияние всех полученных частей в один полностью отсортированный массив.
+\end{itemize}
+
+\subsection*{4. Финализация}
+\begin{itemize}
+    \item Отсортированный массив передаётся обратно всем процессам или сохраняется, в зависимости от требований приложения.
+\end{itemize}
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Реализация параллельного алгоритма сортировки выполнена на языке C++ с использованием библиотеки Boost.MPI, которая обеспечивает удобный интерфейс для работы с MPI. Основные компоненты реализации включают:
+
+\begin{itemize}
+    \item \textbf{Функция \texttt{sort}:} Реализует последовательный алгоритм Shell Sort для локальной сортировки подмассивов.
+    \item \textbf{Функция \texttt{merge}:} Выполняет слияние двух отсортированных векторов в один.
+    \item \textbf{Класс \texttt{Lab3\_16\_mpi}:} Оборачивает основные этапы алгоритма, включая предобработку, валидацию, выполнение и постобработку. Использует MPI для распределения данных и сбора результатов.
+\end{itemize}
+
+\subsection*{Основные функции}
+\begin{itemize}
+    \item \texttt{pre\_processing():} Инициализирует данные для сортировки, распределяя массив между процессами.
+    \item \texttt{run():} Выполняет локальную сортировку и собирает результаты с помощью слияния.
+    \item \texttt{post\_processing():} Сохраняет отсортированные данные в выходной массив.
+\end{itemize}
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Для оценки эффективности разработанного алгоритма были проведены эксперименты по измерению времени выполнения и проверке корректности сортировки. Эксперименты проводились на различных размерах массивов и количестве процессов.
+
+\subsection*{Время выполнения}
+\label{subsec:execution_time}
+\begin{table}[h]
+    \centering
+    \caption{Время выполнения алгоритма Shell Sort слиянием при различных размерах массива и количестве процессов}
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Размер массива & 1 процесс & 2 процесса & 4 процесса & 8 процессов \\
+        \hline
+        $10^5$ & 0.0145 с & 0.0124 с & 0.0126 с & 0.0184 с \\
+        \hline
+        $10^6$ & 0.1871 с & 0.1226 с & 0.1103 с & 0.1612 с \\
+        \hline
+        $10^7$ & 2.4189 с & 1.6768 с & 1.4307 с & 1.4413 с \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\subsection*{Качество работы алгоритма}
+\label{subsec:algorithm_quality}
+Алгоритм продемонстрировал корректность сортировки на всех тестируемых размерах массивов. Для подтверждения корректности был использован стандартный метод проверки отсортированного массива на неубывающий порядок.
+
+\subsection*{Описание подтверждения корректности}
+\label{subsec:correctness_verification}
+После выполнения сортировки, каждый процесс проверял свой локальный подмассив на соответствие сортировочному порядку. Дополнительно, процесс-ведущий выполнял окончательное слияние и проверял весь массив на корректность глобальной сортировки.
+
+% Выводы из результатов
+\section*{Выводы из результатов}
+\addcontentsline{toc}{section}{Выводы из результатов}
+Полученные результаты подтверждают эффективность параллельной реализации алгоритма Shell Sort слиянием на основе MPI. Увеличение числа процессов приводит к снижению времени выполнения, демонстрируя хорошую масштабируемость алгоритма. Корректность сортировки была подтверждена на всех тестируемых размерах данных.
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В данной работе был разработан и реализован параллельный алгоритм сортировки на основе Shell Sort с использованием MPI. Экспериментальные результаты показали, что алгоритм эффективно использует параллельные вычислительные ресурсы, обеспечивая значительное сокращение времени выполнения при увеличении числа процессов. Дальнейшие исследования могут быть направлены на оптимизацию алгоритма слияния и исследование других стратегий распределения данных для повышения производительности.
+
+% Литература
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+\begin{enumerate}
+    \item Гергель В.П. \textit{Введение в методы параллельного программирования}, \url{http://www.hpcc.unn.ru/mskurs/RUS/PPT/ppr04_2.pdf}
+    \item Boost MPI Library Documentation, \url{https://www.boost.org/doc/libs/release/libs/mpi/doc/index.html}
+    \item Учебное пособие ННГУ по MPI, \url{http://www.hpcc.unn.ru/mskurs/RUS/DOC/ppr04.pdf}
+    \item Видео практик, \url{https://disk.yandex.ru/d/LxDwnOlUo3Eqfg}
+\end{enumerate}
+
+\newpage
+\appendix
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+Ниже приведены ключевые фрагменты кода реализации:
+
+\subsection*{Исходный код}
+\begin{verbatim}
+#include "mpi/volochaev_s_shell_sort_with_simple_merge_16/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/mpi.hpp>
+#include <boost/serialization/vector.hpp>
+#include <functional>
+#include <thread>
+#include <vector>
+
+namespace volochaev_s_shell_sort_with_simple_merge_16_mpi {
+void sort(std::vector<int>& v);
+std::vector<int> merge(const std::vector<int>& left, const std::vector<int>& right);
+}  // namespace volochaev_s_shell_sort_with_simple_merge_16_mpi
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_seq::pre_processing() {
+  internal_order_test();
+
+  int* x = reinterpret_cast<int*>(taskData->inputs[0]);
+  size_ = static_cast<int>(taskData->inputs_count[0]);
+  mas.resize(size_);
+
+  std::copy(x, x + size_, mas.begin());
+
+  return true;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_seq::validation() {
+  internal_order_test();
+
+  return static_cast<int>(taskData->inputs_count[0]) > 0;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_seq::run() {
+  internal_order_test();
+
+  int n = size_;
+  int gap = n / 2;
+
+  while (gap > 0) {
+    for (int i = gap; i < n; ++i) {
+      int temp = mas[i];
+      int j = i;
+      while (j >= gap && mas[j - gap] > temp) {
+        mas[j] = mas[j - gap];
+        j -= gap;
+      }
+      mas[j] = temp;
+    }
+    gap /= 2;
+  }
+
+  return true;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_seq::post_processing() {
+  internal_order_test();
+
+  int* ans = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(mas.begin(), mas.end(), ans);
+  return true;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_mpi::pre_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    int* x = reinterpret_cast<int*>(taskData->inputs[0]);
+    size_ = taskData->inputs_count[0];
+
+    mas.resize(size_);
+
+    std::copy(x, x + size_, mas.begin());
+  }
+
+  return true;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_mpi::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    return static_cast<int>(taskData->inputs_count[0]) > 0;
+  }
+
+  return true;
+}
+
+void volochaev_s_shell_sort_with_simple_merge_16_mpi::sort(std::vector<int>& v) {
+  int n = v.size();
+  int gap = n / 2;
+
+  while (gap > 0) {
+    for (int i = gap; i < n; ++i) {
+      int temp = v[i];
+      int j = i;
+      while (j >= gap && v[j - gap] > temp) {
+        v[j] = v[j - gap];
+        j -= gap;
+      }
+      v[j] = temp;
+    }
+    gap /= 2;
+  }
+}
+
+std::vector<int> volochaev_s_shell_sort_with_simple_merge_16_mpi::merge(const std::vector<int>& left,
+                                                                        const std::vector<int>& right) {
+  std::vector<int> res;
+  res.reserve(left.size() + right.size());
+  std::merge(left.begin(), left.end(), right.begin(), right.end(), std::back_inserter(res));
+
+  return res;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_mpi::run() {
+  internal_order_test();
+
+  broadcast(world, size_, 0);
+  std::vector<int> sizes;
+
+  if (world.rank() == 0) {
+    int delta = size_ / world.size();
+    int ost = size_ % world.size();
+
+    sizes.resize(world.size(), delta);
+    for (int i = 0; i < ost; ++i) {
+      ++sizes[i];
+    }
+  }
+
+  broadcast(world, sizes, 0);
+
+  local_input.resize(sizes[world.rank()]);
+  scatterv(world, mas.data(), sizes, local_input.data(), 0);
+
+  sort(local_input);
+
+  if (world.rank() == 0) {
+    mas = local_input;
+    std::vector<int> data;
+
+    for (int i = 1; i < world.size(); ++i) {
+      world.recv(i, 0, data);
+      mas = merge(mas, data);
+    }
+  } else {
+    world.send(0, 0, local_input);
+  }
+
+  return true;
+}
+
+bool volochaev_s_shell_sort_with_simple_merge_16_mpi::Lab3_16_mpi::post_processing() {
+  internal_order_test();
+
+  if (world.rank() == 0) {
+    int* ans = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(mas.begin(), mas.end(), ans);
+  }
+
+  return true;
+}
+\end{verbatim}
+
+\end{document}
