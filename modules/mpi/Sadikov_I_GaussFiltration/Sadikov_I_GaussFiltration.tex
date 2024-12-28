@@ -1,0 +1,450 @@
+\documentclass[14pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\usepackage{float}
+\usepackage{multirow}
+
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет},
+    pdfauthor={Садиков Иван},
+    pdfsubject={Линейная фильтрация изображения(вертикальное разбиение). Ядро Гаусса 3х3}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+\begin{document}
+\section{Введение}
+Фильтрация изображений является одной из фундаментальных операций компьютерного зрения, распознавания образов и обработки изображений. Фактически, с той или иной фильтрации исходных изображений начинается работа подавляющего большинства методов. В то же время, фильтрация изображения - долгая и объемная задача, требующая распараллеливания.
+
+\section{Постановка задачи}
+Целью данной работы является реализация алгоритма линейной фильтрации изображения матрицей Гаусса с ядром $3 \times 3$, с использованием технологии MPI и языка программирования С++. Для выполнения задачи необходимо следующее:
+\begin{itemize}
+    \item Изучить предметную область, а именно - обработку изображений.
+    \item Реализовать последовательную версию алгоритма линейной фильтрации.
+    \item Реализовать параллельную версию алгоритма с упором на точность и эффективность решения.
+    \item Провести тестирование последовательного и параллельного решения.
+    \item Сделать вывод об эффективности параллельного решения в сравнении с последовательным.
+\end{itemize}
+\newpage
+\section{Описание алгоритма}
+Под фильтрацией изображений понимают операцию, имеющую своим результатом
+изображение того же размера, полученное из исходного по некоторым правилам (фильтрам). Фильтрацию также называют сверткой. Существует немало фильтров, выполняющих самые разные функции: сглаживание, выделение контраста, перевод в оттенки серого и т. д. Наиболее простыми и потому часто используемыми фильтрами являются линейные.
+
+Пусть существует некоторое изображение $A(x, y, z)$, где $(x, y, z)$ - интенсивность его пикселей, а также линейный фильтр $F$, определяемый вещественно значимой функцией $F(i, j)$. Тогда операция линейной свертки будет выглядеть следующим образом:
+\begin{center}
+    $B(x, y) = \sum_{i = 1}^{N}\sum_{j = 1}^{N}F(i, j) \cdot A(x, y)$
+\end{center}
+$B(x, y)$ - итоговое изображение после применение фильтра.
+Функцию $F$ также называют ядром фильтром или матрицей свертки. По сути, $F$ - матрица коэффициентов, определенных математическим путём. Дабы избежать ошибок сглаживания, матрицы свертки создаются нечетными, например $3\times 3$ или $5\times 5$. 
+
+К сожалению, применение линейной фильтрации изображений сопряжено с некоторыми трудностями, в частности - обработка граничных пикселей. Так как у граничных пикселей нет всех "соседей", классическая фильтрация становится невозможной. Существует множество путей решения данной проблемы:
+\begin{itemize}
+    \item Игнорирование граничных значений (грозит сильной потерей точности).
+    \item Отзеркаливание значений по другую сторону от граничного пикселя.
+    \item Частичное суммирование с существующими соседями.
+    \item Распределение веса граничного пикселя между всеми пикселями изображения (серьезное повышение трудоемкости задачи).
+\end{itemize}
+
+В своей работе я решил проблему граничных пикселей третьим способом. За счет этого точность решения намного выше, чем в первом случае и не требует таких же затрат, как в последнем.
+
+Фильтр Гаусса - наиболее часто применимый фильтр размытия, основанный на матрице свёртки. Ядро фильтра Гаусса имеет следующий вид:
+\begin{center}
+    $F_{gauss}(i, j) = \frac{1}{2\pi \sigma} \cdot \exp{(-\frac{i^2 + j^2}{2\sigma^2})}$
+\end{center}
+, где $\sigma$ - дисперсия случайной величины. Для своей лабораторной работы я выбрал $\sigma = 1$ 
+
+\section{Описание схемы распараллеливания}
+\begin{itemize}
+    \item Вектор пикселей, где пиксель - класс, хранящий значение цветов по трем диапазонам, транспонируется и резделяется между существующими процессами. Каждому процессу отводится минимум 3 столбца, что является необходимым условием для правильного применения матрицы свертки.
+    \item В каждом процессе совершается проход по отведенной области и запись соответствующих результатов в вектор localRes.
+    \item Полученные данные объединяются на нулевом процессе, вновь транспонируются и подаются на ответ. 
+\end{itemize}
+\section{Описание MPI версии}
+После чтения данных в вектор, выполняется серия broadcast операций, в том числе вектора пикселей. После обработки, данные собираются на нулевом процессе при помощи функции gatherv.
+\newpage
+\section{Результаты экспериментов}
+Для проверки правильности работы алгоритма были вручную заполнены небольшие векторы пикселей. В качестве начальных значений брались случайные числа в диапазоне от 0 до 255. Для подсчета эталона и последующего сравнения с ним была использована библиотека numpy и функция Gaussbluration языка python. 
+
+Тесты были проведены на матрицах пикселей размерностей $400 \times 400$, на двух, четырех, пяти процессах и показали следующие результаты:
+Таблица результатов pipeline\_run:\\[0,5cm]
+\begin{tabular}{|c|c|}
+    \hline
+    Число процессов   & Время выполнения (ms)  \\ \hline
+    2               & 340                   \\ \hline
+    4                &370                   \\ \hline
+    5                &355                      \\ \hline
+\end{tabular}\\[1cm]
+
+Таблица результатов task\_run:\\[0,5cm]
+\begin{tabular}{|c|c|}
+    \hline
+    Число процессов   & Время выполнения (ms)  \\ \hline
+    2               & 280                   \\ \hline
+    4                & 300                \\ \hline
+    5                & 290                     \\ \hline
+\end{tabular}\\[1cm]
+
+Среднее время выполнения task\_run последовательной версии:\\[0,5cm]
+\begin{tabular}{|c|c|}
+    \hline
+  & Время выполнения (ms)  \\ \hline
+  & 300                   \\ \hline
+\end{tabular}
+\section{Выводы из результатов}
+Колебание времени исполнения алгоритма на небольшом количестве процессов является не более, чем случайностью. Параллельное решение в среднем лишь немного быстрее, чем последовательное, что с большой долей вероятности является следствием применения broadcast для большого вектора входных данных. В качестве улучшения решения необходимо разделение общего вектора данных при помощи функции scatterv, но это повлечет за собой понижение общей точности решения, так как прежнее вычисление значений в крайних пикселях станет невозможным. 
+\section{Заключение}
+Реализовано распараллеливание алгоритма линейной фильтрации изображения матрицей Гаусса. Решение справляется со своей задачей, но может быть улучшенно с применением некоторых оптимизаций процессов распределения данных.
+\newpage
+\section{Приложение}
+\begin{verbatim}{
+#pragma once
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/serialization/vector.hpp>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+#include <memory>
+#include <numbers>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+#include "seq/Sadikov_I_Gauss_Linear_Filtration/include/Point.h"
+
+namespace Sadikov_I_Gauss_Linear_Filtration {
+class LinearFiltrationSeq : public ppc::core::Task {
+  std::vector<Point<double>> m_pixelsMatrix;
+  std::vector<Point<double>> m_outMatrix;
+  std::vector<double> m_gaussMatrix;
+  int m_columnsCount = 0;
+  int m_rowsCount = 0;
+  static constexpr double sigma = 1.0;
+
+ public:
+  explicit LinearFiltrationSeq(std::shared_ptr<ppc::core::TaskData> taskData);
+  bool validation() override;
+  bool pre_processing() override;
+  bool run() override;
+  bool post_processing() override;
+  void CalculateGaussMatrix();
+  void CalculateNewPixelValue(int iIndex, int jIndex);
+  bool CheckIndex(int index) const noexcept 
+  { return index >= 0 and index < static_cast<int>(m_pixelsMatrix.size()); }
+  bool CheckRowIndex(int index) const noexcept 
+  { return index >= 0 and index < m_rowsCount; }
+  bool CheckColumnIndex(int index) const noexcept 
+  { return index >= 0 and index < m_columnsCount; }
+};
+
+class LinearFiltrationMPI : public ppc::core::Task {
+  std::vector<Point<double>> m_pixelsMatrix;
+  std::vector<Point<double>> m_outMatrix;
+  std::vector<double> m_gaussMatrix;
+  int m_columnsCount = 0;
+  int m_rowsCount = 0;
+  static constexpr double sigma = 1.0;
+  static constexpr int m_minColumnsCount = 3;
+  std::vector<int> m_sizes;
+  boost::mpi::communicator world;
+  std::vector<Point<double>> m_intermediateRes;
+
+ public:
+  explicit LinearFiltrationMPI(std::shared_ptr<ppc::core::TaskData> taskData);
+  bool validation() override;
+  bool pre_processing() override;
+  bool run() override;
+  bool post_processing() override;
+  void CalculateGaussMatrix();
+  void CalculateNewPixelValue(int iIndex, int jIndex, int position);
+  bool CheckIndex(int index) const noexcept 
+  { return index >= 0 and index < m_rowsCount * m_columnsCount; }
+  bool CheckRowIndex(int index) const noexcept 
+  { return index >= 0 and index < m_rowsCount; }
+  bool CheckColumnIndex(int index) const noexcept 
+  { return index >= 0 and index < m_columnsCount; }
+};
+}  // namespace Sadikov_I_Gauss_Linear_Filtration
+\end{verbatim}
+\newpage
+\begin{verbatim}
+#include "mpi/Sadikov_I_Gauss_Linear_Filtration/include/ops_mpi.h"
+
+Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::LinearFiltrationSeq(
+    std::shared_ptr<ppc::core::TaskData> taskData)
+    : Task(std::move(taskData)) {}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::
+validation() {
+  internal_order_test();
+  if ((taskData->inputs_count[0] > 2 || taskData->inputs_count[0] == 0) &&
+      (taskData->inputs_count[1] > 2 || taskData->inputs_count[1] == 0)) 
+      {
+    return taskData->outputs_count[0] == taskData->inputs_count[0]
+    * taskData->inputs_count[1];
+  }
+  return false;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::
+pre_processing() {
+  internal_order_test();
+  m_rowsCount = static_cast<int>(taskData->inputs_count[0]);
+  m_columnsCount = static_cast<int>(taskData->inputs_count[1]);
+  m_pixelsMatrix.reserve(m_rowsCount * m_columnsCount);
+  auto *tmpPtr = reinterpret_cast<Point<double> *>(taskData->inputs[0]);
+  for (int i = 0; i < m_columnsCount * m_rowsCount; ++i) {
+    m_pixelsMatrix.emplace_back(tmpPtr[i]);
+  }
+  m_gaussMatrix.reserve(9);
+  CalculateGaussMatrix();
+  m_outMatrix = std::vector<Point<double>>(m_columnsCount * m_rowsCount);
+  return true;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::run() {
+  internal_order_test();
+  for (auto i = 0; i < m_rowsCount; ++i) {
+    for (auto j = 0; j < m_columnsCount; ++j) {
+      CalculateNewPixelValue(i, j);
+    }
+  }
+  return true;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::
+post_processing() {
+  internal_order_test();
+  for (auto i = 0; i < m_rowsCount * m_columnsCount; ++i) {
+    reinterpret_cast<Point<double> *>(taskData->outputs[0])[i] =
+    m_outMatrix[i];
+  }
+  return true;
+}
+
+void Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::
+CalculateGaussMatrix() {
+  double sum = 0;
+  for (auto x = -1; x < 2; ++x) {
+    for (auto y = -1; y < 2; ++y) {
+      m_gaussMatrix.emplace_back(1 / (2 * std::numbers::pi * sigma * sigma) *
+      std::pow(std::numbers::e, -((x * x + y * y) / 2.0 * sigma * sigma)));
+      sum += m_gaussMatrix.back();
+    }
+  }
+  for (auto &&it : m_gaussMatrix) {
+    it /= sum;
+  }
+}
+
+void Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationSeq::
+CalculateNewPixelValue(int iIndex, int jIndex) {
+  auto index = 0;
+  for (auto g = 0; g < 9; ++g) {
+    if (g < 3) {
+      if (CheckRowIndex(iIndex - 1) and CheckColumnIndex(jIndex - 1 + g)) {
+        index = (iIndex - 1) * m_columnsCount + jIndex - 1 + g;
+        if (CheckIndex(index)) {
+          m_outMatrix[iIndex * m_columnsCount + jIndex] += 
+          m_pixelsMatrix[index] * m_gaussMatrix[g];
+        }
+      }
+    } else if (g > 2 && g < 6) {
+      index = iIndex * m_columnsCount + jIndex - 4 + g;
+      if (CheckColumnIndex(jIndex - 4 + g)) {
+        if (CheckIndex(index)) {
+          m_outMatrix[iIndex * m_columnsCount + jIndex] += 
+          m_pixelsMatrix[index] * m_gaussMatrix[g];
+        }
+      }
+    } else {
+      if (CheckRowIndex(iIndex + 1) and CheckColumnIndex(jIndex - 7 + g)) {
+        index = (iIndex + 1) * m_columnsCount + jIndex - 7 + g;
+        if (CheckIndex(index)) {
+          m_outMatrix[iIndex * m_columnsCount + jIndex] += m_pixelsMatrix[index] * m_gaussMatrix[g];
+        }
+      }
+    }
+  }
+}
+
+Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::LinearFiltrationMPI(
+    std::shared_ptr<ppc::core::TaskData> taskData)
+    : Task(std::move(taskData)) {}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    if ((taskData->inputs_count[0] > 2 || taskData->inputs_count[0] == 0) &&
+        (taskData->inputs_count[1] > 2 || taskData->inputs_count[1] == 0)) {
+      return taskData->outputs_count[0] == taskData->inputs_count[0] 
+      * taskData->inputs_count[1];
+    }
+    return false;
+  }
+  return true;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    m_rowsCount = static_cast<int>(taskData->inputs_count[0]);
+    m_columnsCount = static_cast<int>(taskData->inputs_count[1]);
+    m_pixelsMatrix.reserve(m_rowsCount * m_columnsCount);
+    auto *tmpPtr = reinterpret_cast<Point<double> *>(taskData->inputs[0]);
+    for (auto column = 0; column < m_columnsCount; ++column) {
+      for (auto row = 0; row < m_rowsCount; ++row) {
+        m_pixelsMatrix.emplace_back(tmpPtr[m_columnsCount * row + column]);
+      }
+    }
+    const int proceses = m_columnsCount / m_minColumnsCount;
+    if (proceses > world.size()) {
+      int averegeCount = m_columnsCount / world.size();
+      m_sizes = std::vector<int>(world.size(), averegeCount * m_rowsCount);
+      m_sizes.back() += (m_columnsCount % world.size()) * m_rowsCount;
+    } else {
+      int m_columns = m_columnsCount;
+      if (!m_pixelsMatrix.empty()) {
+        m_sizes.resize(world.size());
+      }
+      for (auto i = 0; i < world.size(); ++i) {
+        if (m_columns >= m_minColumnsCount) {
+          m_sizes[i] = m_minColumnsCount * m_rowsCount;
+          m_columns -= m_minColumnsCount;
+          if (m_columns < m_minColumnsCount) {
+            m_sizes.back() += m_columns * m_rowsCount;
+            break;
+          }
+        }
+      }
+    }
+    m_gaussMatrix.reserve(9);
+    m_outMatrix = std::vector<Point<double>>(m_columnsCount * m_rowsCount);
+    CalculateGaussMatrix();
+  }
+  return true;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::run() {
+  internal_order_test();
+  broadcast(world, m_sizes, 0);
+  broadcast(world, m_columnsCount, 0);
+  broadcast(world, m_rowsCount, 0);
+  broadcast(world, m_pixelsMatrix, 0);
+  broadcast(world, m_gaussMatrix, 0);
+  // restart tests comment
+  if (world.rank() < static_cast<int>(m_sizes.size())) {
+    m_intermediateRes.resize(m_sizes[world.rank()]);
+    int position = 0;
+    for (auto row = std::accumulate(m_sizes.begin(), m_sizes.begin() + world.rank(), 0) / m_rowsCount;
+         row < std::accumulate(m_sizes.begin(), m_sizes.begin() + world.rank() + 1, 0) / m_rowsCount; ++row) {
+      for (auto column = 0; column < m_rowsCount; ++column) {
+        CalculateNewPixelValue(row, column, position);
+        position++;
+      }
+    }
+  }
+  if (world.rank() == 0 && !m_pixelsMatrix.empty()) {
+    std::vector<Point<double>> localRes(m_rowsCount * m_columnsCount);
+    boost::mpi::gatherv(world, m_intermediateRes, localRes.data(), m_sizes, 0);
+    m_outMatrix = std::move(localRes);
+  } else if (world.rank() != 0 && !m_pixelsMatrix.empty()) {
+    boost::mpi::gatherv(world, m_intermediateRes, 0);
+  }
+  return true;
+}
+
+bool Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    for (auto i = 0; i < m_rowsCount; ++i) {
+      for (auto j = 0; j < m_columnsCount; ++j) {
+        reinterpret_cast<Point<double> *>(taskData->outputs[0])[j + i * m_columnsCount] =
+            m_outMatrix[m_rowsCount * j + i];
+      }
+    }
+  }
+  return true;
+}
+
+void Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::
+CalculateGaussMatrix() {
+  double sum = 0;
+  for (auto x = -1; x < 2; ++x) {
+    for (auto y = -1; y < 2; ++y) {
+      m_gaussMatrix.emplace_back(1 / (2 * std::numbers::pi * sigma * sigma) *
+      std::pow(std::numbers::e, -((x * x + y * y) / 2.0 * sigma * sigma)));
+      sum += m_gaussMatrix.back();
+    }
+  }
+  for (auto &&it : m_gaussMatrix) {
+    it /= sum;
+  }
+}
+
+void Sadikov_I_Gauss_Linear_Filtration::LinearFiltrationMPI::
+CalculateNewPixelValue(int iIndex, int jIndex, int position) {
+  auto index = 0;
+
+  for (auto g = 0; g < 9; ++g) {
+    if (g < 3) {
+      if (CheckRowIndex(jIndex - 1 + g) and CheckColumnIndex(iIndex - 1)) {
+        index = (iIndex - 1) * m_rowsCount + jIndex - 1 + g;
+        if (CheckIndex(index)) {
+          m_intermediateRes[position] += m_pixelsMatrix[index] 
+          * m_gaussMatrix[g];
+        }
+      }
+    } else if (g > 2 && g < 6) {
+      index = iIndex * m_rowsCount + jIndex - 4 + g;
+      if (CheckRowIndex(jIndex - 4 + g)) {
+        if (CheckIndex(index)) {
+          m_intermediateRes[position] += m_pixelsMatrix[index] 
+          * m_gaussMatrix[g];
+        }
+      }
+    } else {
+      if (CheckRowIndex(jIndex - 7 + g) and CheckColumnIndex(iIndex + 1)) {
+        index = (iIndex + 1) * m_rowsCount + jIndex - 7 + g;
+        if (CheckIndex(index)) {
+          m_intermediateRes[position] += m_pixelsMatrix[index]
+          * m_gaussMatrix[g];
+        }
+      }
+    }
+  }
+}
+\end{verbatim}
+\end{document}
+
+
