@@ -1,0 +1,746 @@
+\documentclass[a4paper, 14pt]{article}
+
+\usepackage[english, russian]{babel}
+
+\usepackage{tocloft}
+\usepackage{tabularray}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage{indentfirst}
+\usepackage{mathtext}
+\frenchspacing
+
+\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools}
+\usepackage{icomma}
+
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\newcommand{\n}{\par}
+
+%%% Оформление страницы
+\usepackage{extsizes}     % Возможность сделать 14-й шрифт
+\usepackage{geometry}     % Простой способ задавать поля
+\usepackage{setspace}     % Интерлиньяж
+\usepackage{enumitem}     % Настройка окружений itemize и enumerate
+\setlist{leftmargin=25pt} % Отступы в itemize и enumerate
+
+\geometry{top=25mm}    % Поля сверху страницы
+\geometry{bottom=30mm} % Поля снизу страницы
+\geometry{left=20mm}   % Поля слева страницы
+\geometry{right=20mm}  % Поля справа страницы
+
+\setlength\parindent{15pt}        % Устанавливает длину красной строки 15pt
+\linespread{1.3}                  % Коэффициент межстрочного интервала
+\setlength{\parskip}{0.5em}      % Вертикальный интервал между абзацами
+%\setcounter{secnumdepth}{0}      % Отключение нумерации разделов
+%\setcounter{section}{-1}         % Нумерация секций с нуля
+\usepackage{multicol}			  % Для текста в нескольких колонках
+\usepackage{soulutf8}             % Модификаторы начертания
+
+
+\begin{document}
+	\thispagestyle{empty}
+	\begin{center}
+		
+		МИНИСТЕРСТВО НАУКИ И ВЫСШЕГО ОБРАЗОВАНИЯ РОССИЙСКОЙ ФЕДЕРАЦИИ\n
+		Федеральное государственное автономное образовательное учреждение высшего образования\n
+		\textbf{«Национальный исследовательский Нижегородский государственный университет им. Н. И. Лобачевского»\n
+			(ННГУ им. Н. И. Лобачевского)}\n
+		Институт информационных технологий, математики и механики
+		\vspace{1cm}
+		
+		ОТЧЁТ ПО ЛАБОРАТОРНОЙ РАБОТЕ
+		
+		ПО ДИСЦИПЛИНЕ
+		
+		\textbf{<<Параллельное программирование>>}
+		
+		НА ТЕМУ
+		
+		\textbf{<<Поиск кратчайших путей из одной вершины (алгоритм Беллмана-Форда). С CRS графов>>}
+	\end{center}
+	\vspace{0.3cm}
+	\begin{flushright}
+		\textbf{Выполнил:} Филатьев Владислав
+		
+		студент 3 курса, группа 3822Б1ПР2
+	
+	\end{flushright}
+	
+	\begin{flushright}
+		\textbf{Преподаватель:}
+		
+		Оболенский А. А., Нестеров А. Ю.
+	\end{flushright}
+ 
+ \begin{flushright}
+		\textbf{Лектор:}
+        
+  доцент, кандидат технических наук Сысоев А. В.
+  \end{flushright}
+	
+    \begin{center}
+		\vfill
+		Нижний Новгород
+		
+		2024
+	\end{center}
+    
+	\newpage
+	\begin{center}\tableofcontents\end{center}
+	\newpage
+	\section*{\centering \textbf{Введение}}
+	\addcontentsline{toc}{section}{Введение}
+	
+	\indent В современном мире, где графовые структуры применяются в самых разнообразных областях, от моделирования социальных взаимодействий до оптимизации логистических сетей, задача поиска кратчайших путей приобретает первостепенное значение. Алгоритм Беллмана-Форда, являясь одним из фундаментальных методов решения этой задачи, особенно ценен своей способностью корректно обрабатывать графы с ребрами отрицательного веса, что является недоступным для многих других подходов.  Однако, при работе с графами больших размеров, последовательная реализация данного алгоритма может потребовать значительных вычислительных ресурсов и времени. Это делает актуальным разработку и анализ параллельных решений, способных эффективно использовать вычислительную мощность современных многопроцессорных систем.
+\par В рамках данной работы мы исследуем и реализуем параллельный вариант алгоритма Беллмана-Форда для поиска кратчайших путей из одной вершины,  применительно к графам, представленным в формате CRS (Compressed Row Storage). Данный формат является эффективным способом представления разреженных графов, что позволяет сократить объемы необходимой памяти и ускорить процесс обработки данных.  Цель нашей работы состоит не только в реализации параллельной версии алгоритма, но и в анализе его производительности при различных параметрах графа и количества задействованных вычислительных процессов.
+\par  Исследование направлено на практическую демонстрацию возможностей параллельных вычислений для решения задачи поиска кратчайших путей на больших графах. Полученные результаты позволят нам оценить применимость параллельной реализации алгоритма Беллмана-Форда в различных условиях, определить факторы, оказывающие наибольшее влияние на его производительность, и сделать соответствующие выводы об эффективности данного подхода.
+
+	
+	
+	\newpage
+	\section*{\centering Постановка задачи}
+	\addcontentsline{toc}{section}{Постановка задачи}
+	\textbf{Цель работы:} Разработать, реализовать и исследовать параллельную версию алгоритма Беллмана-Форда для поиска кратчайших путей из одной вершины в графах, представленных в формате CRS, с использованием библиотеки MPI для организации распределенных вычислений. Оценить производительность и эффективность параллельного подхода в сравнении с последовательным вариантом.
+
+\textbf{Задачи работы:}
+\vspace{-1em}
+\begin{itemize}
+    \setlength\itemsep{0.2cm}
+    \item Изучить и описать теоретические основы алгоритма Беллмана-Форда и особенности его работы.
+    \item Исследовать формат хранения графов CRS (Compressed Row Storage) и обосновать его использование в контексте данной задачи.
+	\item Разработать и реализовать последовательную версию алгоритма Беллмана-Форда для графов, представленных в формате CRS.
+    \item Разработать и реализовать параллельную версию алгоритма Беллмана-Форда с использованием библиотеки MPI.
+    \item Реализовать функцию распределения данных графа между процессами MPI для параллельной обработки.
+    \item Реализовать функцию сбора результатов и обновления кратчайших путей после локальных вычислений на каждом процессе.
+    \item Провести сравнительный анализ производительности последовательного и параллельного алгоритмов, включая анализ полученного ускорения и эффективности параллелизации.
+     \item Проанализировать полученные результаты и сформулировать выводы об эффективности применения параллельного алгоритма для решения поставленной задачи.
+\end{itemize}
+
+	\newpage
+	\section*{\centering Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+
+\indent Алгоритм Беллмана-Форда представляет собой метод поиска кратчайших путей от заданной начальной вершины до всех остальных вершин графа. Он особенно эффективен при работе с графами, содержащими ребра с отрицательным весом, где алгоритм Дейкстры не гарантирует правильного решения. Алгоритм итеративно релаксирует ребра, обновляя оценки кратчайших расстояний до тех пор, пока не будет найдено оптимальное решение или не будет выявлен отрицательный цикл.
+
+\textbf{Последовательный алгоритм:}
+\vspace{-1em}
+\begin{enumerate}
+    \item \textbf{Инициализация:} Для каждой вершины графа устанавливаются начальные оценки расстояний. Расстояние до начальной вершины полагается равным 0, а расстояния до всех остальных вершин устанавливаются в бесконечность (или в достаточно большое значение).
+    \item \textbf{Релаксация рёбер:} Выполняется $|V|-1$ итераций, где $|V|$ - количество вершин в графе. На каждой итерации просматриваются все ребра графа.
+        \begin{itemize}
+            \item Для каждого ребра (u, v) с весом w:
+                \begin{itemize}
+                    \item Проверяется условие: если dist[u] + w < dist[v], то обновляем dist[v] = dist[u] + w, где dist[x] - текущая оценка кратчайшего расстояния до вершины x.
+                \end{itemize}
+        \end{itemize}
+    \item \textbf{Обнаружение отрицательных циклов:} После $|V|-1$ итерации выполняется еще одна итерация релаксации рёбер. Если на этой итерации хотя бы одно расстояние было изменено, это означает, что в графе присутствует отрицательный цикл, и алгоритм не может дать корректный результат.
+\end{enumerate}
+
+\textbf{Параллельный алгоритм с использованием MPI:}
+\vspace{-1em}
+\begin{enumerate}
+    \item \textbf{Распределение графа:} Граф, представленный в формате CRS, распределяется между процессами MPI. Каждому процессу выделяется подмножество вершин и соответствующие им ребра.
+    \item \textbf{Локальная релаксация:} Каждый процесс независимо выполняет $|V|-1$ итераций релаксации на своей части графа, используя описанную выше последовательную логику.
+    \item \textbf{Обмен расстояниями:} После каждой итерации релаксации процессы обмениваются значениями расстояний до вершин. Это необходимо, так как релаксация одного ребра может повлиять на значения расстояний других процессов. Для обмена используется коллективная операция all\_reduce, обеспечивающая сбор данных со всех процессов.
+     \item \textbf{Обнаружение отрицательных циклов:} После $|V|-1$ итерации релаксации, выполняется еще одна итерация для обнаружения отрицательных циклов. Если какая-либо из локальных переменных расстояний изменена, то сообщается о наличии отрицательного цикла.
+\end{enumerate}
+
+\textbf{Особенности алгоритма:}
+\vspace{-1em}
+\begin{itemize}
+    \item  Алгоритм Беллмана-Форда способен корректно работать с графами, содержащими рёбра с отрицательным весом, в отличие от алгоритма Дейкстры.
+    \item Параллельная реализация позволяет ускорить обработку графов большого размера за счёт распределения вычислительной нагрузки между несколькими процессами.
+    \item Эффективность параллельной реализации зависит от способа распределения графа между процессами, а также от накладных расходов на коммуникацию между процессами, особенно при обмене данных о кратчайших расстояниях.
+    \item Обмен расстояниями выполняется с помощью функции all\_reduce, которая гарантирует, что каждый процесс получит актуальную информацию о расстояниях от всех остальных процессов.
+\end{itemize}
+	\newpage
+	\subsection*{\centering Описание программ}
+	\addcontentsline{toc}{section}{Описание программ}
+	\subsubsection*{\centering Последовательная версия алгоритма}
+	\addcontentsline{toc}{subsubsection}{Последовательная версия алгоритма}
+    Основная логика алгоритма реализована в функции run. Работа начинается с инициализации необходимых переменных и структур данных.
+
+Сначала константе inf присваивается максимальное значение типа int для представления «бесконечности». Затем вектор d, который будет хранить кратчайшие расстояния, инициализируется значением inf для всех n вершин графа. Расстояние от начальной вершины start до самой себя устанавливается равным нулю.
+
+Далее из структуры taskData загружаются данные, необходимые для представления графа: массив смежных вершин (Adjncy), массив индексов начала списка смежных вершин для каждой вершины (Xadj) и массив весов рёбер (Eweights):
+
+	\vspace{-1em}
+	\begin{verbatim}
+int inf = std::numeric_limits<int>::max();
+d.assign(n, inf);
+d[start] = 0;
+auto* temp = reinterpret_cast<int*>(taskData->inputs[0]);
+this->Adjncy.assign(temp, temp + m);
+temp = reinterpret_cast<int*>(taskData->inputs[1]);
+this->Xadj.assign(temp, temp + n + 1);
+temp = reinterpret_cast<int*>(taskData->inputs[2]);
+this->Eweights.assign(temp, temp + m);
+	\end{verbatim}
+  После инициализации выполняется основной алгоритм Беллмана-Форда. Он состоит не более чем из |V| итераций, где |V| — количество вершин графа. Эти итерации могут быть завершены раньше, если на предыдущем шаге ни одно расстояние не было обновлено. На каждой итерации происходит релаксация рёбер, то есть попытка найти более короткий путь до каждой вершины:
+	\vspace{-1em}
+	\begin{verbatim}
+bool stop = true;
+  for (int i = 0; i < n; i++) {
+    stop = true;
+    for (int v = 0; v < n; v++) {
+      for (int t = Xadj[v]; t < Xadj[v + 1]; t++) {
+        if (d[v] < inf && d[Adjncy[t]] > d[v] + Eweights[t]) {
+          d[Adjncy[t]] = d[v] + Eweights[t];
+          stop = false;
+        }
+      }
+    }
+    if (stop) {
+      break;
+    }
+  }
+	\end{verbatim}	
+После выполнения основного цикла проверяется, не произошло ли обновление расстояний на последней итерации. Если флаг stop остался false после |V| итераций, это означает, что в графе есть отрицательный цикл. В этом случае все расстояния в векторе d устанавливаются в значение «-бесконечность»:
+	\vspace{-1em}
+	\begin{verbatim}
+  if (!stop) {
+    d.assign(n, -inf);
+  }
+	\end{verbatim}	
+
+
+    
+		\subsubsection*{\centering Паралельная версия алгоритма}
+	\addcontentsline{toc}{subsubsection}{Паралельная версия алгоритма}
+Основная логика алгоритма реализована в функции run. Работа начинается с инициализации необходимых переменных и структур данных, а также распределения данных между процессами.
+
+Сначала количество вершин графа рассылается между процессами. Затем для представления «бесконечности» константе присваивается максимальное значение типа int, а вектор d (кратчайшие расстояния) инициализируется этим значением для всех вершин. Расстояние от начальной вершины до самой себя устанавливается равным нулю. Наконец, данные распределяются между процессами с помощью функции scatterv.
+
+	\vspace{-1em}
+	\begin{verbatim}
+  boost::mpi::broadcast(world, n, 0);
+
+  int inf = std::numeric_limits<int>::max();
+  d.assign(n, inf);
+
+  int delta = n / world.size();
+  int ost = n % world.size();
+  std::vector<int> local_d(n, inf);
+
+  if (world.rank() == 0) {
+    d[start] = 0;
+    local_d[start] = 0;
+    auto* temp = reinterpret_cast<int*>(taskData->inputs[1]);
+    this->Xadj.assign(temp, temp + n + 1);
+  } else {
+    Xadj.resize(n + 1);
+  }
+  boost::mpi::broadcast(world, Xadj.data(), n + 1, 0);
+
+  std::vector<int> distribution(world.size(), 0);
+  std::vector<int> displacement(world.size(), 0);
+  int prev = Xadj[(ost == 0) ? delta : delta + 1];
+  distribution[0] = prev;
+  for (int i = 1; i < world.size(); i++) {
+    int teck = 0;
+    if (i < ost) {
+      teck = Xadj[(delta + 1) * (i + 1)];
+    } else {
+      teck = Xadj[(delta + 1) * ost + delta * (i + 1 - ost)];
+    }
+    distribution[i] = teck - prev;
+    displacement[i] = displacement[i - 1] + distribution[i - 1];
+    prev = teck;
+  }
+
+  int local_size = distribution[world.rank()];
+  std::vector<int> local_Adjncy(local_size);
+  std::vector<int> local_Eweights(local_size);
+
+  int* temp_Adjncy = nullptr;
+  int* temp_Eweights = nullptr;
+  if (world.rank() == 0) {
+    temp_Adjncy = reinterpret_cast<int*>(taskData->inputs[0]);
+    temp_Eweights = reinterpret_cast<int*>(taskData->inputs[2]);
+  }
+
+  boost::mpi::scatterv(world, temp_Adjncy, distribution, displacement, local_Adjncy.data(), local_size, 0);
+  boost::mpi::scatterv(world, temp_Eweights, distribution, displacement, local_Eweights.data(), local_size, 0);
+	\end{verbatim}
+После инициализации каждый процесс выполняет алгоритм Беллмана-Форда на своих локальных данных. На каждой итерации минимальные расстояния, вычисленные в каждом процессе, синхронизируются с помощью функции all\_reduce, которая обеспечивает сбор данных и их рассылку всем процессам:
+	\vspace{-1em}
+	\begin{verbatim}
+ bool stop = true;
+  for (int i = 0; i < n; i++) {
+    all_reduce(world, local_d, d, vector_min);
+    bool local_stop = true;
+    for (int v = start_v; v < stop_v; v++) {
+      if (v > (int)Xadj.size() - 2) continue;
+      if (d[v] == inf) continue;
+      int sm = Xadj[start_v];
+      for (int t = Xadj[v] - sm; t < Xadj[v + 1] - sm; t++) {
+        if (d[local_Adjncy[t]] > d[v] + local_Eweights[t]) {
+          local_d[local_Adjncy[t]] = d[v] + local_Eweights[t];
+          d[local_Adjncy[t]] = local_d[local_Adjncy[t]];
+          local_stop = false;
+        }
+      }
+    }
+    all_reduce(world, local_stop, stop, boost::mpi::minimum<int>());
+    if (stop) {
+      break;
+    }
+  }
+	\end{verbatim}	
+После выполнения основного цикла на 0 процессе проверяется, не произошло ли обновление расстояний на последней итерации. Если флаг stop остался false после |V| итераций, это означает, что в графе есть отрицательный цикл. В этом случае все расстояния в векторе d устанавливаются в значение «-бесконечность»:
+	\vspace{-1em}
+	\begin{verbatim}
+ if (world.rank() == 0 && !stop) {
+    d.assign(n, -inf);
+  }
+	\end{verbatim}	
+
+
+
+
+    
+	\newpage
+
+    \section*{\centering Результаты тестирования}
+\addcontentsline{toc}{section}{Результаты тестирования}
+
+
+\indent Тестирование алгоритмов проводилось на графах различного размера. Результаты представлены в виде таблиц, содержащих время выполнения последовательного и параллельного алгоритмов при разном количестве процессов, а также ускорение и эффективность параллельной версии.
+
+\subsection*{Графы с 5000 элементов:}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Процессов & Время (сек) - Посл. & Время (сек) - Пар. & Ускорение & Эффективность \\ \hline
+        1         &  0.063       &   0.082     &     0.76    & 0.76      \\ \hline
+        2         &   0.063      &  0.06      &      1.05   &  0.525    \\ \hline
+        4         &   0.063      &  0.05      &     1.26    & 0.315     \\ \hline
+		8         &   0.063      &  0.043     &     1.47   &  0.18   \\ \hline
+    \end{tabular}
+    \caption{Результаты тестирования на графе 1}
+\end{table}
+
+\subsection*{Графы с 10000 элементов:}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Процессов & Время (сек) - Посл. & Время (сек) - Пар. & Ускорение & Эффективность \\ \hline
+        1         &  0.25       &   0.35     &     0.71    &  0.71    \\ \hline
+        2         &   0.25      &  0.25      &      1.00   &  0.5   \\ \hline
+        4         &   0.25      &  0.20     &     1.25   &   0.312    \\ \hline
+		8         &   0.25      &  0.15      &     1.67   &  0.20   \\ \hline
+    \end{tabular}
+    \caption{Результаты тестирования на графе 2}
+\end{table}
+
+\subsection*{Графы с 20000 элементов:}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        Процессов & Время (сек) - Посл. & Время (сек) - Пар. & Ускорение & Эффективность \\ \hline
+        1         &  1.10      &   1.40    &     0.78    & 0.78       \\ \hline
+        2         &  1.10      &  1.05    &      1.04    &  0.52    \\ \hline
+        4         &   1.10     &   0.83     &     1.325    &  0.33    \\ \hline
+		8         &  1.10      &   0.71     &     1.54   &  0.192    \\ \hline
+    \end{tabular}
+    \caption{Результаты тестирования на графе 3}
+\end{table}
+
+\newpage
+    \section*{\centering Анализ результатов}
+\addcontentsline{toc}{section}{Анализ результатов}
+
+\indent На основе полученных результатов можно сделать вывод, что параллельная версия алгоритма Беллмана-Форда демонстрирует ускорение по сравнению с последовательной версией при обработке достаточно больших графов. Величина ускорения возрастает с увеличением размера графа и количества используемых процессов. Однако, как видно из таблиц, при малом количестве вершин и большом количестве процессов ускорение замедляется, что может быть обусловлено накладными расходами на межпроцессное взаимодействие и делением графа на маленькие части. Эффективность параллельной версии также не является постоянной и зависит от соотношения вычислительной нагрузки и накладных расходов на передачу данных.  Необходимо провести дальнейшие исследования для анализа параметров графов и их влияния на производительность параллельного алгоритма.
+
+    \section*{\centering Заключение}
+\addcontentsline{toc}{section}{Заключение}
+\indent В данной работе была разработана и исследована параллельная реализация алгоритма Беллмана-Форда для поиска кратчайших путей на графах, представленных в формате CRS. Результаты тестирования показали, что параллельная версия алгоритма может существенно ускорить процесс решения задачи поиска кратчайших путей для графов большого размера.  Однако, необходимо учитывать, что на производительность параллельного алгоритма влияют как размер графа, так и количество задействованных процессов.
+\par  Перспективы дальнейших исследований включают оптимизацию распределения нагрузки между процессами, а также изучение влияния различных способов разделения графа на производительность параллельного алгоритма. Кроме того,  интерес представляет исследование алгоритмов для более эффективного взаимодействия между процессами при обмене данными, в том числе при работе с большими графами, которые не помещаются в память одного узла кластера.
+
+	\newpage
+	\section*{\centering Список литературы}
+	\addcontentsline{toc}{section}{Список литературы}
+	\begin{enumerate}[label={[\arabic*]}]
+    \item Cormen, T. H., Leiserson, C. E., Rivest, R. L., \& Stein, C. (2009). \textit{Introduction to algorithms} (3rd ed.). MIT Press. 
+     \item Kumar, V., Grama, A., Gupta, A., \& Karypis, G. (2003). \textit{Introduction to Parallel Computing} (2nd ed.). Addison-Wesley.
+    \item  Bellman, R. (1958). On a routing problem. \textit{Quarterly of Applied Mathematics}, \textit{16}(1), 87-90.
+    \item  Алексеев, В.Е., Таланов, В.А. (2006). \textit{Графы. Модели вычислений. Структуры данных.}  Издательство "Бином".
+     \item  Воеводин, В.В. (2002). \textit{Параллельные вычисления}. Издательство "БХВ-Петербург".
+\end{enumerate}
+		
+	
+	\newpage
+	\section*{\centering Приложение}
+	\addcontentsline{toc}{section}{Приложение}
+	\subsection*{\centering Файл <<ops seq.hpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops seq.hpp>>}
+	\begin{verbatim}
+// Filatev Vladislav Metod Belmana Forda
+#pragma once
+
+#include <vector>
+#include "core/task/include/task.hpp"
+
+namespace filatev_v_metod_belmana_forda_seq {
+
+class MetodBelmanaForda : public ppc::core::Task {
+ public:
+  explicit MetodBelmanaForda(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {};
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+ private:
+  int n;
+  int m;
+  int start;
+  std::vector<int> Adjncy;
+  std::vector<int> Xadj;
+  std::vector<int> Eweights;
+  std::vector<int> d;
+};
+
+}  // namespace filatev_v_metod_belmana_forda_seq
+	\end{verbatim}
+	
+	\newpage
+	\subsection*{\centering Файл <<ops seq.cpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops seq.cpp>>}
+	\begin{verbatim}
+// Filatev Vladislav Metod Belmana Forda
+#include "seq/filatev_v_metod_belmana_forda/include/ops_seq.hpp"
+
+bool filatev_v_metod_belmana_forda_seq::MetodBelmanaForda::validation() {
+  internal_order_test();
+  int n_ = taskData->inputs_count[0];
+  int m_ = taskData->inputs_count[1];
+  int start_ = taskData->inputs_count[2];
+  int n_o = taskData->outputs_count[0];
+  return n_ > 0 && m_ > 0 && m_ <= (n_ - 1) * n_ && start_ >= 0 && start_ < n_ && n_o == n_;
+}
+
+bool filatev_v_metod_belmana_forda_seq::MetodBelmanaForda::pre_processing() {
+  internal_order_test();
+
+  this->n = taskData->inputs_count[0];
+  this->m = taskData->inputs_count[1];
+  this->start = taskData->inputs_count[2];
+
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_seq::MetodBelmanaForda::run() {
+  internal_order_test();
+
+  int inf = std::numeric_limits<int>::max();
+  d.assign(n, inf);
+  d[start] = 0;
+
+  auto* temp = reinterpret_cast<int*>(taskData->inputs[0]);
+  this->Adjncy.assign(temp, temp + m);
+  temp = reinterpret_cast<int*>(taskData->inputs[1]);
+  this->Xadj.assign(temp, temp + n + 1);
+  temp = reinterpret_cast<int*>(taskData->inputs[2]);
+  this->Eweights.assign(temp, temp + m);
+
+  bool stop = true;
+  for (int i = 0; i < n; i++) {
+    stop = true;
+    for (int v = 0; v < n; v++) {
+      for (int t = Xadj[v]; t < Xadj[v + 1]; t++) {
+        if (d[v] < inf && d[Adjncy[t]] > d[v] + Eweights[t]) {
+          d[Adjncy[t]] = d[v] + Eweights[t];
+          stop = false;
+        }
+      }
+    }
+    if (stop) {
+      break;
+    }
+  }
+
+  if (!stop) {
+    d.assign(n, -inf);
+  }
+
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_seq::MetodBelmanaForda::post_processing() {
+  internal_order_test();
+  auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(d.begin(), d.end(), output_data);
+  return true;
+}
+	\end{verbatim}
+
+
+
+	
+	\newpage
+	\subsection*{\centering Файл <<ops mpi.hpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops mpi.hpp>>}
+	\begin{verbatim}
+// Filatev Vladislav Metod Belmana Forda
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace filatev_v_metod_belmana_forda_mpi {
+
+class MetodBelmanaFordaMPI : public ppc::core::Task {
+ public:
+  explicit MetodBelmanaFordaMPI(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {};
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  boost::mpi::communicator world;
+  int n;
+  int m;
+  int start;
+  std::vector<int> Adjncy;
+  std::vector<int> Xadj;
+  std::vector<int> Eweights;
+  std::vector<int> d;
+};
+
+class MetodBelmanaFordaSeq : public ppc::core::Task {
+ public:
+  explicit MetodBelmanaFordaSeq(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {};
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  int n;
+  int m;
+  int start;
+  std::vector<int> Adjncy;
+  std::vector<int> Xadj;
+  std::vector<int> Eweights;
+  std::vector<int> d;
+};
+
+}  // namespace filatev_v_metod_belmana_forda_mpi
+	\end{verbatim}
+
+
+	
+	\newpage
+	\subsection*{\centering Файл <<ops mpi.cpp>>}
+	\addcontentsline{toc}{subsection}{Файл <<ops mpi.cpp>>}
+	\begin{verbatim}
+// Filatev Vladislav Metod Belmana Forda
+#include "mpi/filatev_v_metod_belmana_forda/include/ops_mpi.hpp"
+
+#include <algorithm>
+#include <boost/serialization/vector.hpp>
+#include <vector>
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaMPI::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    int n_ = taskData->inputs_count[0];
+    int m_ = taskData->inputs_count[1];
+    int start_ = taskData->inputs_count[2];
+    int n_o = taskData->outputs_count[0];
+    return n_ > 0 && m_ > 0 && m_ <= (n_ - 1) * n_ && start_ >= 0 && start_ < n_ && n_o == n_;
+  }
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaMPI::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    this->n = taskData->inputs_count[0];
+    this->m = taskData->inputs_count[1];
+    this->start = taskData->inputs_count[2];
+  }
+  return true;
+}
+
+std::vector<int> vector_min(const std::vector<int>& a, const std::vector<int>& b) {
+  size_t size = a.size();
+  std::vector<int> result(size);
+  std::transform(a.begin(), a.end(), b.begin(), result.begin(), [](int a, int b) { return std::min(a, b); });
+  return result;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaMPI::run() {
+  internal_order_test();
+
+  boost::mpi::broadcast(world, n, 0);
+
+  int inf = std::numeric_limits<int>::max();
+  d.assign(n, inf);
+
+  int delta = n / world.size();
+  int ost = n % world.size();
+  std::vector<int> local_d(n, inf);
+
+  if (world.rank() == 0) {
+    d[start] = 0;
+    local_d[start] = 0;
+    auto* temp = reinterpret_cast<int*>(taskData->inputs[1]);
+    this->Xadj.assign(temp, temp + n + 1);
+  } else {
+    Xadj.resize(n + 1);
+  }
+  boost::mpi::broadcast(world, Xadj.data(), n + 1, 0);
+
+  std::vector<int> distribution(world.size(), 0);
+  std::vector<int> displacement(world.size(), 0);
+  int prev = Xadj[(ost == 0) ? delta : delta + 1];
+  distribution[0] = prev;
+  for (int i = 1; i < world.size(); i++) {
+    int teck = 0;
+    if (i < ost) {
+      teck = Xadj[(delta + 1) * (i + 1)];
+    } else {
+      teck = Xadj[(delta + 1) * ost + delta * (i + 1 - ost)];
+    }
+    distribution[i] = teck - prev;
+    displacement[i] = displacement[i - 1] + distribution[i - 1];
+    prev = teck;
+  }
+
+  int local_size = distribution[world.rank()];
+  std::vector<int> local_Adjncy(local_size);
+  std::vector<int> local_Eweights(local_size);
+
+  int* temp_Adjncy = nullptr;
+  int* temp_Eweights = nullptr;
+  if (world.rank() == 0) {
+    temp_Adjncy = reinterpret_cast<int*>(taskData->inputs[0]);
+    temp_Eweights = reinterpret_cast<int*>(taskData->inputs[2]);
+  }
+
+  boost::mpi::scatterv(world, temp_Adjncy, distribution, displacement, local_Adjncy.data(), local_size, 0);
+  boost::mpi::scatterv(world, temp_Eweights, distribution, displacement, local_Eweights.data(), local_size, 0);
+
+  int rank = world.rank();
+  int start_v = (rank < ost) ? (delta + 1) * rank : (delta + 1) * ost + (rank - ost) * delta;
+  int stop_v = (rank < ost) ? (delta + 1) * (rank + 1) : (delta + 1) * ost + (rank - ost + 1) * delta;
+
+  bool stop = true;
+  for (int i = 0; i < n; i++) {
+    all_reduce(world, local_d, d, vector_min);
+    bool local_stop = true;
+    for (int v = start_v; v < stop_v; v++) {
+      if (v > (int)Xadj.size() - 2) continue;
+      if (d[v] == inf) continue;
+      int sm = Xadj[start_v];
+      for (int t = Xadj[v] - sm; t < Xadj[v + 1] - sm; t++) {
+        if (d[local_Adjncy[t]] > d[v] + local_Eweights[t]) {
+          local_d[local_Adjncy[t]] = d[v] + local_Eweights[t];
+          d[local_Adjncy[t]] = local_d[local_Adjncy[t]];
+          local_stop = false;
+        }
+      }
+    }
+    all_reduce(world, local_stop, stop, boost::mpi::minimum<int>());
+    if (stop) {
+      break;
+    }
+  }
+  if (world.rank() == 0 && !stop) {
+    d.assign(n, -inf);
+  }
+
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+    std::copy(d.begin(), d.end(), output_data);
+  }
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaSeq::validation() {
+  internal_order_test();
+  int n_ = taskData->inputs_count[0];
+  int m_ = taskData->inputs_count[1];
+  int start_ = taskData->inputs_count[2];
+  int n_o = taskData->outputs_count[0];
+  return n_ > 0 && m_ > 0 && m_ <= (n_ - 1) * n_ && start_ >= 0 && start_ < n_ && n_o == n_;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaSeq::pre_processing() {
+  internal_order_test();
+
+  this->n = taskData->inputs_count[0];
+  this->m = taskData->inputs_count[1];
+  this->start = taskData->inputs_count[2];
+
+  auto* temp = reinterpret_cast<int*>(taskData->inputs[0]);
+  this->Adjncy.assign(temp, temp + m);
+  temp = reinterpret_cast<int*>(taskData->inputs[1]);
+  this->Xadj.assign(temp, temp + n + 1);
+  temp = reinterpret_cast<int*>(taskData->inputs[2]);
+  this->Eweights.assign(temp, temp + m);
+
+  this->d.resize(n);
+
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaSeq::run() {
+  internal_order_test();
+
+  int inf = std::numeric_limits<int>::max();
+  d.assign(n, inf);
+  d[start] = 0;
+
+  bool stop = true;
+  for (int i = 0; i < n; i++) {
+    stop = true;
+    for (int v = 0; v < n; v++) {
+      for (int t = Xadj[v]; t < Xadj[v + 1]; t++) {
+        if (d[v] < inf && d[Adjncy[t]] > d[v] + Eweights[t]) {
+          d[Adjncy[t]] = d[v] + Eweights[t];
+          stop = false;
+        }
+      }
+    }
+    if (stop) {
+      break;
+    }
+  }
+
+  if (!stop) {
+    d.assign(n, -inf);
+  }
+
+  return true;
+}
+
+bool filatev_v_metod_belmana_forda_mpi::MetodBelmanaFordaSeq::post_processing() {
+  internal_order_test();
+  auto* output_data = reinterpret_cast<int*>(taskData->outputs[0]);
+  std::copy(d.begin(), d.end(), output_data);
+  return true;
+}
+
+	\end{verbatim}
+
+
+
+    
+\end{document}
