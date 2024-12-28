@@ -1,0 +1,379 @@
+\documentclass[12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{hyperref}
+\usepackage{amsmath, amssymb}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{multirow}
+\usepackage{indentfirst} 
+\usepackage{tocloft}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=1.5cm, top=2cm, bottom=2cm}
+
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}} 
+\renewcommand{\cftsecfont}{\normalfont} 
+\renewcommand{\cftsecpagefont}{\normalfont}
+
+\renewcommand{\cfttoctitlefont}{\hfill\Large\bfseries}
+\renewcommand{\cftaftertoctitle}{\hfill\null}
+
+\setlength{\cftsecindent}{0pt} % отступ раздела
+\setlength{\cftsubsecindent}{20pt} % отступ подраздела
+\setlength{\parindent}{1.25cm} 
+
+\titleformat{\section}
+    {\Large\bfseries\center}
+    {\thesection}
+    {.3em}
+    {}
+
+\titleformat{\subsection}
+    {\large\bfseries\center}
+    {\thesubsection}
+    {0.3em}
+    {}
+
+\titleformat{\subsubsection}
+    {\normalsize\bfseries\center}
+    {\thesubsubsection}
+    {0.3em}
+    {}
+
+\renewcommand{\thesection}{\arabic{section}.}          
+\renewcommand{\thesubsection}{\thesection\arabic{subsection}}  
+
+\begin{document}
+\thispagestyle{empty}
+\begin{center}
+    {\bfseries
+    {\large «Национальный исследовательский Нижегородский государственный университет им.
+Н.И. Лобачевского» (ННГУ) }\\[2em]
+    {\large Институт информационных технологий математики и механики }\\[1em]
+    }
+    \vspace*{\fill} 
+    {\LARGE\bfseries Отчет}\\[1em]
+    {\large Вычисление многомерных интегралов с использованием многошаговой схемы 
+(метод прямоугольников).}\\[5em]
+    \vspace{\fill} 
+     \hfill\parbox{0.4\textwidth}{
+        Выполнил:\\
+        студент группы 3822Б1ПР2\\
+        Ермолаев Владислав Александрович\\[2em]
+        Преподаватель:\\
+        доцент, кандидат технических наук\\
+        Сысоев Александр Владимирович\\[2em]
+    }
+    
+    Нижний Новгород, 2024 г.
+\end{center}
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+В данной работе рассматривается задача вычисления многомерных интегралов методом прямоугольников с использованием параллельных вычислений на основе технологии MPI (Message Passing Interface).
+
+Метод прямоугольников является одним из простейших численных методов интегрирования. Его основная идея заключается в разбиении области интегрирования на малые прямоугольники и вычислении суммы их площадей. Несмотря на простоту, при достаточно мелком разбиении метод обеспечивает приемлемую точность.
+
+Однако при увеличении размерности интеграла и/или уменьшении шага разбиения вычислительная сложность задачи значительно возрастает. Это делает актуальным применение параллельных вычислений для ускорения процесса интегрирования.
+
+\newpage
+\section{Постановка задачи}
+\subsection{Математическая постановка}
+
+Дано:
+\begin{itemize}
+    \item Функция $f(\vec{x})$, где $\vec{x} = (x_1, x_2, ..., x_n)$ - вектор переменных
+    \item Область интегрирования $D = [a_1, b_1] \times [a_2, b_2] \times ... \times [a_n, b_n]$
+    \item Требуемая точность вычисления $\varepsilon > 0$
+\end{itemize}
+
+Требуется вычислить:
+\[
+I = \int\limits_D f(\vec{x})d\vec{x} = \int\limits_{a_1}^{b_1}\int\limits_{a_2}^{b_2}...\int\limits_{a_n}^{b_n} f(x_1,x_2,...,x_n)dx_1dx_2...dx_n
+\]
+\subsection{Программная постановка задачи}
+
+Требуется реализовать последовательную и параллельную версии алгоритма вычисления многомерного интеграла методом прямоугольников.
+
+\subsubsection{Входные данные}
+\begin{itemize}
+    \item $limits$ --- вектор пар $(a_i, b_i)$, задающих пределы интегрирования по каждой переменной, где:
+    \begin{itemize}
+        \item $a_i$ --- нижний предел интегрирования по $i$-й переменной
+        \item $b_i$ --- верхний предел интегрирования по $i$-й переменной
+    \end{itemize}
+    \item $eps$ --- требуемая точность вычисления интеграла
+    \item $f(\vec{x})$ --- интегрируемая функция нескольких переменных
+\end{itemize}
+
+\subsubsection{Выходные данные}
+Значение определенного интеграла функции $f(\vec{x})$ по области, заданной пределами интегрирования, с точностью $eps$
+
+\newpage
+\section{Описание алгоритма}
+
+Алгоритм вычисляет многомерный определённый интеграл методом прямоугольников с адаптивным шагом. Реализованы последовательная и параллельная (MPI) версии.
+
+Интегрирование выполняется рекурсивно по каждому измерению:
+
+\begin{enumerate}
+    \item На каждом уровне рекурсии обрабатывается одно измерение $[a_i,b_i]$
+    \item Область разбивается на $n$ равных частей с шагом $h = \frac{b_i-a_i}{n}$
+    \item В каждой точке разбиения $x_k = a_i + h(k+\frac{1}{2})$ вычисляется:
+    \begin{itemize}
+        \item Значение функции $f(x_k)$, если это последнее измерение
+        \item Рекурсивный вызов для следующего измерения, если измерения остались
+    \end{itemize}
+    \item Результат вычисляется как сумма: $I = h\sum_{k=0}^{n-1} f(x_k)$
+    \item Число разбиений $n$ удваивается, пока не достигнута заданная точность:
+     \[ |I_{n} - I_{n/2}| \cdot \frac{1}{3} \leq \varepsilon \] 
+\end{enumerate}
+
+\newpage
+\section{Схема распараллеливания}
+\subsection{Описание схемы распараллеливания}
+\begin{enumerate}
+    \item Разбиение по первой (внешней) переменной интегрирования $x_1$:
+    \begin{itemize}
+        \item Интервал $[a_1, b_1]$ делится на $p$ равных частей, где $p$ - количество процессов
+        \item Каждый процесс получает подинтервал $[a_1 + \frac{i(b_1-a_1)}{p}, a_1 + \frac{(i+1)(b_1-a_1)}{p}]$
+        \item Начальное количество точек разбиения $n = p$ 
+    \end{itemize}
+
+    \item Для каждого процесса:
+    \begin{itemize}
+        \item Начальное количество точек разбиения --- $\frac{n}{p}$ 
+        \item Вычисляется локальная сумма $I_{local}$ методом прямоугольников на своем подинтервале
+        \item Для внутренних интегралов используется последовательный алгоритм
+    \end{itemize}
+
+    \item Итерационный процесс:
+    \begin{itemize}
+        \item На каждой итерации $n$ удваивается
+        \item Вычисляются новые локальные суммы
+        \item Все локальные суммы собираются на процессе 0 через \texttt{boost::mpi::reduce}
+        \item Проверяется условие сходимости $|I_{new} - I_{old}| \cdot \frac{1}{3} \leq \varepsilon$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Особенности реализации}
+\begin{itemize}
+    \item Используется рекурсивный алгоритм для вычисления внутренних интегралов
+    \item Границы интегрирования и команда остановки вычислений, при достижении заданной точности $\varepsilon$, рассылаются через \texttt{boost::mpi::broadcast}
+    \item Результат возвращается только процессом 0
+\end{itemize}
+
+\newpage
+\section{Эксперименты}
+\subsection{Условия проведения}
+Для достижения корректности результатов была использована версия программы с последними изменениями (\href{https://github.com/learning-process/ppc-2024-autumn/pull/729}{PR \#729}).
+
+\subsubsection{Технические характеристики тестовой системы:} 
+\begin{itemize}
+    \item Операционная система: Windows 11 24H2
+    \item Система виртуализации: VMware Workstation 17   
+    \item Операционная система виртуальной машины: Ubuntu 23.10
+    \item Процессор: 13th Gen Intel(R) Core(TM) i5-13500H 2.60 GHz
+    \item Оперативная память виртуальной машины: 8 ГБ.
+\end{itemize}
+
+\subsubsection{Синтетическая задача для теста производительности:}
+\[
+I = \underbrace{\int\limits_{-7}^{7} \int\limits_{-7}^{7} \cdots \int\limits_{-7}^{7}}_{10\text{ раз}} x_1 \, dx_1 \, dx_2 \cdots dx_{10}
+\]
+
+где:
+\begin{itemize}
+    \item Количество измерений $n = 10$
+    \item Все пределы интегрирования одинаковы: $[-7, 7]$
+    \item Подынтегральная функция $f(x_1, x_2, \ldots, x_{10}) = x_1$
+    \item Точность вычисления $\varepsilon = 10^{-4}$
+\end{itemize}
+
+\subsection{Результаты}
+Результаты локального выполнения тестов для последовательной и параллельной версии на четырех процессах:
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+     Версия & Тип & Время выполнения\\
+\hline
+\multirow{2}{*}{seq} & pipeline & 1.5886989940 \\
+\cline{2-3}
+& task & 1.6847531720 \\
+    \hline
+\multirow{2}{*}{mpi} & pipeline & 0.6661800230 \\
+\cline{2-3}
+& task & 0.6551218480 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Анализ результатов}
+Анализируя результаты выполнения тестов на четырех процессах, можно сделать следующие наблюдения:
+\begin{enumerate}
+    \item Сравнение последовательной и параллельной версий:
+    \begin{itemize}
+        \item В режиме pipeline: ускорение составило 
+            \[ S = \frac{1.5856989940}{0.6661800230} \approx 2.38 \]
+        \item В режиме task: ускорение составило
+            \[ S = \frac{1.6847531720}{0.6551218480} \approx 2.57 \]
+    \end{itemize}
+
+    \item Эффективность распараллеливания:
+        \[ E_{pipeline} = \frac{2.38}{4} \approx 0.595 \text{ или } 59.5\% \]
+        \[ E_{task} = \frac{2.57}{4} \approx 0.643 \text{ или } 64.3\% \]
+\end{enumerate}
+
+\subsection{Выводы}
+
+\begin{enumerate}
+    \item Параллельная реализация демонстрирует существенное ускорение по сравнению с последовательной версией, достигая ускорения в 2.57 раза на 4 процессах.
+    
+    \item Эффективность распараллеливания находится на достаточно хорошем уровне (59.5-64.3\%). Неполное достижение теоретического ускорения (в 4 раза) объясняется:
+    \begin{itemize}
+        \item Накладными расходами на межпроцессное взаимодействие
+        \item Рекурсивной природой алгоритма
+        \item Необходимостью синхронизации процессов
+    \end{itemize}
+\end{enumerate}
+
+\newpage
+\section{Заключение}
+В рамках данной работы была успешно решена задача вычисления многомерных интегралов методом прямоугольников с применением параллельных вычислений на базе технологии MPI. 
+Основные результаты работы:
+
+\begin{enumerate}
+    \item Разработаны и реализованы:
+    \begin{itemize}
+        \item Последовательный алгоритм вычисления многомерных интегралов методом прямоугольников
+        \item Параллельная версия алгоритма с использованием MPI для распределения вычислительной нагрузки
+    \end{itemize}
+    
+    \item Реализованные алгоритмы позволяют:
+    \begin{itemize}
+        \item Вычислять интегралы произвольной размерности
+        \item Задавать произвольные пределы интегрирования для каждой переменной
+        \item Контролировать точность вычислений через параметр eps
+    \end{itemize}
+\end{enumerate}
+
+Разработанное решение позволяет эффективно решать задачу численного интегрирования в многомерном пространстве, используя преимущества параллельных вычислений для уменьшения времени расчетов. 
+
+Практическая значимость работы заключается в возможности применения разработанного программного обеспечения для решения широкого класса задач, требующих вычисления многомерных интегралов, в различных областях науки и техники.
+
+\newpage
+\section{Литература}
+
+\begin{thebibliography}{2}
+
+\bibitem{runge} Правило Рунге [Электронный ресурс] // Википедия. Свободная энциклопедия. — URL: \url{https://ru.wikipedia.org/wiki/Правило_Рунге#Оценка_точности_вычисления_определённого_интеграла} (дата обращения: 24.12.2024).
+
+\bibitem{numerical} Уткин П.С. Численное интегрирование [Электронный ресурс] — URL: \url{https://enlib.ru/media/uploads/2022/04/02/kibkyo.pdf} (дата обращения: 24.12.2024).
+
+\end{thebibliography}
+
+\newpage
+\section{Приложение}
+
+В данном разделе представлены основные функции
+
+\subsection{integrateImpl}
+\begin{verbatim}
+double integrateImpl(std::deque<std::pair<double, double>>& limits,
+                                         std::vector<double>& args,
+                                 const function& func, double eps) {
+  double I = 0;
+  double I0;
+  int n = 2;
+
+  auto [a, b] = limits.front();
+  limits.pop_front();
+  args.push_back(double{});
+
+  do {
+    I0 = I;
+    I = 0;
+
+    double h = (b - a) / n;
+    args.back() = a + h / 2;
+    for (int i = 0; i < n; i++) {
+      if (limits.empty())
+        I += func(args) * h;
+      else
+        I += integrateImpl(limits, args, func, eps) * h;
+
+      args.back() += h;
+    }
+
+    n *= 2;
+  } while (std::abs(I - I0) * 1 / 3 > eps);
+
+  args.pop_back();
+  limits.emplace_front(a, b);
+
+  return I;
+}
+\end{verbatim}
+\newpage
+
+\subsection{integrateMPI}
+\begin{verbatim}
+double integrateMPI(boost::mpi::communicator& world,
+                    std::deque<std::pair<double, double>> limits,
+                                double eps, const function& func) {
+  std::vector<double> args;
+  broadcast(world, limits, 0);
+  broadcast(world, eps, 0);
+
+  double I = 0;
+  double I0;
+  double localI;
+  int n = world.size();
+
+  auto [a, b] = limits.front();
+  double step = (b - a) / world.size();
+
+  double localA = a + step * world.rank();
+  double localB = localA + step;
+
+  limits.pop_front();
+  args.push_back(double{});
+
+  bool flag = true;
+  while (flag) {
+    I0 = I;
+    I = 0;
+    localI = 0;
+
+    int count_of_points = n / world.size();
+    double h = (localB - localA) / count_of_points;
+    args.back() = localA + h / 2;
+    for (int i = 0; i < count_of_points; i++) {
+      if (limits.empty())
+        localI += func(args) * h;
+      else
+        localI += integrateImpl(limits, args, func, eps) * h;
+
+      args.back() += h;
+    }
+
+    reduce(world, localI, I, std::plus<>(), 0);
+
+    if (world.rank() == 0 && std::abs(I - I0) * 1 / 3 <= eps) flag = false;
+    broadcast(world, flag, 0);
+
+    n *= 2;
+  }
+
+  if (world.rank() == 0) return I;
+  return 0;
+}
+\end{verbatim}
+
+\end{document}
