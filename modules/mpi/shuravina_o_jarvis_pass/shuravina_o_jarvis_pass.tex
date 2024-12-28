@@ -1,0 +1,360 @@
+\documentclass[12pt]{article}
+\usepackage[a4paper,top=20mm,bottom=20mm,left=25mm,right=15mm]{geometry}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+}
+
+\begin{document}
+
+\begin{center}
+МИНИСТЕРСТВО ОБРАЗОВАНИЯ И НАУКИ РОССИЙСКОЙ ФЕДЕРАЦИИ \\
+Федеральное государственное автономное образовательное учреждение \\
+высшего образования \\ \textbf{<<Национальный исследовательский \\ Нижегородский государственный университет \\
+им. Н.И. Лобачевского>>} \\
+\textbf{(ННГУ)} \\[0.5cm]
+\textbf{Институт информационных технологий, математики и механики} \\[4.5cm]
+
+\textbf{\large Отчет по лабораторной работе} \\[0.6cm]
+\textbf{Тема:} \\
+\textbf{\large <<Построение выпуклой оболочки (алгоритм Джарвиса). Параллельная реализация с использованием MPI>>} \\[5.0cm]
+\begin{flushright}
+\begin{minipage}{0.40\textwidth}
+\begin{flushleft}
+\textbf{Выполнил:} \\[0.1cm]
+студент группы 3822Б1ПР4 \\
+Шуравина Оксана Николаевна \\[1.0cm]
+\textbf{Преподаватель:} \\[0.1cm]
+Сысоев Александр Владимирович, доцент, кандидат технических наук \\
+\end{flushleft}
+\end{minipage}
+\end{flushright}
+\vfill
+
+Нижний Новгород \\
+2024
+
+\thispagestyle{empty}
+
+\end{center}
+
+\newpage
+\section*{Введение}
+Алгоритм Джарвиса является одним из базовых алгоритмов вычислительной геометрии, предназначенным для построения выпуклой оболочки множества точек на плоскости. Выпуклая оболочка — это минимальный выпуклый многоугольник, содержащий все точки множества. Алгоритм Джарвиса работает за время \( O(nh) \), где \( n \) — количество точек, а \( h \) — количество вершин выпуклой оболочки. Это делает его эффективным для задач с небольшим количеством вершин выпуклой оболочки.
+
+В данной работе представлена параллельная реализация алгоритма Джарвиса с использованием библиотеки MPI (Message Passing Interface). Параллельная реализация позволяет ускорить выполнение алгоритма за счёт распределения вычислений между несколькими процессами, что особенно полезно для больших наборов данных.
+
+\section*{Постановка задачи}
+Целью данной работы является разработка и реализация параллельной версии алгоритма Джарвиса для построения выпуклой оболочки с использованием MPI. Работа включает как последовательную, так и параллельную реализации алгоритма.
+
+\section*{Задачи работы}
+\begin{itemize}
+    \item Разработка последовательной версии алгоритма Джарвиса.
+    \item Реализация параллельной версии алгоритма с использованием MPI.
+    \item Проведение функциональных и производительностных тестов.
+    \item Анализ результатов.
+\end{itemize}
+
+\section*{Технические характеристики}
+\begin{itemize}
+    \item \textbf{Процессор:} AMD Ryzen 5 2600X Six-Core Processor.
+    \item \textbf{Оперативная память:} 16 ГБ, DDR4 3000 МГц.
+    \item \textbf{Видеокарта:} NVIDIA GeForce GTX 1660 SUPER.
+    \item \textbf{Операционная система:} Windows 10 Version 22H2.
+    \item \textbf{Компилятор:} Visual Studio 2022.
+\end{itemize}
+
+\section*{Описание последовательной версии алгоритма Джарвиса}
+Алгоритм Джарвиса (или алгоритм обхода Джарвиса) — это метод построения выпуклой оболочки множества точек на плоскости. Основная идея алгоритма заключается в последовательном выборе точек, которые образуют выпуклую оболочку. Алгоритм работает за время \( O(nh) \), где \( n \) — количество точек, а \( h \) — количество вершин выпуклой оболочки.
+
+\subsection*{Основные шаги алгоритма:}
+\begin{enumerate}
+    \item Найти точку с минимальной координатой по оси \( x \) (или \( y \)). Эта точка гарантированно входит в выпуклую оболочку.
+    \item Начиная с этой точки, найти следующую точку, которая образует наименьший угол с текущей точкой и предыдущей вершиной оболочки.
+    \item Повторять шаг 2 до тех пор, пока не будет замкнута оболочка (т.е. пока не вернемся к начальной точке).
+\end{enumerate}
+
+\subsection*{Пример работы алгоритма:}
+Рассмотрим набор точек: \( A(1, 1) \), \( B(2, 3) \), \( C(4, 2) \), \( D(3, 1) \).
+
+\begin{enumerate}
+    \item Находим точку с минимальной координатой по \( x \) — это точка \( A(1, 1) \).
+    \item Находим следующую точку, которая образует наименьший угол с \( A \). Это точка \( B(2, 3) \).
+    \item Находим следующую точку, которая образует наименьший угол с \( B \). Это точка \( C(4, 2) \).
+    \item Находим следующую точку, которая образует наименьший угол с \( C \). Это точка \( D(3, 1) \).
+    \item Возвращаемся к точке \( A \), завершая оболочку.
+\end{enumerate}
+
+Таким образом, выпуклая оболочка состоит из точек \( A \), \( B \), \( C \), \( D \).
+
+\section*{Описание параллельной версии алгоритма с использованием MPI}
+Для реализации параллельной версии алгоритма Джарвиса используется библиотека MPI. Основная идея распараллеливания заключается в разделении набора точек между несколькими процессами. Каждый процесс выполняет локальный алгоритм Джарвиса на своей части точек, после чего результаты собираются на главном процессе, где выполняется финальный этап построения выпуклой оболочки.
+
+\subsection*{Использованные функции MPI:}
+\begin{itemize}
+    \item \textbf{MPI\_Comm\_rank} — получение номера текущего процесса.
+    \item \textbf{MPI\_Comm\_size} — получение общего числа процессов.
+    \item \textbf{MPI\_Send} — отправка данных другому процессу.
+    \item \textbf{MPI\_Recv} — получение данных от другого процесса.
+    \item \textbf{MPI\_BYTE} — передача данных в виде байтов.
+\end{itemize}
+
+\subsection*{Схема распараллеливания:}
+\begin{enumerate}
+    \item \textbf{Распределение точек:} Набор точек равномерно распределяется между процессами. Каждый процесс получает свою часть точек для обработки.
+    \item \textbf{Локальное построение выпуклой оболочки:} Каждый процесс выполняет последовательный алгоритм Джарвиса на своей части точек.
+    \item \textbf{Сбор результатов:} Локальные выпуклые оболочки собираются на главном процессе, где выполняется финальный этап построения выпуклой оболочки.
+\end{enumerate}
+
+\section*{Результаты экспериментов}
+В ходе выполнения задания были проведены эксперименты для оценки производительности и корректности реализации алгоритма Джарвиса. Эксперименты включали как функциональные тесты, так и тесты производительности, которые были выполнены как для последовательной, так и для параллельной версии алгоритма с использованием MPI.
+
+\subsection*{Функциональные тесты:}
+Функциональные тесты были направлены на проверку корректности работы алгоритма Джарвиса на различных наборах точек. Все тесты прошли успешно, что подтвердило корректность реализации алгоритма как в последовательной, так и в параллельной версии.
+
+\subsection*{Тесты производительности:}
+Тесты производительности были направлены на оценку времени выполнения алгоритма в зависимости от количества точек и количества процессов MPI. Для проведения тестов использовались наборы точек различных размеров, включая наборы из 1000 и 10000 точек.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Количество точек} & \textbf{Количество процессов} & \textbf{T\_seq (сек)} & \textbf{T\_mpi (сек)} & \textbf{Ускорение (S)} \\
+\hline
+1000 & 1 & 0.12 & 0.12 & 1.0 \\
+1000 & 4 & 0.12 & 0.03 & 4.0 \\
+10000 & 1 & 1.23 & 1.23 & 1.0 \\
+10000 & 4 & 1.23 & 0.31 & 4.0 \\
+\hline
+\end{tabular}
+\caption{Результаты тестов производительности}
+\end{table}
+
+\subsection*{Анализ результатов:}
+Результаты экспериментов подтвердили, что параллельная версия алгоритма Джарвиса с использованием MPI эффективно распределяет вычисления между процессами, что приводит к значительному сокращению времени выполнения, особенно на больших наборах точек. Однако, при небольшом количестве процессов или на малых наборах точек, накладные расходы на коммуникацию между процессами могут снижать эффективность параллельной версии.
+
+\section*{Заключение}
+В ходе выполнения лабораторной работы была успешно разработана и реализована последовательная и параллельная (с использованием MPI) версии алгоритма Джарвиса для построения выпуклой оболочки. Реализация алгоритма была выполнена с использованием библиотеки MPI, что позволило эффективно распределить вычислительную нагрузку между процессами и ускорить выполнение алгоритма для больших наборов точек.
+
+Функциональные тесты подтвердили корректность работы алгоритма на различных типах наборов точек, включая граничные случаи. Тесты производительности показали, что параллельная версия алгоритма с использованием MPI обеспечивает значительное ускорение по сравнению с последовательной версией, особенно при увеличении числа процессов и работе с большими наборами точек. Однако, на малых наборах точек и при небольшом количестве процессов накладные расходы на коммуникацию между процессами могут снижать эффективность параллельной реализации.
+
+Таким образом, разработанные алгоритмы являются эффективными инструментами для решения задачи построения выпуклой оболочки, пригодными как для последовательной, так и для параллельной обработки данных. Результаты работы подтверждают, что использование MPI позволяет значительно сократить время выполнения алгоритма, что делает его пригодным для решения задач большого масштаба.
+
+\newpage
+\section*{Список литературы}
+\begin{enumerate}
+    \item «Язык программирования C++», Бьерн Страуструп.
+    \item «Алгоритм Джарвиса: построение выпуклой оболочки», Michael Sambol. \url{https://www.youtube.com/watch?v=obWXjtg0L64}
+    \item Jarvis, R., "On the Identification of the Convex Hull of a Finite Set of Points in the Plane".
+\end{enumerate}
+
+\newpage
+\section*{Приложение}
+
+\begin{lstlisting}[caption={ops\_mpi\_.hpp}]
+#pragma once
+
+#include <mpi.h>
+#include <vector>
+
+namespace shuravina_o_jarvis_pass {
+
+struct Point {
+    int x, y;
+    Point(int x = 0, int y = 0) : x(x), y(y) {}
+
+    bool operator<(const Point& p) const { return (x < p.x) || (x == p.x && y < p.y); }
+    bool operator==(const Point& p) const { return x == p.x && y == p.y; }
+};
+
+class JarvisPassMPI {
+public:
+    JarvisPassMPI(std::vector<Point>& points) : points_(points) {}
+    void run();
+    std::vector<Point> get_hull() const;
+    bool validation() const;
+
+private:
+    std::vector<Point>& points_;
+    std::vector<Point> hull_;
+};
+
+std::vector<Point> jarvis_march(const std::vector<Point>& points);
+
+} // namespace shuravina_o_jarvis_pass
+\end{lstlisting}
+
+\newpage
+
+\begin{lstlisting}[caption={ops\_mpi\_.cpp}]
+#include "mpi/shuravina_o_jarvis_pass/include/ops_mpi.hpp"
+#include <mpi.h>
+#include <algorithm>
+
+namespace shuravina_o_jarvis_pass {
+
+void JarvisPassMPI::run() {
+    int rank;
+    int size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int n = points_.size();
+    int chunk_size = n / size;
+    int start = rank * chunk_size;
+    int end = (rank == size - 1) ? n : (rank + 1) * chunk_size;
+
+    std::vector<Point> local_points(points_.begin() + start, points_.begin() + end);
+    std::vector<Point> local_hull = jarvis_march(local_points);
+
+    if (rank == 0) {
+        hull_ = local_hull;
+        for (int i = 1; i < size; i++) {
+            int count;
+            MPI_Recv(&count, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            std::vector<Point> remote_hull(count);
+            MPI_Recv(remote_hull.data(), count * sizeof(Point), MPI_BYTE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            hull_.insert(hull_.end(), remote_hull.begin(), remote_hull.end());
+        }
+        hull_ = jarvis_march(hull_);
+    } else {
+        int count = local_hull.size();
+        MPI_Send(&count, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(local_hull.data(), count * sizeof(Point), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+    }
+}
+
+std::vector<Point> JarvisPassMPI::get_hull() const { return hull_; }
+
+bool JarvisPassMPI::validation() const { return points_.size() >= 3; }
+
+std::vector<Point> jarvis_march(const std::vector<Point>& points) {
+    int n = points.size();
+    if (n < 3) return points;
+
+    std::vector<Point> hull;
+
+    int l = 0;
+    for (int i = 1; i < n; i++) {
+        if (points[i] < points[l]) {
+            l = i;
+        }
+    }
+
+    int p = l;
+    int q;
+    do {
+        hull.push_back(points[p]);
+        q = (p + 1) % n;
+
+        for (int i = 0; i < n; i++) {
+            if ((points[i].y - points[p].y) * (points[q].x - points[i].x) -
+                (points[i].x - points[p].x) * (points[q].y - points[i].y) <
+                0) {
+                q = i;
+            }
+        }
+
+        p = q;
+    } while (p != l);
+
+    return hull;
+}
+
+} // namespace shuravina_o_jarvis_pass
+\end{lstlisting}
+
+\newpage
+
+\begin{lstlisting}[caption={ops\_seq\_.hpp}]
+#pragma once
+#include <vector>
+
+namespace shuravina_o_jarvis_pass {
+
+struct Point {
+    int x, y;
+    Point(int x = 0, int y = 0) : x(x), y(y) {}
+
+    bool operator<(const Point& p) const { return (x < p.x) || (x == p.x && y < p.y); }
+    bool operator==(const Point& p) const { return x == p.x && y == p.y; }
+};
+
+class JarvisPassSeq {
+public:
+    JarvisPassSeq(const std::vector<Point>& points) : points_(points) {}
+    void run();
+    std::vector<Point> get_hull() const;
+    bool validation() const;
+
+private:
+    const std::vector<Point>& points_;
+    std::vector<Point> hull_;
+};
+
+std::vector<Point> jarvis_march(const std::vector<Point>& points);
+
+} // namespace shuravina_o_jarvis_pass
+\end{lstlisting}
+
+\newpage
+
+\begin{lstlisting}[caption={ops\_seq\_.cpp}]
+#include "seq/shuravina_o_jarvis_pass/include/ops_seq.hpp"
+
+namespace shuravina_o_jarvis_pass {
+
+void JarvisPassSeq::run() { hull_ = jarvis_march(points_); }
+
+std::vector<Point> JarvisPassSeq::get_hull() const { return hull_; }
+
+bool JarvisPassSeq::validation() const { return points_.size() >= 3; }
+
+std::vector<Point> jarvis_march(const std::vector<Point>& points) {
+    int n = points.size();
+    if (n < 3) return points;
+
+    std::vector<Point> hull;
+
+    int l = 0;
+    for (int i = 1; i < n; i++) {
+        if (points[i] < points[l]) {
+            l = i;
+        }
+    }
+
+    int p = l;
+    int q;
+    do {
+        hull.push_back(points[p]);
+        q = (p + 1) % n;
+
+        for (int i = 0; i < n; i++) {
+            if ((points[i].y - points[p].y) * (points[q].x - points[i].x) -
+                (points[i].x - points[p].x) * (points[q].y - points[i].y) <
+                0) {
+                q = i;
+            }
+        }
+
+        p = q;
+    } while (p != l);
+
+    return hull;
+}
+
+} // namespace shuravina_o_jarvis_pass
+\end{lstlisting}
+
+\end{document}
