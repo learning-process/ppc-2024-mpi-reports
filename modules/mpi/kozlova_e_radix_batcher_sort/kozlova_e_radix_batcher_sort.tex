@@ -1,0 +1,435 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{indentfirst}
+\geometry{top=2cm,bottom=2cm,left=2cm,right=2cm}
+\lstset{
+  language=C++, 
+  basicstyle=\ttfamily\small, 
+  numbers=left, 
+  numberstyle=\tiny, 
+  stepnumber=1, 
+  tabsize=4, 
+  breaklines=true, 
+  frame=single, 
+  captionpos=b 
+}
+
+
+\titleformat{\section}[block]{\bfseries\large\centering}{\thesection.}{1em}{}
+\titleformat{\subsection}[block]{\bfseries\normalsize}{\thesubsection.}{1em}{}
+
+\title{
+\large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[0.5cm]
+    Институт информационных технологий, математики и механики\\[0.5cm]
+\vfill
+\textbf{\Large Отчет по лабораторной работе}\\[0.5cm]
+\textbf{\Large Вариант 21}\\[0.5cm]
+\textbf{\Large Поразрядная сортировка с четно-нечетным слиянием Бэтчера} \\[1.0cm]
+}
+\author{
+\textbf{Выполнила:} Козлова Екатерина ФИ3\\[0.2cm]
+\textbf{Преподаватель:} Сысоев А.В., доцент кафедры ВВСП \\[5cm]
+}
+\date{}
+
+\begin{document}
+
+\maketitle
+\vfill
+\begin{center}
+\normalsize Нижний Новгород \\ 2024
+\end{center}
+
+\newpage
+
+\section*{\centering Введение}
+
+Алгоритмы сортировки представляют собой одну из наиболее фундаментальных задач вычислительной математики и информатики. Среди них поразрядная сортировка занимает особое место, так как позволяет обрабатывать большие объемы данных за линейное время в зависимости от числа элементов и длины их битового представления. В данной работе рассматривается модификация поразрядной сортировки, предназначенная для вещественных чисел, с распараллеливанием вычислений и четно-нечетным слиянием Бэтчера. 
+
+Цель работы — разработать последовательную и параллельную версии поразрядной сортировки для вещественных чисел типа \texttt{double}, протестировать их корректность и провести сравнительный анализ производительности.
+
+\newpage
+
+\section*{\centering Постановка задачи}
+
+Целью данной лабораторной работы является исследование и реализация алгоритма поразрядной сортировки с четно-нечетным слиянием Бэтчера для вещественных чисел. Основные этапы задачи:
+\begin{enumerate}
+    \item Разработка последовательного алгоритма поразрядной сортировки, поддерживающего корректную работу с числами типа \texttt{double}, включая отрицательные значения.
+    \item Построение параллельной версии алгоритма с использованием четно-нечетного слияния Бэтчера для объединения отсортированных частей массива.
+    \item Использование библиотеки \texttt{Boost MPI} для эффективного распределения вычислений между несколькими процессами.
+    \item Проведение серии экспериментов для оценки производительности алгоритмов: последовательного и параллельного.
+    \item Сравнение результатов и анализ эффективности параллелизации.
+\end{enumerate}
+
+Успешное выполнение задачи должно продемонстрировать прирост производительности параллельного подхода и подтвердить его корректность.
+
+\newpage
+
+\section*{\centering Описание алгоритма}
+
+Поразрядная сортировка (Radix Sort) — алгоритм сортировки, который сортирует числа путем обработки отдельных разрядов их представления, начиная с младшего и заканчивая старшим. Основная идея заключается в использовании стабильной сортировки на каждом разряде. Выполняется за линейное время.
+
+Особенности алгоритма:
+\begin{itemize}
+    \item Для вещественных чисел используется преобразование: каждый элемент массива преобразуется в его 64-битное представление, что позволяет работать с числами на уровне их битов. Для корректной сортировки отрицательных чисел старший бит (бит знака) инвертируется, чтобы все отрицательные числа были обработаны как положительные, не нарушая общей логики сортировки. Это обеспечивает корректное поведение сортировки.
+    \item Сложность алгоритма составляет \(O(kn)\), где \(n\) — количество элементов, \(k\) — их длина (количесто разрядов).
+    \item Четно-нечетное слияние Бэтчера применяется в параллельной версии для объединения отсортированных частей данных. Этот метод основан на разбиении массива и последовательном объединении соседних блоков.
+\end{itemize}
+
+Алгоритм в данном проекте позволяет работать с вещественными числами типа \texttt{double}, что увеличивает его сложность, но позволяет обрабатывать реалистичные наборы данных.
+
+\newpage
+
+\section*{\centering Описание схемы распараллеливания}
+
+Распараллеливание реализовано с использованием библиотеки \texttt{Boost MPI}, которая предоставляет инструменты для обмена данными между процессами. Основные этапы распараллеливания:
+\begin{enumerate}
+    \item \textbf{Разделение данных}:
+    Главный процесс делит исходный массив на части, равные числу процессов, с использованием функции \texttt{scatterv}. Это позволяет равномерно распределить данные между узлами.
+    \item \textbf{Локальная обработка}:
+    Каждый процесс выполняет поразрядную сортировку своей части массива.
+    \item \textbf{Обмен данными}:
+    Для упорядочивания элементов во всем массиве процессы обмениваются данными своих подмассивов с соседними процессами, что позволяет постепенно улучшать сортировку всего набора данных.
+    \item \textbf{Слияние Бэтчера}:
+    Реализуется многопроцессное объединение данных с использованием четно-нечетного алгоритма. Суть метода заключается в чередующемся слиянии данных между процессами на разных этапах.
+    На каждом шаге один процесс будет обмениваться данными с другим, причем очередность этого обмена зависит от фазы слияния (чётная или нечётная).
+    \item \textbf{Сбор результатов}:
+    После выполнения всех операций данные собираются обратно на главном процессе с использованием функции \texttt{gatherv}.
+\end{enumerate}
+
+Схема позволяет эффективно использовать ресурсы вычислительной системы и минимизировать затраты на синхронизацию.
+
+\newpage
+
+\section*{\centering MPI-версия: описание программной реализации}
+
+Программная реализация алгоритма использует библиотеку \texttt{Boost MPI} и включает:
+\begin{enumerate}
+    \item Инициализацию MPI и распределение данных между процессами.
+    \item Преобразование данных в битовое представление для поразрядной сортировки.
+    \item Реализацию четно-нечетного слияния для объединения отсортированных данных.
+    \item Сбор данных на главном процессе и преобразование их в исходный формат.
+\end{enumerate}
+
+\newpage
+
+\section*{\centering Результаты экспериментов}
+
+Эксперименты проводились на вычислительном кластере с 4 процессами. Тестовые данные:
+\begin{itemize}
+    \item Размер массива: 100 000 элементов.
+    \item Тип данных: случайные вещественные числа в диапазоне [-100.0, 100.0].
+\end{itemize}
+
+Результаты:
+\begin{itemize}
+    \item Последовательная версия:
+    \begin{itemize}
+        \item Время выполнения для 100 000 элементов: 4.3 секунды.
+    \end{itemize}
+    \item Параллельная версия:
+    \begin{itemize}
+        \item Время выполнения для 100 000 элементов на 4 процессах: 0.99 секунды.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Выводы из результатов экспериментов}
+
+Полученные результаты показывают сокращение времени выполнения алгоритма при переходе от последовательной к параллельной реализации. Ускорение составило примерно 4 раза на 4 процессах. Это демонстрирует эффективность параллельного подхода и подтверждает, что схема четно-нечетного слияния Бэтчера позволяет достигать прирост производительности. Однако возможны дополнительные потери производительности из-за накладных расходов на обмен данными между процессами. Таким образом, оптимизация параллельного алгоритма может включать минимизацию таких затрат.
+
+\newpage
+
+\section*{\centering Заключение}
+
+В ходе лабораторной работы был разработан и исследован алгоритм поразрядной сортировки для вещественных чисел типа \texttt{double}, включающий четно-нечетное слияние Бэтчера. Реализованы последовательная и параллельная версии алгоритма с использованием библиотеки \texttt{Boost MPI} для распределения вычислений между процессами.
+
+Основные выводы: \begin{enumerate} \item Четно-нечетное слияние Бэтчера эффективно при объединении данных в параллельных вычислениях. \item \texttt{Boost MPI} упрощает распараллеливание и распределение нагрузки. \item Параллельный подход ускоряет обработку больших массивов, при этом сохраняя корректность вычислений, но обмен данными между процессами требует дальнейшей оптимизации. \end{enumerate}
+
+В будущем алгоритм можно улучшить, применяя другие технологии параллелизации, такие как OpenMP, а также оптимизируя код для повышения производительности.
+
+\newpage
+\section*{\centering Литература}
+\begin{enumerate}
+    \item \href{https://www.boost.org/}{Boost MPI}
+    \item \href{https://www.youtube.com/watch?v=BwHIu38PCCo}{Сортировка с четно-нечетным слиянием Бэтчера}
+    \item \href{https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D1%80%D0%B0%D0%B7%D1%80%D1%8F%D0%B4%D0%BD%D0%B0%D1%8F_%D1%81%D0%BE%D1%80%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B0}{Поразрядная сортировка}
+    \item Антонов А.С. Технологии параллельного программирования MPI и OpenMP: Учеб. пособие. — М.: Издательство Московского университета, 2012.-344 с.
+    \item Миллер, Р. Последовательные и параллельные алгоритмы: Общий подход / Р. Миллер, Л. Боксер ; пер. с англ. — М. : БИНОМ. Лаборатория знаний, 2006. — 406 с.
+\end{enumerate}
+
+\newpage
+\section*{\centering Приложение}
+\begin{lstlisting}[language=C++,caption={Код программы}]
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <memory>
+#include <numeric>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+
+namespace kozlova_e_radix_batcher_sort_mpi {
+
+class RadixBatcherSortSequential : public ppc::core::Task {
+ public:
+  explicit RadixBatcherSortSequential(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  int input_size{};
+  std::vector<double> data;
+
+  static void radixSort(std::vector<double>& a);
+};
+
+class RadixBatcherSortMPI : public ppc::core::Task {
+ public:
+  explicit RadixBatcherSortMPI(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  std::vector<double> input_;
+  int input_size{};
+  boost::mpi::communicator world;
+
+  static void radixSort(std::vector<double>& a);
+  void RadixSortWithOddEvenMerge(std::vector<double>& a);
+};
+
+}  // namespace kozlova_e_radix_batcher_sort_mpi
+#include <boost/serialization/vector.hpp>
+#include <cstring>
+#include <vector>
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortSequential::pre_processing() {
+  internal_order_test();
+  input_size = taskData->inputs_count[0];
+  data.resize(input_size);
+  auto* mas = reinterpret_cast<double*>(taskData->inputs[0]);
+  for (int i = 0; i < input_size; i++) data[i] = mas[i];
+  return true;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortSequential::validation() {
+  internal_order_test();
+  return taskData->inputs_count[0] == taskData->outputs_count[0] && taskData->inputs_count[0] >= 0;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortSequential::run() {
+  internal_order_test();
+  radixSort(data);
+  return true;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortSequential::post_processing() {
+  internal_order_test();
+  for (size_t i = 0; i < data.size(); i++) reinterpret_cast<double*>(taskData->outputs[0])[i] = data[i];
+  return true;
+}
+
+void kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortSequential::radixSort(std::vector<double>& a) {
+  std::vector<uint64_t> bit_representation(a.size());
+
+  for (size_t i = 0; i < a.size(); ++i) {
+    uint64_t bits = *reinterpret_cast<uint64_t*>(&a[i]);
+    if ((bits >> 63) != 0u) {
+      bit_representation[i] = ~bits;
+    } else {
+      bit_representation[i] = bits | 0x8000000000000000;
+    }
+  }
+
+  for (int bit = 0; bit < 64; ++bit) {
+    std::vector<uint64_t> output(a.size());
+    int count[2] = {0};
+
+    for (size_t i = 0; i < bit_representation.size(); ++i) {
+      count[(bit_representation[i] >> bit) & 1]++;
+    }
+
+    count[1] += count[0];
+
+    for (int i = bit_representation.size() - 1; i >= 0; --i) {
+      int val = (bit_representation[i] >> bit) & 1;
+      output[--count[val]] = bit_representation[i];
+    }
+
+    bit_representation = output;
+  }
+
+  for (size_t i = 0; i < a.size(); ++i) {
+    uint64_t bits = bit_representation[i];
+    if ((bits & 0x8000000000000000) != 0u) {
+      bits &= ~0x8000000000000000;
+    } else {
+      bits = ~bits;
+    }
+    memcpy(&a[i], &bits, sizeof(double));
+  }
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    input_size = taskData->inputs_count[0];
+    input_.resize(input_size);
+    auto* mas = reinterpret_cast<double*>(taskData->inputs[0]);
+    for (int i = 0; i < input_size; i++) input_[i] = mas[i];
+  }
+  return true;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::validation() {
+  internal_order_test();
+  return world.rank() == 0 ? (taskData->inputs_count[0] == taskData->outputs_count[0] && taskData->inputs_count[0] >= 0)
+                           : true;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::run() {
+  internal_order_test();
+  boost::mpi::broadcast(world, input_size, 0);
+  RadixSortWithOddEvenMerge(input_);
+  return true;
+}
+
+bool kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    auto* output = reinterpret_cast<double*>(taskData->outputs[0]);
+    for (size_t i = 0; i < input_.size(); i++) output[i] = input_[i];
+  }
+  return true;
+}
+
+void kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::radixSort(std::vector<double>& a) {
+  std::vector<uint64_t> bit_representation(a.size());
+
+  for (size_t i = 0; i < a.size(); ++i) {
+    uint64_t bits = *reinterpret_cast<uint64_t*>(&a[i]);
+    if ((bits >> 63) != 0u) {
+      bit_representation[i] = ~bits;
+    } else {
+      bit_representation[i] = bits | 0x8000000000000000;
+    }
+  }
+
+  for (int bit = 0; bit < 64; ++bit) {
+    std::vector<uint64_t> output(a.size());
+    int count[2] = {0};
+
+    for (size_t i = 0; i < bit_representation.size(); ++i) {
+      count[(bit_representation[i] >> bit) & 1]++;
+    }
+
+    count[1] += count[0];
+
+    for (int i = bit_representation.size() - 1; i >= 0; --i) {
+      int val = (bit_representation[i] >> bit) & 1;
+      output[--count[val]] = bit_representation[i];
+    }
+
+    bit_representation = output;
+  }
+
+  for (size_t i = 0; i < a.size(); ++i) {
+    uint64_t bits = bit_representation[i];
+    if ((bits & 0x8000000000000000) != 0u) {
+      bits &= ~0x8000000000000000;
+    } else {
+      bits = ~bits;
+    }
+    memcpy(&a[i], &bits, sizeof(double));
+  }
+}
+
+void kozlova_e_radix_batcher_sort_mpi::RadixBatcherSortMPI::RadixSortWithOddEvenMerge(std::vector<double>& a) {
+  a.resize(input_size);
+  boost::mpi::broadcast(world, a.data(), a.size(), 0);
+
+  int total_size = a.size();
+  int num_processes = world.size();
+  int local_size = total_size / num_processes;
+  int remainder = total_size % num_processes;
+
+  std::vector<int> send_counts(num_processes, local_size);
+  for (int i = 0; i < remainder; ++i) {
+    send_counts[i]++;
+  }
+
+  std::vector<int> send_displacements(num_processes, 0);
+  for (int i = 1; i < num_processes; ++i) {
+    send_displacements[i] = send_displacements[i - 1] + send_counts[i - 1];
+  }
+
+  std::vector<double> local_input(send_counts[world.rank()]);
+
+  boost::mpi::scatterv(world, a.data(), send_counts, send_displacements, local_input.data(), send_counts[world.rank()],
+                       0);
+
+  radixSort(local_input);
+
+  int step = 1;
+  bool is_even_phase = true;
+
+  while (step <= world.size()) {
+    int partner = -1;
+    radixSort(local_input);
+    if (is_even_phase) {
+      if (world.rank() % 2 == 0 && world.rank() + 1 < world.size()) {
+        partner = world.rank() + 1;
+      } else if (world.rank() % 2 != 0) {
+        partner = world.rank() - 1;
+      }
+    } else {
+      if (world.rank() % 2 != 0 && world.rank() + 1 < world.size()) {
+        partner = world.rank() + 1;
+      } else if (world.rank() % 2 == 0 && world.rank() > 0) {
+        partner = world.rank() - 1;
+      }
+    }
+
+    if (partner != -1) {
+      std::vector<double> recv_data(local_input.size());
+      world.sendrecv(partner, 0, local_input, partner, 0, recv_data);
+
+      std::vector<double> merged(local_input.size() + recv_data.size());
+      std::merge(local_input.begin(), local_input.end(), recv_data.begin(), recv_data.end(), merged.begin());
+
+      radixSort(merged);
+
+      int local_keep = send_counts[world.rank()];
+
+      if (world.rank() < partner) {
+        local_input.assign(merged.begin(), merged.begin() + local_keep);
+      } else {
+        local_input.assign(merged.end() - local_keep, merged.end());
+      }
+    }
+
+    is_even_phase = !is_even_phase;
+    step++;
+  }
+
+  boost::mpi::gatherv(world, local_input.data(), send_counts[world.rank()], a.data(), send_counts, send_displacements,
+                      0);
+}
+\end{lstlisting}
+\end{document}
