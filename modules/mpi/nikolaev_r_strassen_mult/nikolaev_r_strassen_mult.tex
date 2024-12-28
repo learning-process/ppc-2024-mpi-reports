@@ -1,0 +1,496 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{geometry}
+\geometry{a4paper, top=25mm, left=25mm, right=25mm, bottom=25mm}
+
+\title{Умножение плотных матриц. Элементы типа double. Алгоритм Штрассена}
+\author{Николаев Роман Алексеевич, группа 3822Б1ПР1}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+  \textbf{Название курса:} Параллельное программирование
+\end{center}
+
+\begin{center}
+    \textbf{Преподаватель:} Сысоев Александр Владимирович, кандидат технических наук, доцент
+\end{center}
+
+\vspace{1cm}
+
+\section{Введение}
+Алгоритм Штрассена является одним из эффективных методов для умножения матриц, который уменьшает вычислительную сложность по сравнению с традиционным методом. В данном проекте рассматривается реализация алгоритма Штрассена с использованием технологии MPI для распараллеливания вычислений.
+
+\section{Постановка задачи}
+Целью данного проекта является разработка и реализация алгоритма умножения матриц с использованием алгоритма Штрассена, а также его оптимизация путем распараллеливания с помощью MPI. Основные задачи включают:
+\begin{itemize}
+    \item Реализация последовательной версии алгоритма Штрассена.
+    \item Реализация параллельной версии алгоритма с использованием MPI.
+    \item Проведение экспериментов для оценки производительности и корректности реализованных алгоритмов.
+\end{itemize}
+
+\section{Описание алгоритма}
+Алгоритм Штрассена основан на рекурсивном разбиении матриц на подматрицы меньшего размера. Он улучшает временную сложность умножения матриц с $O(n^3)$ до $O(n^{\log_2 7})$. Выглядит он следующим образом: пусть $A$ и $B$ — две квадратные матрицы размера $n \times n$, где $n$ — степень двойки. Алгоритм выполняет следующие шаги:
+
+1. Разделение матриц $A$ и $B$ на подматрицы размера $\frac{n}{2} \times \frac{n}{2}$:
+$$
+A = \begin{pmatrix} A_{11} & A_{12} \\ A_{21} & A_{22} \end{pmatrix}, \quad B = \begin{pmatrix} B_{11} & B_{12} \\ B_{21} & B_{22} \end{pmatrix}
+$$
+
+2. Вычисление семи промежуточных матриц:
+$$
+\begin{aligned}
+    &M_1 = (A_{11} + A_{22})(B_{11} + B_{22}), \\
+    &M_2 = (A_{21} + A_{22}) B_{11}, \\
+    &M_3 = A_{11} (B_{12} - B_{22}), \\
+    &M_4 = A_{22} (B_{21} - B_{11}), \\
+    &M_5 = (A_{11} + A_{12}) B_{22}, \\
+    &M_6 = (A_{21} - A_{11}) (B_{11} + B_{12}), \\
+    &M_7 = (A_{12} - A_{22}) (B_{21} + B_{22}).
+\end{aligned}
+$$
+
+3. Вычисление подматриц результирующей матрицы $C$:
+$$
+\begin{aligned}
+    &C_{11} = M_1 + M_4 - M_5 + M_7, \\
+    &C_{12} = M_3 + M_5, \\
+    &C_{21} = M_2 + M_4, \\
+    &C_{22} = M_1 - M_2 + M_3 + M_6.
+\end{aligned}
+$$
+
+4. Сборка результирующей матрицы $C$:
+$$
+C = \begin{pmatrix} C_{11} & C_{12} \\ C_{21} & C_{22} \end{pmatrix}
+$$.
+
+
+\section{Описание схемы распараллеливания}
+Распараллеливание алгоритма Штрассена осуществляется с помощью MPI. Основным подходом является распределение подзадач между процессами. Поскольку в основе алгоритма лежит идея вычисления семи промежуточных матриц, можно распределеить вычисления каждой матрицы на отдельном процессе, при этом если действующих процессов < 7, то один процесс может вычислять значения элементов нескольких матриц. Поскольку необходимо инициализировать все матрицы на всех процессах (ввиду того, что один процесс может вычислять несколько подматриц), элементы остальных матриц приравниваются к нулю. Впоследствии, результаты собираются на root-процессе, после чего формируется итоговая матрица.
+
+\section{Описание MPI-версии}
+\subsection{Предварительная обработка}
+На этапе предварительной обработки происходит инициализация данных для последующей работы алгоритма.
+
+\subsection{Валидация}
+На этапе валидации проверяется корректность входных и выходных данных, в частности, валидны ли их размер и количество, а также являются ли поступающие на вход матрицы квадратными (это необходимое условие работы алгоритма).
+
+\subsection{Основные этапы алгоритма}
+Как уже было сказано ранее, в основе алгоритма лежит идея вычисления 7-ми подматриц, и реализация предусматривает эффективное использование максимум 7-ми процессов. Процессы со значением \texttt{rank} > 6 обеспечены полезной нагрузкой не будут. Реализовано это с помощью разбития коммуникатора:
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+\begin{lstlisting}
+  if (world.rank() > 6) {
+  world.split(1);
+  return {};
+}
+
+boost::mpi::communicator active_comm = world.split(0);
+\end{lstlisting}
+Также, для реализации алгоритма необходимо, чтобы число строк (и столбцов) матриц равнялось 2-м в какой-либо степени. Для проверки этого условия реализована функция \texttt{is\_power\_of\_two}. Матрицы приводятся к расширенному виду путём добавления нулевых элементов (произведение от этого не меняется) до ближайшего числа $2^n$, после чего расширенные матрицы и их новый размер рассылаются с помощью функции \texttt{boost::mpi::broadcast}.\\ \\
+В качестве следующего этапа, для каждой из двух матриц создаются подматрицы $A_{11}$, $A_{12}$, $A_{21}$, $A_{22}$, $B_{11}$, $B_{12}$, $B_{21}$, $B_{22}$, после чего они заполняются данными из расширенных матриц. После этого, для каждого процесса создаются матрицы $M_{1}..M_{7}$. Начинается этап распределения задач между процессами, и делается это с помощью цикла и конструкции \texttt{switch} в зависимости от общего числа работающих процессов и номера \texttt{rank} каждого из них. Например, если процессов ровно 7, каждый подсчитает по одной матрице, а если процессов 5, то процесс с \texttt{rank} = 0 подсчитает значения матриц $M_{1}, M_{6}$, с \texttt{rank} = 1 матриц $M_{2}, M_{7}$, с \texttt{rank} = 2 матрицы $M_{3}$, с \texttt{rank} = 3 матрицы $M_{4}$, и с \texttt{rank} = 4 матрицы $M_{4}$. Конкретную реализацию принципа разделения можно найти в разделе Приложение или в файлах проекта.\\ \\    
+После вычислений нам остается лишь собрать результаты подсчитанных матриц (делается это с помощью функции \texttt{boost::mpi::reduce} в цикле) и собрать итоговую матрицу, вернуть исходный размер матрицы (на случай, если она была рассширена) и получить результат.
+
+\subsection{Постобработка}
+На этапе постобработки подсчитанные результаты формируются в качестве выходных данных.
+
+\section{Результаты экспериментов}
+\subsection{Время выполнения}
+Основные условия проведения тестов следующие: ОС Windows 11, процессор AMD Ryzen 5 5500U (6 ядер, 12 потоков, максимальная базовая частота 2.1 ГГц), размер оперативной памяти 16 Гб, значение \texttt{num\_running} = 2. Для проведения тестов производительности генерировались матрицы размером $256*256$, элементы матриц могли принимать значения $-100.0..100.0$.
+Ниже приведен график зависимости времени выполнения от числа процессов: 
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            title={Время выполнения алгоритма на различных количествах процессов},
+            xlabel={Число процессов},
+            ylabel={Время выполнения (мс)},
+            grid=major,
+            legend style={at={(0.5,-0.2)},anchor=north,legend columns=1},
+            ymin=0,
+            ymajorgrids=true,
+            xmajorgrids=true,
+            xtick={2, 3, 4, 5, 6, 7, 8},
+            ytick={0, 300, 600, 900, 1200, 1500},
+            grid style=dashed,
+            width=0.9\textwidth,
+        ]
+        \addplot[
+            color=blue,
+            mark=square,
+            ]
+            coordinates {
+            (2, 1445)(3, 1056)(4, 974)(5, 974)(6, 734)(7, 650)(8, 655)
+            };
+        \addlegendentry{Время выполнения \texttt{pipeline run}}
+        \addplot[
+            color=red,
+            mark=square,
+            ]
+            coordinates {
+            (2, 1442)(3, 1069)(4, 983)(5, 981)(6, 714)(7, 641)(8, 648)
+            };
+        \addlegendentry{Время выполнения \texttt{task run}}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Зависимость времени выполнения от количества процессов}
+    \label{fig:runtime}
+\end{figure}
+
+\subsection{Качество работы алгоритма}
+Результаты показывают общую стабильность работы алгоритма. Как и предполагалось, с увеличением работающих процессов (пока это имеет смысл) возрастает производительность. Конечно, мы можем заметить небольшие отклонения (например, при переходе от 4 процесссов к 5 результаты тестов остаются примерно одинаковыми, даже становятся чуть хуже), но никто не отменял погрешность измерений, да и возможности немного оптимизировать алгоритм при должном старании. 
+
+\section{Выводы из результатов}
+Эксперименты показали, что работу алгоритма Штрассена при распараллеливании с помощью MPI действительно можно значительно ускорить по сравнению с последовательной версией. Полученные результаты соответствуют ожиданиям при увеличении числа процессов.
+
+\section{Заключение}
+Реализация алгоритма Штрассена с использованием MPI показала свою эффективность в улучшении производительности при умножении плотных матриц. Данный подход позволяет существенно сократить время выполнения сложных вычислений. В то время, как последовательная версия алгоритма Штрассена подходит для систем с ограниченными вычислительными ресурсами, параллельная версия значительно повышает производительность, а использование библиотеки \texttt{boost::mpi} позволило эффективно распараллелить алгоритм, улучшая его масштабируемость и быстродействие. Данная работа отлично подходит для того, чтобы протестировать свои теоретические начальные знания о параллельном программировании на практике, а также она послужит отличным фундаментом для выполнения более сложных работ в дальнейшем.
+
+\section{Литература}
+\begin{thebibliography}{9}
+    \bibitem{strassen} V. Strassen, \textit{Gaussian Elimination is not Optimal}, Numer. Math., 1969.
+    \bibitem{boost_mpi} Karl Rupp, \textit{Boost.MPI: Elegant C++ bindings for MPI}, 2011. [Online]. Available: \url{https://www.boost.org/doc/libs/release/doc/html/mpi.html}
+    \bibitem{strassen_alg}\textit{Wikipedia.org. Strassen algorithm.} [Online]. Available: \url{https://en.wikipedia.org/wiki/Strassen_algorithm}
+    \bibitem{strassen_alg2}\textit{Geeksforgeeks.org. Divide and Conquer. Strassen's matrix multiplication.} [Online]. Available: \url{https://www.geeksforgeeks.org/strassens-matrix-multiplication/}
+    \bibitem{boost_mpi2}\textit{boost.org. Boost.MPI.} [Online]. Available: \url{https://www.boost.org/doc/libs/1_60_0/doc/html/mpi.html}
+  \end{thebibliography}
+
+\section{Приложение}
+\subsection{Код функций}
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false, morekeywords={size_t}, keywordstyle=\color{blue}\bfseries, stringstyle=\color{green}\ttfamily, commentstyle=\color{red}\ttfamily}
+\begin{lstlisting}[caption={Функция strassen\_seq}]
+std::vector<double> strassen_seq(const std::vector<double>& A,
+                                 const std::vector<double>& B, size_t n) {
+  if (n == 1) {
+    return {A[0] * B[0]};
+  }
+
+  size_t newSize = n;
+  if (!is_power_of_two(n)) {
+    newSize = 1;
+    while (newSize < n) newSize *= 2;
+  }
+
+  std::vector<double> A_ext(newSize * newSize, 0.0);
+  std::vector<double> B_ext(newSize * newSize, 0.0);
+
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      A_ext[i * newSize + j] = A[i * n + j];
+      B_ext[i * newSize + j] = B[i * n + j];
+    }
+  }
+
+  size_t half = newSize / 2;
+  size_t half_squared = half * half;
+
+  std::vector<double> A11(half_squared);
+  std::vector<double> A12(half_squared);
+  std::vector<double> A21(half_squared);
+  std::vector<double> A22(half_squared);
+
+  for (size_t i = 0; i < half; ++i) {
+    for (size_t j = 0; j < half; ++j) {
+      A11[i * half + j] = A_ext[i * newSize + j];
+      A12[i * half + j] = A_ext[i * newSize + j + half];
+      A21[i * half + j] = A_ext[(i + half) * newSize + j];
+      A22[i * half + j] = A_ext[(i + half) * newSize + j + half];
+    }
+  }
+
+  std::vector<double> B11(half_squared);
+  std::vector<double> B12(half_squared);
+  std::vector<double> B21(half_squared);
+  std::vector<double> B22(half_squared);
+
+  for (size_t i = 0; i < half; ++i) {
+    for (size_t j = 0; j < half; ++j) {
+      B11[i * half + j] = B_ext[i * newSize + j];
+      B12[i * half + j] = B_ext[i * newSize + j + half];
+      B21[i * half + j] = B_ext[(i + half) * newSize + j];
+      B22[i * half + j] = B_ext[(i + half) * newSize + j + half];
+    }
+  }
+
+  auto M1 = strassen_seq(add(A11, A22, half), add(B11, B22, half), half);
+  auto M2 = strassen_seq(add(A21, A22, half), B11, half);
+  auto M3 = strassen_seq(A11, subtract(B12, B22, half), half);
+  auto M4 = strassen_seq(A22, subtract(B21, B11, half), half);
+  auto M5 = strassen_seq(add(A11, A12, half), B22, half);
+  auto M6 = strassen_seq(subtract(A21, A11, half), add(B11, B12, half), half);
+  auto M7 = strassen_seq(subtract(A12, A22, half), add(B21, B22, half), half);
+
+  std::vector<double> result_ext(newSize * newSize, 0.0);
+
+  for (size_t i = 0; i < half; ++i) {
+    for (size_t j = 0; j < half; ++j) {
+      result_ext[i * newSize + j] = M1[i * half + j] + M4[i * half + j] - M5[i * half + j] + M7[i * half + j];
+      result_ext[i * newSize + j + half] = M3[i * half + j] + M5[i * half + j];
+      result_ext[(i + half) * newSize + j] = M2[i * half + j] + M4[i * half + j];
+      result_ext[(i + half) * newSize + j + half] = M1[i * half + j] - M2[i * half + j] + M3[i * half + j] + M6[i * half + j];
+    }
+  }
+
+  std::vector<double> final_result(n * n, 0.0);
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      final_result[i * n + j] = result_ext[i * newSize + j];
+    }
+  }
+  return final_result;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Функция strassen\_mpi}]
+std::vector<double> strassen_mpi(const std::vector<double>& A, const std::vector<double>& B, size_t n) {
+  if (world.rank() > 6) {
+    world.split(1);
+    return {};
+  }
+
+  boost::mpi::communicator active_comm = world.split(0);
+
+  int rank = active_comm.rank();
+  int size = active_comm.size();
+
+  boost::mpi::broadcast(active_comm, n, 0);
+
+  size_t newSize = n;
+  if (!is_power_of_two(n)) {
+    newSize = 1;
+    while (newSize < n) newSize *= 2;
+  }
+
+  std::vector<double> A_ext(newSize * newSize, 0.0);
+  std::vector<double> B_ext(newSize * newSize, 0.0);
+
+  if (rank == 0) {
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < n; ++j) {
+        A_ext[i * newSize + j] = A[i * n + j];
+        B_ext[i * newSize + j] = B[i * n + j];
+      }
+    }
+  }
+
+  boost::mpi::broadcast(active_comm, A_ext, 0);
+  boost::mpi::broadcast(active_comm, B_ext, 0);
+
+  size_t half = newSize / 2;
+  size_t half_squared = half * half;
+
+  std::vector<double> A11(half_squared, 0.0);
+  std::vector<double> A12(half_squared, 0.0);
+  std::vector<double> A21(half_squared, 0.0);
+  std::vector<double> A22(half_squared, 0.0);
+  std::vector<double> B11(half_squared, 0.0);
+  std::vector<double> B12(half_squared, 0.0);
+  std::vector<double> B21(half_squared, 0.0);
+  std::vector<double> B22(half_squared, 0.0);
+
+  for (size_t i = 0; i < half; ++i) {
+    for (size_t j = 0; j < half; ++j) {
+      size_t index = i * newSize + j;
+      A11[i * half + j] = A_ext[index];
+      A12[i * half + j] = A_ext[index + half];
+      A21[i * half + j] = A_ext[index + half * newSize];
+      A22[i * half + j] = A_ext[index + half * (newSize + 1)];
+      B11[i * half + j] = B_ext[index];
+      B12[i * half + j] = B_ext[index + half];
+      B21[i * half + j] = B_ext[index + half * newSize];
+      B22[i * half + j] = B_ext[index + half * (newSize + 1)];
+    }
+  }
+
+  std::vector<double> M1(half_squared, 0.0);
+  std::vector<double> M2(half_squared, 0.0);
+  std::vector<double> M3(half_squared, 0.0);
+  std::vector<double> M4(half_squared, 0.0);
+  std::vector<double> M5(half_squared, 0.0);
+  std::vector<double> M6(half_squared, 0.0);
+  std::vector<double> M7(half_squared, 0.0);
+
+  for (int task = rank; task < 7; task += size) {
+    switch (task) {
+      case 0:
+        M1 = strassen_seq(add(A11, A22, half), add(B11, B22, half), half);
+        break;
+      case 1:
+        M2 = strassen_seq(add(A21, A22, half), B11, half);
+        break;
+      case 2:
+        M3 = strassen_seq(A11, subtract(B12, B22, half), half);
+        break;
+      case 3:
+        M4 = strassen_seq(A22, subtract(B21, B11, half), half);
+        break;
+      case 4:
+        M5 = strassen_seq(add(A11, A12, half), B22, half);
+        break;
+      case 5:
+        M6 = strassen_seq(subtract(A21, A11, half), add(B11, B12, half), half);
+        break;
+      case 6:
+        M7 = strassen_seq(subtract(A12, A22, half), add(B21, B22, half), half);
+        break;
+      default:
+        std::cerr << "Process " << rank << ": Skipping unexpected task " << task << std::endl;
+    }
+  }
+
+  std::vector<double> M_global(7 * half_squared, 0.0);
+
+  std::vector<std::vector<double>> matrices = {M1, M2, M3, M4, M5, M6, M7};
+  for (size_t i = 0; i < matrices.size(); ++i) {
+    boost::mpi::reduce(active_comm, matrices[i].data(), matrices[i].size(), M_global.data() + i * half_squared,
+                       std::plus(), 0);
+  }
+
+  if (active_comm.rank() == 0) {
+    std::vector<double> result_ext(newSize * newSize, 0.0);
+    for (size_t i = 0; i < half; ++i) {
+      for (size_t j = 0; j < half; ++j) {
+        result_ext[i * newSize + j] = M_global[i * half + j] + M_global[3 * half_squared + i * half + j] -
+                                      M_global[4 * half_squared + i * half + j] +
+                                      M_global[6 * half_squared + i * half + j];
+        result_ext[i * newSize + j + half] =
+            M_global[2 * half_squared + i * half + j] + M_global[4 * half_squared + i * half + j];
+        result_ext[(i + half) * newSize + j] =
+            M_global[1 * half_squared + i * half + j] + M_global[3 * half_squared + i * half + j];
+        result_ext[(i + half) * newSize + j + half] =
+            M_global[i * half + j] - M_global[1*half_squared + i * half + j] +
+            M_global[2 * half_squared + i * half + j] + M_global[5 * half_squared + i * half + j];
+      }
+    }
+    std::vector<double> final_result(n * n, 0.0);
+    for (size_t i = 0; i < n; ++i) {
+      for (size_t j = 0; j < n; ++j) {
+        final_result[i * n + j] = result_ext[i * newSize + j];
+      }
+    }
+    return final_result;
+  }
+  return {};
+}
+\end{lstlisting}
+
+\subsection{Примеры тестов}
+\lstset{language=C++, basicstyle=\footnotesize\ttfamily, frame=single, captionpos=b, numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt, tabsize=2, breaklines=true, breakatwhitespace=false, showspaces=false, showstringspaces=false}
+\begin{lstlisting}[caption={Тесты функций из func\_tests/main.cpp}]
+TEST(nikolaev_r_strassen_matrix_multiplication_method_mpi, test_3x3_matrices) {
+    create_test(3);
+}
+
+TEST(nikolaev_r_strassen_matrix_multiplication_method_mpi, test_5x5_matrices) {
+    create_test(5);
+}
+
+TEST(nikolaev_r_strassen_matrix_multiplication_method_mpi, test_different_size_matrices) {
+  boost::mpi::communicator world;
+  std::vector<double> A = {1.0, 2.0, 3.0, 4.0};
+  std::vector<double> B = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+  auto taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(A.data()));
+    taskDataPar->inputs_count.emplace_back(A.size());
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(B.data()));
+    taskDataPar->inputs_count.emplace_back(B.size());
+    nikolaev_r_strassen_matrix_multiplication_method_mpi::StrassenMatrixMultiplicationParallel strassenMatrixMultPar(taskDataPar);
+    ASSERT_FALSE(strassenMatrixMultPar.validation());
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Тесты функций из perf\_tests/main.cpp}]
+TEST(nikolaev_r_strassen_matrix_multiplication_method_mpi, test_pipeline_run) {
+  boost::mpi::communicator world;
+  const size_t N = 256;
+  std::vector<double> A = generate_random_square_matrix(N);
+  std::vector<double> B = generate_random_square_matrix(N);
+  std::vector<double> out(N * N, 0.0);
+  
+  auto taskDataPar = std::make_shared<ppc::core::TaskData>();
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(A.data()));
+    taskDataPar->inputs_count.emplace_back(A.size());
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(B.data()));
+    taskDataPar->inputs_count.emplace_back(B.size());
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(out.data()));
+    taskDataPar->outputs_count.emplace_back(out.size());
+  }
+  
+  auto testTaskParallel =
+      std::make_shared<nikolaev_r_strassen_matrix_multiplication_method_mpi::StrassenMatrixMultiplicationParallel>(taskDataPar);
+  ASSERT_TRUE(testTaskParallel->validation());
+  ASSERT_TRUE(testTaskParallel->pre_processing());
+  ASSERT_TRUE(testTaskParallel->run());
+  ASSERT_TRUE(testTaskParallel->post_processing());
+  
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>();
+  perfAttr->num_running = 10;
+  const boost::mpi::timer current_timer;
+  perfAttr->current_timer = [&] { return current_timer.elapsed(); };
+  
+  auto perfResults = std::make_shared<ppc::core::PerfResults>();
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskParallel);
+  perfAnalyzer->pipeline_run(perfAttr, perfResults);
+  
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults);
+  }
+}
+
+TEST(nikolaev_r_strassen_matrix_multiplication_method_mpi, test_task_run) {
+  boost::mpi::communicator world.
+  const size_t N = 256.
+  std::vector<double> A = generate_random_square_matrix(N).
+  std::vector<double> B = generate_random_square_matrix(N).
+  std::vector<double> out(N * N, 0.0).
+  
+  auto taskDataPar = std::make_shared<ppc::core::TaskData>().
+  if (world.rank() == 0) {
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(A.data())).
+    taskDataPar->inputs_count.emplace_back(A.size()).
+    taskDataPar->inputs.emplace_back(reinterpret_cast<uint8_t *>(B.data())).
+    taskDataPar->inputs_count.emplace_back(B.size()).
+    taskDataPar->outputs.emplace_back(reinterpret_cast<uint8_t *>(out.data())).
+    taskDataPar->outputs_count.emplace_back(out.size()).
+  }
+  
+  auto testTaskParallel =
+      std::make_shared<nikolaev_r_strassen_matrix_multiplication_method_mpi::StrassenMatrixMultiplicationParallel>(taskDataPar).
+  ASSERT_TRUE(testTaskParallel->validation()).
+  ASSERT_TRUE(testTaskParallel->pre_processing()).
+  ASSERT_TRUE(testTaskParallel->run()).
+  ASSERT_TRUE(testTaskParallel->post_processing()).
+  
+  auto perfAttr = std::make_shared<ppc::core::PerfAttr>().
+  perfAttr->num_running = 10.
+  const boost::mpi::timer current_timer.
+  perfAttr->current_timer = [&] { return current_timer.elapsed() }.
+  
+  auto perfResults = std::make_shared<ppc::core::PerfResults>().
+  auto perfAnalyzer = std::make_shared<ppc::core::Perf>(testTaskParallel).
+  perfAnalyzer->task_run(perfAttr, perfResults).
+  
+  if (world.rank() == 0) {
+    ppc::core::Perf::print_perf_statistic(perfResults).
+  }
+}
+\end{lstlisting}
+
+\end{document}
