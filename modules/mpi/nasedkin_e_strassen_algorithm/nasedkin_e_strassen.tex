@@ -1,0 +1,353 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{float}
+
+\geometry{top=20mm, bottom=20mm, left=25mm, right=25mm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\begin{document}
+
+% Титульный лист
+\begin{titlepage}
+    \centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\[0.5cm]
+    Направление подготовки: \textbf{«Программная инженерия»}\\[2cm]
+
+    \vfill % Вертикальное заполнение для центрирования текста
+    {\LARGE \textbf{ОТЧЕТ}}\\[0.5cm]
+    {\Large по задаче}\\[0.5cm]
+    {\LARGE \textbf{«Алгоритм Штрассена. Умножение плотных матриц.»}}\\[0.5cm]
+    {\Large \textbf{Вариант №3}}\\[2.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Выполнил:} \\
+        студент группы 3822Б1ПР3 \\
+        \textbf{Наседкин Егор}
+    }\\[0.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Преподаватели:} \\
+        Нестеров А.Ю.\\
+        Оболенский А.А.
+
+    }\\[2cm]
+
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Введение}
+
+\hspace*{1.25em}Алгоритм Штрассена это метод умножения матриц, который уменьшает вычислительную сложность по сравнению с классическим методом. Его применение особенно эффективно для больших матриц благодаря рекурсивному разбиению задач на подзадачи меньшего размера.
+
+В данной работе реализован параллельный алгоритм Штрассена с использованием библиотеки MPI. Этот подход позволяет использовать преимущества многопроцессорных систем для ускорения вычислений.
+
+\section{Постановка задачи}
+
+\hspace*{1.25em}Целью работы является разработка параллельной версии алгоритма Штрассена для умножения квадратных матриц.
+
+Задачи:
+\begin{itemize}
+    \item Реализация последовательной версии метода Штрассена.
+    \item Реализация параллельной версии для ускорения выполнения алгоритма на больших наборах данных.
+    \item Проведение тестирования корректности алгоритма.
+    \item Анализ эффективности последовательного и параллельного выполнения на наборах данных разного уровня сложности.
+\end{itemize}
+
+Цель исследования заключается в доказательстве преимуществ параллельного метода при решении задач глобальной оптимизации.
+
+\section{Описание алгоритма}
+
+\hspace*{1.25em}Алгоритм Штрассена основывается на разбиении исходных матриц на блоки и выполнении вычислений через промежуточные матрицы.
+
+\begin{enumerate}
+    \item \textbf{Основные этапы алгоритма}:
+    \begin{itemize}
+        \item Разбиение исходных матриц на блоки
+        \item Вычисление промежуточных матриц $M_1, \dots, M_7$.
+        \item Объединение результатов для формирования итоговой матрицы.
+    \end{itemize}
+\end{enumerate}
+Параллельная версия алгоритма разделяет вычисления между процессами с использованием MPI, что позволяет выполнять отдельные этапы независимо.
+
+\section{Описание схемы распараллеливания}
+
+Схема распараллеливания алгоритма Штрассена для умножения матриц включает следующие этапы:
+
+\begin{enumerate}
+\item Предобработка данных: Процесс с рангом 0 инициализирует входные матрицы A и B, а также определяет их размерность n. Затем данные распределяются между всеми процессами.
+
+\item Разделение матриц: Матрицы A и B делятся на подматрицы размером n/2 x n/2. Эти подматрицы распределяются между процессами для дальнейших вычислений.
+
+\item Вычисление промежуточных матриц Mi: Каждый процесс вычисляет одну или несколько промежуточных матриц Mi по формулам алгоритма Штрассена. Для этого используются операции сложения и вычитания подматриц, а также рекурсивное применение алгоритма Штрассена для умножения подматриц.
+
+\item Сбор результатов: Процесс с рангом 0 собирает вычисленные промежуточные матрицы Mi от всех процессов. На основе этих матриц вычисляются итоговые подматрицы C11, C12, C21 и C22 результирующей матрицы C.
+
+\item Формирование результирующей матрицы: Подматрицы C11, C12, C21 и C22 объединяются в итоговую матрицу C. Если матрицы были дополнены нулями на этапе предобработки, лишние строки и столбцы удаляются.
+
+\item Завершение работы: Процессы завершают вычисления, а процесс с рангом 0 записывает результат умножения матриц в выходные данные.
+\end{enumerate}
+
+Таким образом, схема распараллеливания алгоритма Штрассена позволяет эффективно использовать вычислительные ресурсы для умножения больших матриц.
+
+\section{Заключение}
+
+В ходе выполнения работы была реализована параллельная версия алгоритма Штрассена для умножения квадратных матриц с использованием библиотеки MPI. Последовательная версия алгоритма была разработана и протестирована на корректность. Параллельная реализация позволила распределить вычисления между процессами, что особенно полезно при работе с большими объемами данных. Тестирование проводилось на наборах данных различного размера, что подтвердило работоспособность и корректность алгоритма.
+\section{Литература}
+\begin{enumerate}
+    \item \href{https://en.wikipedia.org/wiki/Strassen_algorithm}{Strassen algorithm. Wikipedia.}.
+    \item \href{https://www.youtube.com/watch?v=OSelhO6Qnlc&ab_channel=Insidecode}{YouTube. Strassen algorithm for matrix multiplication (divide and conquer) - Inside code}.
+    \item \href{https://www.open-mpi.org/doc/}{Open MPI Documentation.}.
+    \item \href{https://www.boost.org/doc/libs/release/doc/html/mpi.html}{Boost.MPI Documentation}.
+\end{enumerate}
+
+\section{Приложения}
+\addcontentsline{toc}{section}{Приложения}
+\subsection*{Функция StrassenAlgorithmSEQ::strassen\_multiply\_seq()}
+\begin{lstlisting}[language=C++]
+std::vector<double> StrassenAlgorithmSEQ::strassen_multiply_seq(const std::vector<double>& matrixA,
+                                                const std::vector<double>& matrixB, size_t size) {
+  if (matrixA.empty() || matrixB.empty() || size == 0) {
+    return {};
+  }
+
+  if (size == 1) {
+    return {matrixA[0] * matrixB[0]};
+  }
+
+  size_t new_size = 1;
+  while (new_size < size) {
+    new_size *= 2;
+  }
+
+  size_t half_size = new_size / 2;
+
+  std::vector<double> A11(half_size * half_size);
+  std::vector<double> A12(half_size * half_size);
+  std::vector<double> A21(half_size * half_size);
+  std::vector<double> A22(half_size * half_size);
+
+  std::vector<double> B11(half_size * half_size);
+  std::vector<double> B12(half_size * half_size);
+  std::vector<double> B21(half_size * half_size);
+  std::vector<double> B22(half_size * half_size);
+
+  for (size_t i = 0; i < half_size; ++i) {
+    for (size_t j = 0; j < half_size; ++j) {
+      A11[i * half_size + j] = matrixA[i * new_size + j];
+      A12[i * half_size + j] = matrixA[i * new_size + j + half_size];
+      A21[i * half_size + j] = matrixA[(i + half_size) * new_size + j];
+      A22[i * half_size + j] = matrixA[(i + half_size) * new_size + j + half_size];
+
+      B11[i * half_size + j] = matrixB[i * new_size + j];
+      B12[i * half_size + j] = matrixB[i * new_size + j + half_size];
+      B21[i * half_size + j] = matrixB[(i + half_size) * new_size + j];
+      B22[i * half_size + j] = matrixB[(i + half_size) * new_size + j + half_size];
+    }
+  }
+
+  std::vector<std::vector<double>> M(7);
+  std::vector<std::vector<double>> tasks = {matrix_add(A11, A22, half_size),
+    matrix_add(A21, A22, half_size),
+     A11,
+    A22,
+    matrix_add(A11, A12, half_size),
+    matrix_subtract(A21, A11, half_size),
+    matrix_subtract(A12, A22, half_size)};
+
+  std::vector<std::vector<double>> tasksB = {
+      matrix_add(B11, B22, half_size),      B11, matrix_subtract(B12, B22, half_size),
+      matrix_subtract(B21, B11, half_size), B22, matrix_add(B11, B12, half_size),
+      matrix_add(B21, B22, half_size)};
+
+  for (int i = 0; i < 7; ++i) {
+    M[i] = strassen_recursive(tasks[i], tasksB[i], half_size);
+  }
+
+  for (int i = 0; i < 7; ++i) {
+    std::vector<double> result;
+    M[i] = result;
+  }
+
+  std::vector<double> C11 =
+      matrix_add(matrix_subtract(matrix_add(M[0], M[3], half_size), M[4], half_size), M[6], half_size);
+  std::vector<double> C12 = matrix_add(M[2], M[4], half_size);
+  std::vector<double> C21 = matrix_add(M[1], M[3], half_size);
+  std::vector<double> C22 =
+      matrix_add(matrix_subtract(matrix_add(M[0], M[2], half_size), M[1], half_size), M[5], half_size);
+
+  std::vector<double> result(size * size);
+  for (size_t i = 0; i < half_size; ++i) {
+    for (size_t j = 0; j < half_size; ++j) {
+      result[i * size + j] = C11[i * half_size + j];
+      result[i * size + j + half_size] = C12[i * half_size + j];
+      result[(i + half_size) * size + j] = C21[i * half_size + j];
+      result[(i + half_size) * size + j + half_size] = C22[i * half_size + j];
+    }
+  }
+  return result;
+  return {};
+}
+\end{lstlisting}
+\subsection*{Функция StrassenAlgorithmMPI::strassen\_multiply()}
+\begin{lstlisting}[language=C++]
+std::vector<double> StrassenAlgorithmMPI::strassen_multiply(const std::vector<double>& matrixA,
+                                const std::vector<double>& matrixB, size_t size) {
+      boost::mpi::environment env;
+      boost::mpi::communicator world;
+
+      int rank = world.rank();
+      int num_procs = world.size();
+
+      if (size == 1) {
+        return {matrixA[0] * matrixB[0]};
+      }
+
+      size_t new_size = 1;
+      while (new_size < size) {
+        new_size *= 2;
+      }
+
+      size_t half_size = new_size / 2;
+
+        std::vector<double> A11(half_size * half_size);
+        std::vector<double> A12(half_size * half_size);
+        std::vector<double> A21(half_size * half_size);
+        std::vector<double> A22(half_size * half_size);
+
+        std::vector<double> B11(half_size * half_size);
+        std::vector<double> B12(half_size * half_size);
+        std::vector<double> B21(half_size * half_size);
+        std::vector<double> B22(half_size * half_size);
+
+      for (size_t i = 0; i < half_size; ++i) {
+        for (size_t j = 0; j < half_size; ++j) {
+          A11[i * half_size + j] = matrixA[i * new_size + j];
+          A12[i * half_size + j] = matrixA[i * new_size + j + half_size];
+          A21[i * half_size + j] = matrixA[(i + half_size) * new_size + j];
+          A22[i * half_size + j] = matrixA[(i + half_size) * new_size + j + half_size];
+
+          B11[i * half_size + j] = matrixB[i * new_size + j];
+          B12[i * half_size + j] = matrixB[i * new_size + j + half_size];
+          B21[i * half_size + j] = matrixB[(i + half_size) * new_size + j];
+          B22[i * half_size + j] = matrixB[(i + half_size) * new_size + j + half_size];
+        }
+      }
+
+        std::vector<std::vector<double>> M(7);
+        if (rank == 0) {
+          std::vector<std::vector<double>> tasks = {
+              matrix_add(A11, A22, half_size),
+              matrix_add(A21, A22, half_size),
+              A11,
+              A22,
+              matrix_add(A11, A12, half_size),
+              matrix_subtract(A21, A11, half_size),
+              matrix_subtract(A12, A22, half_size)
+          };
+
+          std::vector<std::vector<double>> tasksB = {
+              matrix_add(B11, B22, half_size),
+              B11,
+              matrix_subtract(B12, B22, half_size),
+              matrix_subtract(B21, B11, half_size),
+              B22,
+              matrix_add(B11, B12, half_size),
+              matrix_add(B21, B22, half_size)
+          };
+
+          for (int i = 0; i < 7; ++i) {
+            if (i % num_procs == 0) {
+              M[i] = strassen_recursive(tasks[i], tasksB[i], half_size);
+            } else {
+              world.send(i % num_procs, i, tasks[i]);
+              world.send(i % num_procs, i, tasksB[i]);
+            }
+          }
+        }
+
+        for (int i = 0; i < 7; ++i) {
+          if (i % num_procs == rank && i % num_procs != 0) {
+            std::vector<double> taskA;
+            std::vector<double> taskB;
+
+            world.recv(0, i, taskA);
+            world.recv(0, i, taskB);
+
+            M[i] = strassen_recursive(taskA, taskB, half_size);
+
+            world.send(0, i, M[i]);
+          }
+        }
+
+        if (rank == 0) {
+          for (int i = 0; i < 7; ++i) {
+            if (i % num_procs != 0) {
+              std::vector<double> result;
+              world.recv(i % num_procs, i, result);
+              M[i] = result;
+            }
+          }
+        }
+
+        if (rank == 0) {
+
+          std::vector<double> C11 =
+              matrix_add(matrix_subtract(matrix_add(M[0], M[3], half_size), M[4], half_size), M[6], half_size);
+          std::vector<double> C12 = matrix_add(M[2], M[4], half_size);
+          std::vector<double> C21 = matrix_add(M[1], M[3], half_size);
+          std::vector<double> C22 =
+              matrix_add(matrix_subtract(matrix_add(M[0], M[2], half_size), M[1], half_size), M[5], half_size);
+
+
+          std::vector<double> result(size * size);
+          for (size_t i = 0; i < half_size; ++i) {
+            for (size_t j = 0; j < half_size; ++j) {
+              result[i * size + j] = C11[i * half_size + j];
+              result[i * size + j + half_size] = C12[i * half_size + j];
+              result[(i + half_size) * size + j] = C21[i * half_size + j];
+              result[(i + half_size) * size + j + half_size] = C22[i * half_size + j];
+            }
+          }
+          return result;
+        }
+        return {};
+    }
+\end{lstlisting}
+\end{document}
