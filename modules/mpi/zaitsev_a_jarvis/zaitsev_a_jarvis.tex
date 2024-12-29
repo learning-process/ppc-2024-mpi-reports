@@ -1,0 +1,355 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{listings}
+\usepackage{float}
+\usepackage{multirow}
+
+\geometry{a4paper, left=25mm, right=15mm, top=20mm, bottom=20mm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    pdftitle={Отчет по проекту},
+    pdfauthor={Зайцев Артём},
+    pdfsubject={Построение выпуклой оболочки. Проход Джарвиса}
+}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\[0.5cm]
+    Направление подготовки: \textbf{«Программная инженерия»}\\[2cm]
+
+    \vfill
+    {\LARGE \textbf{Отчет по лабораторной работе №3}}\\[0.5cm]
+    {\Large по задаче}\\[0.5cm]
+    {\LARGE \textbf{«Построение выпуклой оболочки. Проход Джарвиса»}}\\[0.5cm]
+    {\Large \textbf{Вариант №25}}\\[2.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Выполнил:} \\
+        студент группы 3822Б1ПР1 \\
+        \textbf{Зайцев Артём}
+    }\\[0.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Преподаватель:} \\
+        Сысоев А.В.
+
+    }\\[2cm]
+
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+
+
+\section{Введение}
+
+Задача построения выпуклой оболочки является фундаментальной задачей вычислительной геометрии с широким спектром применений, начиная от компьютерной графики и заканчивая анализом данных. Алгоритм Джарвиса является одним из классических алгоритмов для решения этой задачи. Данный отчет посвящен реализации параллельной версии этого алгоритма с использованием MPI.
+
+\section{Постановка задачи}
+
+Дано множество точек на плоскости. Требуется построить выпуклую оболочку этого множества, то есть наименьший выпуклый многоугольник, содержащий все эти точки. Выпуклая оболочка представляет собой последовательность точек, которые образуют границу этого многоугольника. В нашем случае требуется реализовать алгоритм Джарвиса, который последовательно выбирает точки выпуклой оболочки, начиная с самой левой нижней точки и продвигаясь в порядке против часовой стрелки. Необходимо разработать параллельную версию этого алгоритма.
+
+\section{Описание алгоритма}
+
+Алгоритм Джарвиса для построения выпуклой оболочки работает следующим образом:
+\begin{enumerate}
+    \item Находим точку с минимальной y-координатой (и минимальной x-координатой при равенстве y-координат). Эта точка гарантированно входит в выпуклую оболочку.
+    \item Начинаем построение оболочки с этой точки. 
+    \item Ищем следующую точку на оболочке, которая образует наибольший левый поворот с текущей точкой и последней добавленной точкой оболочки.
+    \item Добавляем найденную точку в оболочку.
+    \item  Повторяем шаги 3 и 4, пока не вернемся к исходной точке.
+\end{enumerate}
+
+\section{Описание схемы распараллеливания}
+Параллельная версия алгоритма Джарвиса разбивает работу между несколькими процессами. Каждый процесс обрабатывает свой подмножество точек из общего набора. Основные шаги распараллеливания:
+\begin{enumerate}
+    \item Процесс с рангом 0 находит начальную точку (самую нижнюю левую).
+    \item Начальная точка сообщается всем процессам с помощью broadcast.
+    \item  Каждый процесс вычисляет свою "локальную" следующую точку для добавления в выпуклую оболочку.
+    \item  Найденные локальные точки собираются на процессе с рангом 0.
+    \item Процесс с рангом 0 выбирает "глобальную" следующую точку из всех полученных локальных.
+    \item "Глобальная" следующая точка сообщается всем процессам.
+     \item Повторяем шаги 3-6 пока не вернёмся в начальную точку.
+    \item Результирующая выпуклая оболочка строится на процессе 0.
+\end{enumerate}
+Схема распараллеливания использует MPI для обмена данными и синхронизации между процессами. Broadcast используется для рассылки данных, gather используется для сбора локальных результатов.
+
+\section{Описание программной реализации}
+
+\subsection{MPI-версия}
+
+Представленная MPI-версия алгоритма Джарвиса написана на C++ с использованием библиотеки Boost.MPI.  
+
+Программа реализует следующие этапы:
+\begin{enumerate}
+    \item \textbf{Валидация}: Проверяет корректность входных данных.
+    \item \textbf{Предобработка}: Инициализирует данные, если процесс имеет ранг 0 (корневой процесс). Инициализируется вектор \texttt{set} с входными точками.
+    \item \textbf{Построение минимальной выпуклой оболочки}: 
+    \begin{itemize}
+        \item Рассылает всем процессам множество точек \texttt{set}.
+        \item Каждый процесс вычисляет диапазон своих индексов от \texttt{st\_pos} до \texttt{end\_pos}.
+        \item  Выполняется поиск "локальной" следующей точки.
+         \item  Происходит сбор локальных кандидатов от каждого процесса на процесс с рангом 0.
+         \item  Выбирается "глобальная" следующая точка и рассылается всем процессам.
+        \item Этот цикл выполняется пока следующей точкой оболочки не окаджется стартовая.
+    \end{itemize}
+    \item \textbf{Постобработка}: На корневом процессе результирующая выпуклая оболочка копируется в выходные данные.
+\end{enumerate}
+
+\section{Результаты экспериментов}
+Эксперименты проводились на различном количестве процессов ($n$), для различного размера входных данных ($N$). Сводная таблица результатов представлена ниже:
+
+\begin{table}[]
+\begin{tabular}{|l|l|ll|l|}
+\hline
+\multirow{2}{*}{N}      & \multirow{2}{*}{Seq}       & \multicolumn{2}{l|}{MPI}          & \multirow{2}{*}{$\Delta$} \\ \cline{3-4}
+                        &                            & \multicolumn{1}{l|}{n} & time     &                           \\ \hline
+\multirow{2}{*}{$1e^4$} & \multirow{2}{*}{0.050365}  & \multicolumn{1}{l|}{2} & 0.054078 & 1.073721                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.049854 & 1.106968                  \\ \hline
+\multirow{2}{*}{$1e^5$} & \multirow{2}{*}{0.505582}  & \multicolumn{1}{l|}{2} & 0.456915 & 0.903740                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 0.458972 & 0.907809                  \\ \hline
+\multirow{2}{*}{$1e^6$} & \multirow{2}{*}{5.109504}  & \multicolumn{1}{l|}{2} & 4.852144 & 0.949631                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 4.801252 & 0.939670                  \\ \hline
+\multirow{2}{*}{$1e^7$} & \multirow{2}{*}{50.331515} & \multicolumn{1}{l|}{2} & 45.12845 & 0.896624                  \\ \cline{3-5} 
+                        &                            & \multicolumn{1}{l|}{4} & 43.01545 & 0.854642                  \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Оценка качества работы алгоритма}
+По последовательности значение $\Delta$ можно заметить, что параллельная версия работает быстрее только при достаточно большом объеме входных данных. Это обусловлено вызовами  \texttt{boost::mpi::broadcast} для сообщения дочерним процессам входных данных и циклическими вызовами \texttt{boost::mpi::gather} в процессе выборки "глобальной" следующей точки среди локально-найденных.
+
+\section{Выводы из результатов}
+
+Из проведенных экспериментов можно сделать следующие выводы:
+\begin{itemize}
+  \item Чем больше входное множество по включению - тем большую эффективность показывает MPI реализация алгоритма
+    \item На относительно небольших объемах входных данных последовательная версия показывает большую эффективность, что, вероятнее всего, связано с дороговизной групповых операций \texttt{boost::mpi}
+    \item Прикладные результаты последовательной и параллельной версии идентичны.
+    \item Увеличение числа процессов также способствует росту эффективности реализованной схемы при достаточно больших входных данных. На относительно малых входных множествах увеличение числа процессов провоцирует снижение эффективности за счет использования множественных вызовов групповых операций \texttt{mpi::boost}.
+\end{itemize}
+
+\section{Заключение}
+
+В данном отчете была представлена параллельная реализация алгоритма Джарвиса для построения выпуклой оболочки с использованием MPI. Была проведена оценка производительности и показана корректность разработанного алгоритма. Полученные результаты показывают, что параллельная реализация позволяет ускорить процесс построения выпуклой оболочки для больших по включению множеств ($\ge1.5e3$) за счет использования указанной схемы распараллеливания и запуска программы на нескольких процессах.
+
+\section{Литература}
+
+\begin{itemize}
+    \item   \textit{Introduction to Algorithms}, Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+    \item Boost.MPI: \url{https://www.boost.org/doc/libs/1_83_0/doc/html/mpi.html}
+\end{itemize}
+
+\section{Приложение}
+\subsection{\texttt{point.hpp}}
+\begin{lstlisting}
+#pragma once
+
+#include <algorithm>
+#include <iostream>
+
+#define UNUSED(x) (void)(x)
+
+namespace zaitsev_a_jarvis_seq {
+
+template <typename T>
+
+struct Point {
+  T x;
+  T y;
+
+  Point<T> operator-(const Point<T>& other) { return {x - other.x, y - other.y}; }
+
+  // Vector product
+  T operator*(const Point<T>& other) { return x * other.y - other.x * y; }
+
+  bool operator==(const Point<T>& other) const { return x == other.x && y == other.y; }
+
+  friend std::ostream& operator<<(std::ostream& out, Point& p) {
+    out << "(" << p.x << "; " << p.y << ")";
+    return out;
+  }
+
+  bool between(const Point<T>& a, const Point<T>& b) {
+    return orientation(a, b, *this) == 0 && x <= std::max(a.x, b.x) && x >= std::min(a.x, b.x) &&
+           y <= std::max(a.y, b.y) && y >= std::min(a.y, b.y);
+  }
+
+  template <typename Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar & x;
+    ar & y;
+    // UNUSED needed here to supress -Wunused-parameter
+    // version arg can't be removed due to requrements of boost for Point struct to be serializable
+    UNUSED(version);
+  }
+};
+
+template <typename T>
+int orientation(zaitsev_a_jarvis_seq::Point<T> p, zaitsev_a_jarvis_seq::Point<T> q, zaitsev_a_jarvis_seq::Point<T> r) {
+  T vp = (r - q) * (q - p);
+  if (vp == 0) return 0;
+  return (vp > 0) ? 1 : 2;
+}
+}  // namespace zaitsev_a_jarvis_seq
+\end{lstlisting}
+
+
+\subsection{\texttt{ops\_mpi.hpp}}
+\begin{lstlisting}
+#pragma once
+
+#include <gtest/gtest.h>
+
+#include <boost/mpi/collectives.hpp>
+#include <boost/mpi/communicator.hpp>
+#include <boost/serialization/vector.hpp>
+#include <memory>
+#include <new>
+#include <utility>
+#include <vector>
+
+#include "core/task/include/task.hpp"
+#include "seq/zaitsev_a_jarvis/include/point.hpp"
+
+namespace mine_seq = zaitsev_a_jarvis_seq;
+
+namespace zaitsev_a_jarvis_mpi {
+
+	template <typename T>
+	class Jarvis : public ppc::core::Task {
+	public:
+		explicit Jarvis(std::shared_ptr<ppc::core::TaskData> taskData_) : Task(std::move(taskData_)) {}
+
+		bool validation() override {
+			internal_order_test();
+
+			return world.rank() != root ||
+				(taskData->inputs_count[0] > 0 && taskData->outputs_count[0] == taskData->inputs_count[0]);
+		};
+
+		bool pre_processing() override {
+			internal_order_test();
+
+			if (world.rank() != root) return true;
+
+			length = taskData->inputs_count[0];
+
+			auto* tmp_ptr = reinterpret_cast<mine_seq::Point<T>*>(taskData->inputs[0]);
+			set.assign(tmp_ptr, tmp_ptr + length);
+
+			convex_hull.clear();
+
+			return true;
+		};
+
+		bool run() override {
+			internal_order_test();
+
+			boost::mpi::broadcast(world, set, root);
+
+			if (set.size() < 3) {
+				if (world.rank() == root) convex_hull = set;
+				return true;
+			}
+
+			boost::mpi::broadcast(world, length, root);
+
+			shift = (world.rank() == 0) ? length / world.size() + length % world.size() : length / world.size();
+
+			unsigned int st_pos = world.rank() > root ? world.rank() * shift + length % world.size() : world.rank() * shift;
+			unsigned int end_pos = st_pos + shift;
+
+			unsigned int prev;
+			unsigned int next;
+			unsigned int start;
+
+			if (world.rank() == root) {
+				start = 0;
+				for (unsigned int i = 1; i < length; i++)
+					if (set[i].y < set[start].y || (set[i].y == set[start].y && set[i].x < set[start].x)) start = i;
+			}
+			boost::mpi::broadcast(world, start, root);
+			prev = start;
+			std::vector<T> most_counterclock_wise(world.size(), 0);
+			do {
+				if (world.rank() == root) convex_hull.push_back(set[prev]);
+				next = (prev + 1) % length;
+
+				for (unsigned int supposed = st_pos; supposed < end_pos; supposed++) {
+					if (orientation(set[prev], set[supposed], set[next]) == 2) next = supposed;
+					if (prev != supposed && set[next].between(set[prev], set[supposed])) next = supposed;
+				}
+
+				boost::mpi::gather<T>(world, next, most_counterclock_wise.data(), root);
+
+				if (world.rank() == root) {
+					for (auto& supposed : most_counterclock_wise) {
+						if (orientation(set[prev], set[supposed], set[next]) == 2) next = supposed;
+						if ((int)prev != supposed && set[next].between(set[prev], set[supposed])) next = supposed;
+					}
+					prev = next;
+				}
+				boost::mpi::broadcast(world, prev, root);
+			} while (prev != start);
+			return true;
+		};
+
+		bool post_processing() override {
+			internal_order_test();
+
+			if (world.rank() != root) return true;
+
+			auto* result_ptr = reinterpret_cast<zaitsev_a_jarvis_seq::Point<T>*>(taskData->outputs[0]);
+			taskData->outputs_count[0] = convex_hull.size();
+			std::copy(convex_hull.begin(), convex_hull.end(), result_ptr);
+			return true;
+		};
+
+	private:
+		int root = 0;
+		unsigned int length;
+		unsigned int shift;
+		std::vector<mine_seq::Point<T>> set;
+		std::vector<mine_seq::Point<T>> convex_hull;
+		const boost::mpi::communicator world;
+	};
+
+}  // namespace zaitsev_a_jarvis_mpi
+\end{lstlisting}
+
+\end{document}
