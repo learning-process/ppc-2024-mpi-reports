@@ -1,0 +1,185 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{float}
+
+
+\geometry{top=20mm, bottom=20mm, left=25mm, right=25mm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+\title{Метод Симпсона для численного интегрирования с использованием MPI}
+\author{Наумов Богдан ПР2\\Научный руководитель: Иванов И.И., к.ф.-м.н., доцент}
+\date{Декабрь 2024}
+
+\begin{document}
+
+\maketitle
+
+\section{Введение}
+Численные методы интегрирования играют ключевую роль в научных вычислениях, где аналитическое решение интегралов невозможно или слишком сложное для нахождения. Одним из наиболее известных методов численного интегрирования является метод Симпсона, который является более точной версией метода трапеций.
+
+В данной работе рассматривается реализация метода Симпсона с использованием параллельных вычислений в рамках библиотеки MPI. Это позволяет значительно ускорить вычисления при больших объёмах данных.
+
+\section{Постановка задачи}
+Цель данной работы — разработать и реализовать метод Симпсона для численного интегрирования с использованием MPI на языке программирования C++. Задача включает в себя:
+\begin{itemize}
+    \item Теоретическое изучение метода Симпсона.
+    \item Описание алгоритма и его реализация с использованием MPI.
+    \item Анализ корректности работы алгоритма.
+    \item Оценка производительности программы с использованием параллельных вычислений.
+\end{itemize}
+
+\section{Описание алгоритма}
+Метод Симпсона используется для приближённого вычисления определённого интеграла \( I = \int_a^b f(x) \, dx \). Интервал \([a, b]\) делится на \(n\) подынтервалов, причём \(n\) должно быть чётным. На каждом подынтервале функция \(f(x)\) аппроксимируется параболой.
+
+Формула Симпсона для вычисления интеграла выглядит следующим образом:
+\[
+I \approx \frac{h}{3} \left( f(a) + 4 \sum_{i=1, i \text{ нечётное}}^{n-1} f(x_i) + 2 \sum_{i=2, i \text{ чётное}}^{n-2} f(x_i) + f(b) \right),
+\]
+где \(h = \frac{b-a}{n}\).
+
+В предложенной реализации, метод интегрирования разделён на несколько этапов:
+\begin{itemize}
+    \item На первом шаге происходит вычисление значений функции в пределах одного подынтервала.
+    \item На втором шаге используется параллельное вычисление интегралов на разных процессах с использованием MPI.
+    \item Далее, каждый процесс выполняет свою часть работы, после чего результаты собираются в общий результат с помощью операции редукции.
+\end{itemize}
+
+\section{Реализация с использованием MPI}
+Реализация метода Симпсона с использованием MPI позволяет распараллелить вычисления и значительно ускорить обработку данных. Для этого используется библиотека Boost.MPI.
+
+\subsection{Основной код}
+Ниже представлен код, реализующий метод Симпсона для интегрирования с использованием MPI:
+
+\begin{lstlisting}[language=C++, frame=single, caption={Реализация метода Симпсона с использованием MPI}, breaklines=true]
+#include "mpi/naumov_b_simpson_method/include/ops_mpi.hpp"
+#include <boost/mpi.hpp>
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <stdexcept>
+#include <utility>
+
+namespace naumov_b_simpson_method_mpi {
+
+double parallel_integrir_1d(const func_1d_t &func, double lower_bound, double upper_bound, 
+                            int num_steps, boost::mpi::communicator &world) {
+  double step_size = (upper_bound - lower_bound) / num_steps;
+
+  int rank = world.rank();
+  int size = world.size();
+
+  int steps_per_process = num_steps / size;
+  int remaining_steps = num_steps % size;
+
+  int extra_steps = (rank < remaining_steps) ? 1 : 0;
+
+  double local_lower_bound =
+      lower_bound + rank * steps_per_process * step_size + 
+      std::min(rank, remaining_steps) * step_size;
+  double local_upper_bound = local_lower_bound + (steps_per_process + extra_steps) * step_size;
+
+  double local_result = 0.0;
+
+  if (steps_per_process + extra_steps > 0) {
+    local_result += func(local_lower_bound);
+
+    for (int i = 1; i < steps_per_process + extra_steps; ++i) {
+      double x = local_lower_bound + i * step_size;
+      int weight = (i % 2 == 0) ? 2 : 4;
+      local_result += weight * func(x);
+    }
+
+    local_result += func(local_upper_bound);
+    local_result *= step_size / 3.0;
+  }
+
+  double global_result = 0.0;
+  boost::mpi::all_reduce(world, local_result, global_result, std::plus<>()); 
+
+  return global_result;
+}
+
+}  // namespace naumov_b_simpson_method_mpi
+\end{lstlisting}
+
+\subsection{Классы для параллельных вычислений}
+В этой части кода определяется класс для выполнения задачи на параллельных процессах:
+
+\begin{lstlisting}[language=C++, frame=single, caption={Класс для параллельного выполнения задачи}, breaklines=true]
+class TestMPITaskParallel : public ppc::core::Task {
+ public:
+  TestMPITaskParallel(
+    std::shared_ptr<ppc::core::TaskData> task_data, 
+    func_1d_t function, 
+    double lower_bound, 
+    double upper_bound, 
+    int num_steps)
+      : Task(std::move(task_data)),
+        lower_bound_(lower_bound),
+        upper_bound_(upper_bound),
+        num_steps_(num_steps),
+        function_(std::move(function)) {}
+
+  bool pre_processing() override;
+  bool validation() override;
+  bool run() override;
+  bool post_processing() override;
+
+ private:
+  double local_lower_bound_;
+  double local_upper_bound_;
+  int local_steps_;
+  double lower_bound_;
+  double upper_bound_;
+  int num_steps_;
+  func_1d_t function_;
+  double local_result_;
+  boost::mpi::communicator world;
+};
+\end{lstlisting}
+
+\section{Тестирование}
+Для проверки корректности работы программы были проведены тесты на различных функциях, таких как экспоненциальная, кубическая и другие. Тесты включают:
+
+\begin{itemize}
+    \item Экспоненциальная функция \( f(x) = e^x \)
+    \item Кубическая функция \( f(x) = x^4 \)
+    \item Синусоида \( f(x) = \sin(x) \)
+    \item Линейная функция \( f(x) = 2x + 1 \)
+    \item Квадратичная функция \( f(x) = x^2 \)
+\end{itemize}
+
+Каждый тест проверяет точность вычислений с использованием параллельных вычислений с MPI.
+
+\section{Заключение}
+Реализация метода Симпсона с использованием MPI позволяет эффективно решать задачи численного интегрирования на параллельных вычислительных системах. Параллельный подход значительно ускоряет процесс вычислений, особенно при больших объёмах данных. Реализованная программа показала высокую точность и корректность на всех тестах.
+
+\end{document}
