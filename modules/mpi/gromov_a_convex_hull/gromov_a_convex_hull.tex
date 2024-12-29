@@ -1,0 +1,179 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tocloft}
+\usepackage{xcolor} 
+\usepackage{float}
+
+
+\geometry{top=20mm, bottom=20mm, left=25mm, right=25mm}
+
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries\color{blue},
+  commentstyle=\itshape\color{green!50!black},
+  stringstyle=\color{red!60!black},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!10},
+  showspaces=false,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  captionpos=b
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \large
+    Министерство науки и высшего образования Российской Федерации\\[0.5cm]
+    Федеральное государственное автономное образовательное учреждение высшего образования\\[0.5cm]
+    \textbf{«Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского»}\\
+    (ННГУ)\\[1cm]
+    Институт информационных технологий, математики и механики\\[0.5cm]
+    Направление подготовки: \textbf{«Программная инженерия»}\\[1.5cm]
+
+    \vfill
+    {\LARGE \textbf{ОТЧЕТ}}\\[0.5cm]
+    {\Large по задаче}\\[0.5cm]
+    {\LARGE \textbf{«Построение выпуклой оболочки для компонент бинарного изображения»}}\\[0.5cm]
+    {\Large \textbf{Вариант №32}}\\[2.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Выполнил:} \\
+        студент группы 3822Б1ПР3 \\
+        Громов А.С.
+    }\\[0.5cm]
+
+    \hfill\parbox{0.5\textwidth}{
+        \textbf{Преподаватели:} \\
+        Нестеров А.Ю.\\
+        Оболенский А.А.
+
+    }\\[2cm]
+
+    Нижний Новгород\\
+    2024
+\end{titlepage}
+\tableofcontents
+\newpage
+
+\section{Введение}
+
+\hspace*{1.25em}Рассмотрение задачи вычисления выпуклой оболочки множества точек представляет собой важный аспект вычислительной геометрии. Выпуклая оболочка находит широкое применение в таких областях, как анализ данных, обработка изображений и задачи оптимизации. Основной целью данной работы является создание параллельного алгоритма вычисления выпуклой оболочки, реализованного с использованием библиотеки Boost.MPI.
+
+\section{Постановка задачи}
+
+\hspace*{1.25em}Необходимо реализовать алгоритм вычисления выпуклой оболочки на основе алгоритма Джарвиса. Реализация включает:
+\begin{itemize}
+    \item последовательную версию алгоритма,
+    \item параллельную версию с использованием Boost.MPI для ускорения вычислений,
+    \item тестирование корректности и оценку производительности.
+\end{itemize}
+
+\section{Описание алгоритма}
+
+\subsection{Алгоритм Джарвиса}
+\hspace*{1.25em}Алгоритм Джарвиса строит выпуклую оболочку путем обхода точек множества с выбором локально оптимальных вершин:
+\begin{enumerate}
+    \item Найти самую левую точку как начальную вершину.
+    \item Итеративно добавлять точки, образующие минимальный угол с предыдущей стороной оболочки.
+    \item Завершить, когда первая точка будет выбрана второй раз.
+\end{enumerate}
+
+\subsection{Маркировка связных областей}
+\hspace*{1.25em}Для предварительной обработки изображения используется алгоритм двухэтапной маркировки (первый и второй проходы), позволяющий идентифицировать все связные компоненты, что упрощает задачу построения оболочки.
+
+\section{Распараллеливание}
+
+\hspace*{1.25em}Схема распараллеливания строится на распределении компонентов между процессами. Основной процесс (ранг $0$) выполняет:
+\begin{itemize}
+    \item Инициализацию изображения и разбиение компонентов.
+    \item Отправку данных другим процессам.
+    \item Сбор локальных выпуклых оболочек и их объединение.
+\end{itemize}
+Остальные процессы вычисляют локальные оболочки для своих компонентов и отправляют результаты основному процессу.
+
+\section{Тестирование}
+
+\hspace*{1.25em}Для проверки корректности работы программы были написаны тесты с использованием Google Test. Примеры входных данных:
+\begin{itemize}
+    \item Полностью заполненные изображения.
+    \item Пустые изображения.
+    \item Изображения с чередующимися пикселями.
+\end{itemize}
+
+\subsection{Результаты тестов}
+\begin{table}[H]
+\centering
+\begin{tabular}{cccc}
+\toprule
+\textbf{Кол-во процессов} & \textbf{Общее время, мс} & \textbf{Тест Big Image 2} & \textbf{Тест Big Image 3} \\
+\midrule
+1 & 713 & 178 & 424 \\
+2 & 706 & 176 & 417 \\
+3 & 706 & 178 & 414 \\
+4 & 704 & 175 & 415 \\
+\bottomrule
+\end{tabular}
+\caption{Результаты тестирования производительности для параллельного алгоритма}
+\end{table}
+
+\section{Заключение}
+
+\hspace*{1.25em}В ходе работы разработаны и протестированы последовательная и параллельная версии алгоритма вычисления выпуклой оболочки. Использование Boost.MPI позволило ускорить вычисления на больших данных за счет распределения компонентов между процессами. 
+
+Наилучшее ускорение наблюдается при увеличении числа процессов до 4. При дальнейшем росте числа процессов эффективность уменьшается из-за накладных расходов на коммуникацию.
+
+\section{Литература}
+\begin{enumerate}
+    \item \href{https://en.wikipedia.org/wiki/Convex_hull}{Wikipedia. Convex hull}.
+    \item \href{https://algorithmica.org/ru/convex-hulls}{Алгоритмика. Выпуклые оболочки}.
+    \item \href{https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%94%D0%B6%D0%B0%D1%80%D0%B2%D0%B8%D1%81%D0%B0}{Wikipedia. Алгоритм Джарвиса}.
+\end{enumerate}
+
+\section{Приложения}
+\addcontentsline{toc}{section}{Приложения}
+\subsection*{Алгоритм Джарвиса}
+\begin{lstlisting}[language=C++]
+std::vector<Point> jarvis(std::vector<Point> points) {
+  std::vector<Point> hull;
+  if (points.size() < 3) {
+    return points;
+  }
+  int leftmost = 0;
+  for (size_t i = 1; i < points.size(); ++i) {
+    if (points[i].x < points[leftmost].x || (points[i].x == points[leftmost].x && points[i].y < points[leftmost].y)) {
+      leftmost = i;
+    }
+  }
+  int p = leftmost;
+  int q;
+  do {
+    hull.push_back(points[p]);
+    q = (p + 1) % points.size();
+    for (size_t i = 0; i < points.size(); ++i) {
+      if (calculateProduct(points[p], points[q], points[i]) < 0) {
+        q = i;
+      }
+    }
+    p = q;
+  } while (p != leftmost);
+  return hull;
+}
+\end{lstlisting}
+\end{document}
