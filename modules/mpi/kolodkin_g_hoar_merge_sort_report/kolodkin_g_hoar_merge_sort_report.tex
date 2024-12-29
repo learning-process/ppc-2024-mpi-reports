@@ -1,0 +1,342 @@
+\documentclass{report}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage[14pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{titlesec}
+\usepackage{multirow}
+\usepackage{graphicx}
+
+\geometry{a4paper,top=2cm,bottom=3cm,left=2cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+
+\usepackage{xcolor}
+\lstset{
+    language=C++, 
+    basicstyle=\ttfamily\small, 
+    keywordstyle=\color{blue}\bfseries, 
+    stringstyle=\color{orange}, 
+    commentstyle=\color{green!50!black}\itshape, 
+    morecomment=[l][\color{purple}]{\#}, 
+    tabsize=2, 
+    breaklines=true, 
+    breakatwhitespace=false, 
+    frame=single, 
+    title=\lstname,
+    showstringspaces=false, 
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\Large Отчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large «Быстрая сортировка с простым слиянием»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 3822Б1ФИ3 \\ Колодкин Григорий Владимирович\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ канд. техн. наук \\ Сысоев А.В.\\}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2024 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+\tableofcontents
+
+\newpage
+
+\newpage
+
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+
+Одной из известных задач в программировании является задача сортировки. Сортировка применяется во многих приложениях и потому задача выбора эффективного алгоритма сортировки является очень важной. Чем эффективнее алгоритм, тем лучше будет работать приложение. С ростом объема данных эта задача стала еще более актуальнее.
+
+На данный момент существует множество алгоритмов сортировки. Например, сортировка пузырьком.Она довольна проста в понимании и реализации, но при этом очень неэффективна. Её сложность равна O($n^2$), что делает работу алгоритма очень долгой на больших данных. Также есть алгоритм сортировки вставками, слиянием и др. Но самым известным алгоритмом стал алгоритм, придуманный Чарльзом Хоаром- быстрая сортировка. Её сложность равна O(n*log(n)). 
+
+С появлением таких технологий как многопоточность и параллельное программирование возникает вопрос о возможности распараллеливания алгоритма быстрой сортировки, чтобы сделать его еще эффективней.
+
+\newpage
+
+\section*{Постановка задачи}  
+\addcontentsline{toc}{section}{Постановка задачи}  
+
+Дан массив из $n$ элементов:
+
+\[
+ar = \{ ar[0], ar[1], ar[2], \dots, ar[n-1] \}
+\]
+
+Необходимо реализовать параллельную версию алгоритма быстрой сортировки, используя библиотеку \texttt{boost.mpi}. Сортировка должна проводиться параллельно на каждом из процессов, после чего результаты должны сливаться в один отсортированный массив, который и будет представлять из себя выходные данные.
+
+Формат входных данных:
+
+Массив из $n$ целых чисел
+
+\[
+ar = \{ ar[0], ar[1], ar[2], \dots, ar[n-1] \}
+\]
+
+Формат выходных данных:
+
+На выходе должен быть предоставлен отсортированный по возрастанию массив ar
+
+\newpage
+
+\section*{Описание алгоритма}  
+\addcontentsline{toc}{section}{Описание алгоритма}  
+
+Дан массив из $n$ элементов:
+
+\[
+ar = \{ ar[0], ar[1], ar[2], \dots, ar[n-1] \}
+\]
+
+Пусть l=0, r=n-1(это левая и правая границы массива). Массив ar[l…r] разбивается на два (возможно пустых) подмассива ar[l…q] и ar[q+1…r], таких, что каждый элемент a[l…q] меньше или равен a[q], который в свою очередь, не превышает любой элемент подмассива ar[q+1…r]. Индекс вычисляется в ходе процедуры разбиения. Подмассивы ar[l…q] и ar[q+1…r] сортируются с помощью рекурсивного вызова процедуры быстрой сортировки. Поскольку подмассивы сортируются на месте, для их объединения не требуются никакие действия: весь массив a[l…r] оказывается отсортированным.
+
+\section*{Описание схемы распараллеливания}  
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}  
+
+В ходе параллельной реализации каждый процесс получает часть массива, над которой выполняет алгоритм быстрой сортировки, после чего результат отправляется на корневой процесс. Тот, в свою очередь, при помощи слияния выполняет соединение отсортированных подмассивов в один отсортированный массив.
+
+\section*{MPI: Программная реализация параллельного алгоритма}  
+\addcontentsline{toc}{section}{MPI: Программная реализация параллельного алгоритма} 
+
+Реализация параллельного алгоритма состоит из 4 этапов:
+
+На первом этапе корневой процесс получает входные данные и инициализирует выходные данные.
+
+На втором этапе корневой процесс проводит валидацию. В ходе нее он проверяет, что в массиве больше одного элемента(массив из одного элемента нет смысла сортировать).
+
+На третьем этапе корневой процесс делит массив между остальными процессами и рассылает подмассивы каждому процессу с помощью MPI функции \textbf{scatterv}. Затем каждый процесс применяет алгоритм быстрой сортировки к своему подмассиву. После этого отсортированный подмассив отправляется корневому процессу с помощью MPI функции \textbf{gatherv}. 
+
+На последнем этапе корневой процесс при помощи слияния собирает отсортированные подмассивы в один отсортированный массив.
+
+\section*{Проведение экспериментов и анализ их резульатов}  
+\addcontentsline{toc}{section}{Проведение экспериментов и анализ их результатов}
+
+В ходе работы были проведены два эксперимента: на массиве из 1 миллиона элементов, заполненного случайным образом целыми числами из диапазона [-100000,100000]. Второй эксперимент был проведен на целочисленном массиве из 10000 элеметов, отсортированных в обратном порядке.
+
+В ходе экспериментов сравнивались работы: последовательного алгоритма(быстрая сортировка), параллельного алгоритма на 2-х, 3-х, 4-х процессах.
+
+Результаты первого эксперимента:
+
+Время работы последовательного алгоритма: 1.1169570999 С
+
+Время работы параллельного алгоритма на 2-х процессах: 0.6265171000 С
+
+Время работы параллельного алгоритма на 3-х процессах: 0.7606768999 С
+
+Время работы параллельного алгоритма на 4-х процессах: 0.7019676000 С
+
+Результаты второго эксперимента:
+
+Время работы последовательного алгоритма: 0.4287133999 С
+
+Время работы параллельного алгоритма на 2-х процессах: 0.1553251999 С
+
+Время работы параллельного алгоритма на 3-х процессах: 0.0760848999 С
+
+Время работы параллельного алгоритма на 4-х процессах: 0.0564148000 С
+
+Результаты первого эксперимента оказались интересены с той стороны, что параллельный алгоритм на 3-х и 4-х процессах работал медленнее, чем на 2-х процессах. В остальном же эксперимент показал очевидное: распараллеливание значительно ускоряет время сортировки и делает её эффективней. Результаты второго эксперимента оказались ожидаемыми. Увеличение числа процессов приводит к сокращению времени работы алгоритма.
+
+Подводя итоги, можно сказать, что параллельный алгоритм быстрой сортировки однозначно выигрывает у обычного. Однако, первый эксперимент показал, что увеличение числа процессов не всегда ведет к ускорению работы. Впрочем, можно предположить, что это было связано со случайностью заполнения вводных данных. Результаты второго эксперимента ясно дали понять, что увеличение числа процессов делает параллельный алгоритм эффективней.
+
+\newpage
+
+\section*{Заключение}  
+\addcontentsline{toc}{section}{Заключение}  
+
+В ходе данной работы был изучен алгоритм быстрой сортировки, его суть и программная реализация, а также схема распараллеливания данного алгоритма, используя слияние.
+
+Помимо этого, были проведены эксперименты на разных массивах для сравнения эффективности последовательной и параллельной версии быстрой сортировки. Их результаты подтвердили напрашивающуюся гипотезу о том, что параллельная схема работает быстрее, что, в свою очередь, показывает важность изучения технологий параллельного программирования, в т.ч. MPI для создания эффективных алгоритмов.
+
+\newpage
+
+\section*{Список литературы}  
+\addcontentsline{toc}{section}{Список литературы}
+
+1. Антонов А.С. Параллельное программирование с импользованием технологии MPI / А.С Антонов-учебное пособие-М.: Изд-во МГУ, 2004.-71 с.
+
+2. Кормен Т.Х., Лейзерсон Ч.E., Ривест Р.L., Штайн К. Алгоритмы: Построение и анализ / Т.Х.
+Кормен, Ч.E. Лейзерсон, Р.L. Ривест, К. Штайн. — 3-е изд. — М.: Вильямс, 2011.
+
+3. Малявко, А. А.  Параллельное программирование на основе технологий OpenMP, MPI, CUDA : учебное пособие для вузов / А. А. Малявко. — 2-е изд., испр. и доп. — Москва : Издательство Юрайт, 2020. — 129 с.
+
+4. Быстрая сортировка // ИТМО Викиконспекты. URL: \url{https://neerc.ifmo.ru/wiki/index.php?title=%D0%91%D1%8B%D1%81%D1%82%D1%80%D0%B0%D1%8F_%D1%81%D0%BE%D1%80%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%BA%D0%B0}
+
+5. Параллельная обработка данных // Parallel.ru. URL: \url{https://parallel.ru/vvv/mpi.html#p1}
+
+\newpage
+\section*{Приложения}  
+\addcontentsline{toc}{section}{Приложения}
+
+\subsection*{Приложение 1. Алгоритм быстрой сортировки}
+\begin{lstlisting}[language=C++,caption={Приложение 1.}]
+
+int partition(std::vector<int>& arr, int low, int high) {
+  int pivot = arr[high];
+  int i = (low - 1);
+
+  for (int j = low; j < high; j++) {
+    if (arr[j] <= pivot) {
+      i++;
+      std::swap(arr[i], arr[j]);
+    }
+  }
+  std::swap(arr[i + 1], arr[high]);
+  return (i + 1);
+}
+
+void quickSort(std::vector<int>& arr, int low, int high) {
+  if (low < high) {
+    int pi = partition(arr, low, high);
+    quickSort(arr, low, pi - 1);
+    quickSort(arr, pi + 1, high);
+  }
+}
+\end{lstlisting}
+
+\subsection*{Приложение 2. Параллельная схема быстрой сортировки с простым слиянием}
+\begin{lstlisting}[language=C++,caption={Приложение 2.}]
+
+bool kolodkin_g_hoar_merge_sort_mpi::TestMPITaskParallel::pre_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    // Init vectors
+    input_ = std::vector<int>(taskData->inputs_count[0]);
+    auto* tmp_ptr = reinterpret_cast<int*>(taskData->inputs[0]);
+    for (unsigned i = 0; i < taskData->inputs_count[0]; i++) {
+      input_[i] = tmp_ptr[i];
+    }
+    output_ = std::vector<int>(taskData->inputs_count[0]);
+    output_ = input_;
+  }
+  return true;
+}
+
+bool kolodkin_g_hoar_merge_sort_mpi::TestMPITaskParallel::validation() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    return taskData->inputs_count[0] > 1;
+  }
+  return true;
+}
+
+bool kolodkin_g_hoar_merge_sort_mpi::TestMPITaskParallel::run() {
+  internal_order_test();
+  unsigned int num_processes = world.size();
+  std::vector<int> send_counts(num_processes, 0);
+  std::vector<int> displacements(num_processes, 0);
+
+  if (world.rank() == 0) {
+    send_counts.resize(num_processes);
+    displacements.resize(num_processes);
+
+    for (size_t i = 0; i < num_processes; i++) {
+      send_counts[i] = input_.size() / num_processes;
+      if (i == num_processes - 1) {
+        send_counts[i] += input_.size() % num_processes;
+      }
+    }
+
+    for (size_t i = 1; i < num_processes; i++) {
+      displacements[i] = displacements[i - 1] + send_counts[i - 1];
+    }
+  }
+  world.barrier();
+  for (size_t i = 0; i < num_processes; i++) {
+    boost::mpi::broadcast(world, send_counts[i], 0);
+    boost::mpi::broadcast(world, displacements[i], 0);
+  }
+  std::vector<int> local_input_(send_counts[world.rank()]);
+  boost::mpi::scatterv(world, input_.data(), send_counts, displacements, local_input_.data(), local_input_.size(), 0);
+
+
+  quickSort(local_input_, 0, local_input_.size() - 1);
+
+  std::vector<int> sorted_data;
+  if (world.rank() == 0) {
+    sorted_data.resize(input_.size());
+  }
+
+  boost::mpi::gatherv(world, local_input_.data(), local_input_.size(), sorted_data.data(), send_counts, displacements,
+                      0);
+
+  if (world.rank() == 0) {
+    std::vector<int> final_result;
+    std::vector<int> current_indices(num_processes, 0);
+    std::vector<bool> done(num_processes, false);
+    while (final_result.size() < input_.size()) {
+      int min_index = -1;
+      int min_value = std::numeric_limits<int>::max();
+
+      for (size_t i = 0; i < num_processes; i++) {
+        if (!done[i] && current_indices[i] < send_counts[i]) {
+          int value = sorted_data[displacements[i] + current_indices[i]];
+          if (value < min_value) {
+            min_value = value;
+            min_index = i;
+          }
+        }
+      }
+      if (min_index == -1) {
+        break;
+      }
+
+      final_result.push_back(min_value);
+      current_indices[min_index]++;
+    }
+    output_ = final_result;
+  }
+  return true;
+}
+
+bool kolodkin_g_hoar_merge_sort_mpi::TestMPITaskParallel::post_processing() {
+  internal_order_test();
+  if (world.rank() == 0) {
+    *reinterpret_cast<std::vector<int>*>(taskData->outputs[0]) = output_;
+  }
+  return true;
+}
+\end{lstlisting}
+\end{document}
